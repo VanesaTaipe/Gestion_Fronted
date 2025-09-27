@@ -1,0 +1,19 @@
+<div class="bg-white rounded-lg shadow p-3">
+  <h3 class="font-semibold text-gray-800">{{ card.title }}</h3>
+<p class="text-sm text-gray-600 flex items-center mt-1">
+<img src="assets/user.png" alt="" class="w-4 h-4 mr-2">
+  <span>{{ card.assignee }}</span>
+</p>
+
+
+  <span 
+    class="inline-block mt-2 text-xs px-2 py-1 rounded-full"
+    [ngClass]="{
+      'bg-purple-200 text-blue-800': card.tag === 'análisis',
+      'bg-green-200 text-green-800': card.tag === 'diseño',
+      'bg-gray-200 text-gray-800': card.tag !== 'análisis' && card.tag !== 'diseño'
+    }"
+  >
+    {{ card.tag }}
+  </span>
+</div>

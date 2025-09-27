@@ -1,0 +1,27 @@
+<div class="w-full bg-gray-50 rounded-lg shadow h-[80vh] flex flex-col">
+  <!-- Encabezado -->
+  <h2 class="text-sm font-medium text-center text-gray-800 py-2 rounded-t-lg"
+      [ngClass]="[column.color]">
+    {{ column.title }}
+  </h2>
+
+  <!-- Contenido con scroll interno -->
+    <div class="flex-1 overflow-y-auto flex flex-col gap-3 p-3"
+       cdkDropList
+       [id]="'col-' + column.id"
+       [cdkDropListData]="column.cards"
+       [cdkDropListConnectedTo]="connectedDropLists"
+       (cdkDropListDropped)="drop($event)">
+
+    <div *ngFor="let card of column.cards; trackBy: trackById" cdkDrag>
+      <app-card [card]="card"></app-card>
+    </div>
+  </div>
+
+  <!-- Botón añadir -->
+  <button
+    class="w-full text-sm text-gray-600 flex items-center justify-center border-t py-2 hover:bg-gray-100">
+    <img src="assets/add.png" alt="" class="w-4 h-4 mr-1">
+    Añade una tarjeta
+  </button>
+</div>

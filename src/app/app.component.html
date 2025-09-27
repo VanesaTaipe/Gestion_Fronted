@@ -1,0 +1,27 @@
+<div class="h-screen bg-gray-100 flex">
+  <!-- Sidebar -->
+  <aside class="w-54 bg-white shadow-md p-4 hidden md:block">
+    <div class="flex justify-center">
+      <img src="assets/kanban-logo.png" alt="" class="w-35 h-35">
+    </div>
+    <nav class="mt-6 flex flex-col gap-2">
+      <a class="px-4 py-2 rounded hover:bg-blue-100 flex items-center text-[#707070]" href="#">
+        <img src="assets/tablero.png" alt="" class="w-4 h-4 mr-2">
+        Tablero
+      </a>
+      <a class="px-4 py-2 rounded hover:bg-blue-100 flex items-center text-[#707070]" href="#">
+        <img src="assets/dashboard.png" alt="" class="w-4 h-4 mr-2">
+        Dashboard
+      </a>
+      <a class="px-4 py-2 rounded hover:bg-blue-100 flex items-center text-[#707070]" href="#">
+        <img src="assets/settings.png" alt="" class="w-4 h-4 mr-2">
+        Configuración
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 overflow-y-auto">
+    <router-outlet></router-outlet>
+  </main>
+</div>

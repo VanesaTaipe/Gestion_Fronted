@@ -1,0 +1,16 @@
+<div class="flex flex-col h-screen">
+  <!-- Header -->
+  <app-header [title]="board?.name || 'Nombre de Tablero'"></app-header>
+
+  <!-- Contenedor de columnas -->
+  <div class="flex-1 flex overflow-x-auto flex-nowrap gap-4 px-4 pb-4 mt-4"
+       cdkDropListGroup>
+    <app-column
+      *ngFor="let column of board?.columns"
+      [column]="column"
+      [connectedDropLists]="dropListIds"
+      (cardsChanged)="persistReorder()"
+      class="flex-shrink-0 w-64">
+    </app-column>
+  </div>
+</div>

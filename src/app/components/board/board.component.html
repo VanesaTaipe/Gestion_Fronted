@@ -1,16 +1,100 @@
 <div class="flex flex-col h-screen">
-  <!-- Header -->
-  <app-header [title]="board?.name || 'Nombre de Tablero'"></app-header>
+  <app-header [title]="board?.name || 'Nombre de Tablero'" (newColumn)="openAddColumn()"></app-header>
 
-  <!-- Contenedor de columnas -->
-  <div class="flex-1 flex overflow-x-auto flex-nowrap gap-4 px-4 pb-4 mt-4"
-       cdkDropListGroup>
-    <app-column
-      *ngFor="let column of board?.columns"
-      [column]="column"
-      [connectedDropLists]="dropListIds"
-      (cardsChanged)="persistReorder()"
-      class="flex-shrink-0 w-64">
-    </app-column>
+  <!-- Renderiza el carril solo si board existe -->
+  <ng-container *ngIf="board as b">
+    <div
+      class="flex-1 flex overflow-x-auto flex-nowrap gap-4 px-4 pb-4 mt-4"
+      cdkDropList
+      cdkDropListOrientation="horizontal"
+      [cdkDropListData]="b.columns"
+      (cdkDropListDropped)="dropColumn($event)"
+    >
+      <!-- Cada columna completa es draggable -->
+      <div
+        *ngFor="let column of b.columns; trackBy: trackByColId"
+        cdkDrag
+        [cdkDragDisabled]="col?.showModal"
+        cdkDragLockAxis="x"
+        class="flex-shrink-0 w-64"
+      >
+        <div
+          cdkDragHandle
+          class="mb-2 cursor-grab select-none text-xs text-gray-500"
+          style="user-select:none"
+        ></div>
+
+        <app-column
+          #col
+          [column]="column"
+          [proyectoId]="b.id"                 
+          [connectedDropLists]="dropListIds"
+          (cardsChanged)="persistReorder()"   
+        ></app-column>
+      </div>
+    </div>
+  </ng-container>
+
+  <div *ngIf="colModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div class="bg-white w-[520px] max-w-[95vw] rounded-2xl shadow-xl p-6">
+      <h3 class="text-lg font-semibold mb-4">Nueva columna</h3>
+
+      <form [formGroup]="colForm" (ngSubmit)="submitAddColumn()" class="space-y-4">
+        <!-- Nombre -->
+        <div>
+          <label class="block text-sm mb-1">Nombre</label>
+          <input
+            type="text"
+            formControlName="nombre"
+            class="w-full rounded-xl border px-3 py-2 outline-none focus:ring"
+            placeholder="Ej. Backlog"
+          />
+          <div
+            *ngIf="colForm.controls['nombre']?.touched && colForm.controls['nombre']?.invalid"
+            class="text-xs text-red-600 mt-1"
+          >
+            El nombre es obligatorio.
+          </div>
+        </div>
+
+        <!-- Colores -->
+        <div>
+          <label class="block text-sm mb-2">Color</label>
+          <div class="grid grid-cols-5 gap-2">
+            <label *ngFor="let c of colorPalette" class="cursor-pointer">
+              <input type="radio" formControlName="color" [value]="c" class="sr-only peer" />
+              <div
+                class="h-8 w-8 rounded-lg border shadow-sm peer-checked:ring-2 peer-checked:ring-cyan-500"
+                [ngClass]="c"
+                title="{{ c }}"
+              ></div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Botones -->
+        <div class="flex justify-end gap-3 pt-3">
+          <button
+            type="button"
+            class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
+            (click)="closeAddColumn()"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            class="px-4 py-2 rounded-xl text-white bg-cyan-500 hover:bg-cyan-600"
+            [disabled]="colForm.invalid"
+          >
+            Crear
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
+
+
+
+
+

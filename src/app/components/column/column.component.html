@@ -1,18 +1,22 @@
+<!-- Contenedor de la columna -->
 <div class="w-full bg-gray-50 rounded-lg shadow h-[80vh] flex flex-col">
-  <!-- Encabezado -->
-  <h2 class="text-sm font-medium text-center text-gray-800 py-2 rounded-t-lg"
-      [ngClass]="[column.color]">
+  <!-- Encabezado (handle de drag para la columna lo tienes en el padre) -->
+  <h2
+    class="text-sm font-medium text-center text-gray-800 py-2 rounded-t-lg"
+    [ngClass]="[column.color]"
+  >
     {{ column.title }}
   </h2>
 
-  <!-- Contenido con scroll interno -->
-    <div class="flex-1 overflow-y-auto flex flex-col gap-3 p-3"
-       cdkDropList
-       [id]="'col-' + column.id"
-       [cdkDropListData]="column.cards"
-       [cdkDropListConnectedTo]="connectedDropLists"
-       (cdkDropListDropped)="drop($event)">
-
+  <!-- Lista de tarjetas con DnD vertical -->
+  <div
+    class="flex-1 overflow-y-auto flex flex-col gap-3 p-3"
+    cdkDropList
+    [id]="'col-' + column.id"
+    [cdkDropListData]="column.cards"
+    [cdkDropListConnectedTo]="connectedDropLists"
+    (cdkDropListDropped)="drop($event)"
+  >
     <div *ngFor="let card of column.cards; trackBy: trackById" cdkDrag>
       <app-card [card]="card"></app-card>
     </div>
@@ -20,8 +24,93 @@
 
   <!-- Botón añadir -->
   <button
-    class="w-full text-sm text-gray-600 flex items-center justify-center border-t py-2 hover:bg-gray-100">
-    <img src="assets/add.png" alt="" class="w-4 h-4 mr-1">
+    type="button"
+    class="w-full text-sm text-gray-600 flex items-center justify-center border-t py-2 hover:bg-gray-100"
+    (click)="AbrirTarea()"
+  >
+    <img src="assets/add.png" alt="" class="w-4 h-4 mr-1" />
     Añade una tarjeta
   </button>
+</div>
+
+<!-- ===== Modal Crear Tarea ===== -->
+<div *ngIf="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+  <div class="bg-white w-[520px] max-w-[95vw] rounded-2xl shadow-xl p-6">
+    <h3 class="text-lg font-semibold mb-4">Crear tarea</h3>
+
+    <form [formGroup]="form" (ngSubmit)="crearTareaBD()" class="space-y-4">
+      <!-- Título -->
+      <div>
+        <label class="block text-sm mb-1">Título</label>
+        <input
+          type="text"
+          formControlName="titulo"
+          class="w-full rounded-xl border px-3 py-2 outline-none focus:ring"
+          placeholder="Escribe el título"
+        />
+        <div
+          *ngIf="form.controls['titulo']?.touched && form.controls['titulo']?.invalid"
+          class="text-xs text-red-600 mt-1"
+        >
+          El título es obligatorio.
+        </div>
+      </div>
+
+      <!-- Descripción -->
+      <div>
+        <label class="block text-sm mb-1">Descripción</label>
+        <textarea
+          rows="3"
+          formControlName="descripcion"
+          class="w-full rounded-xl border px-3 py-2 outline-none focus:ring"
+          placeholder="Descripción (opcional)"
+        ></textarea>
+      </div>
+
+      <!-- Asignado (solo visual en UI) -->
+      <div>
+        <label class="block text-sm mb-1">Asignar a (solo visual)</label>
+        <input
+          type="text"
+          formControlName="assignee"
+          class="w-full rounded-xl border px-3 py-2 outline-none focus:ring"
+          placeholder="Nombre o email (opcional)"
+        />
+      </div>
+
+      <!-- Fecha & Prioridad -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm mb-1">Fecha de vencimiento</label>
+          <input
+            type="date"
+            formControlName="fecha_vencimiento"
+            class="w-full rounded-xl border px-3 py-2 outline-none focus:ring"
+          />
+        </div>
+      </div>
+
+      <!-- Botones -->
+      <div class="flex justify-end gap-3 pt-3">
+        <button
+          type="button"
+          class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
+          (click)="cerrarTarea()"
+          [disabled]="creating"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          class="px-4 py-2 rounded-xl text-white"
+          [class.bg-cyan-500]="!creating"
+          [class.hover\:bg-cyan-600]="!creating"
+          [class.bg-cyan-300]="creating"
+          [disabled]="creating || form.invalid"
+        >
+          {{ creating ? 'Creando…' : 'Crear' }}
+        </button>
+      </div>
+    </form>
+  </div>
 </div>

@@ -1,4 +1,5 @@
 export const environment = {
   production: false,
-  apiBase: '/api'  // <- ahora todas las llamadas van vía proxy
+  apiBase: 'http://host.docker.internal:8000/api',
+  apiUrl: 'http://host.docker.internal:8000/api'
 };

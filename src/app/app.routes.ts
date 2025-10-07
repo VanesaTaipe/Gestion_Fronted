@@ -1,13 +1,32 @@
-// src/app/app.routes.ts
 import { Routes } from '@angular/router';
 import { BoardComponent } from './features/board/components/board/board.component';
 import { WorkspaceDashboardComponent } from './features/workspace/components/work-dashboard/works-dashboard.component';
 import { WorkspaceDetailComponent } from './features/workspace/components/workspace-detail.component/workspace-detail.component';
 
+
 export const routes: Routes = [
   // ====================
   // RUTA PRINCIPAL
   // ====================
+ /* {
+    path: '',
+    redirectTo: 'login',
+    pathMatch: 'full'
+  },
+  {
+    path: "login",
+    loadComponent: () => import("./core/auth/auth.component"),
+    canActivate: [
+      () => inject(UserService).isAuthenticated.pipe(map(isAuth => !isAuth))
+    ],
+  },
+  {
+    path: "register",
+    loadComponent: () => import("./core/auth/auth.component"),
+    canActivate: [
+      () => inject(UserService).isAuthenticated.pipe(map(isAuth => !isAuth))
+    ],
+  },*/
   {
     path: '',
     redirectTo: 'user-select',
@@ -123,24 +142,3 @@ export const routes: Routes = [
   }
 ];
 
-// ====================
-// FLUJO DE NAVEGACIÓN RECOMENDADO
-// ====================
-/*
-Opción 1 - Con Workspace:
-1. /user-select → Seleccionar usuario
-2. /workspace → Ver todos los espacios
-3. /workspace/123 → Detalle del espacio 123
-4. /workspace/123/projects → Proyectos del espacio 123
-5. /workspace/123/projects/456/board → Board del proyecto 456
-
-Opción 2 - Sin Workspace (acceso directo):
-1. /user-select → Seleccionar usuario
-2. /projects → Ver todos los proyectos
-3. /projects/456 → Detalle del proyecto 456
-4. /projects/456/board → Board del proyecto 456
-
-Opción 3 - Acceso directo al board:
-1. /board → Tablero genérico
-2. /board/789 → Tablero específico
-*/

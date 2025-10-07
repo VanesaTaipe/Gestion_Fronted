@@ -1,4 +1,3 @@
-// src/app/core/services/user.service.ts
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
@@ -10,7 +9,6 @@ import { User } from '../../profile/models/user.interface';
 })
 export class UserService {
   private apiUrl = `${environment.apiBase}/user`;
-
   constructor(private http: HttpClient) {}
 
   /**

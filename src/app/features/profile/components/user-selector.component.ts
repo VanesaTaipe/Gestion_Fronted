@@ -235,8 +235,6 @@ export class UserSelectorComponent {
 
   selectedUserId: number | null = null;
 
-  // TODO: Reemplazar con usuarios reales de tu base de datos
-  // Estos IDs deben corresponder con los IDs reales de tu tabla usuarios
   tempUsers: TempUser[] = [
     { id: 1, name: 'Usuario Admin', email: 'admin@empresa.com' },
     { id: 2, name: 'María González', email: 'maria@empresa.com' },

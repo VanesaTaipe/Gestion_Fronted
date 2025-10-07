@@ -1,0 +1,126 @@
+<div class="min-h-screen flex">
+  <!-- Lado izquierdo - Imagen -->
+  <div class="hidden lg:flex lg:w-1/2 bg-cover bg-center" 
+       style="background-image: url('assets/im-re-lo.png');"></div>
+
+  <!-- Lado derecho - Formulario -->
+  <div class="w-full lg:w-1/2 bg-gray-50 flex items-center justify-center p-8">
+    <div class="w-full max-w-md">
+      <!-- Logo -->
+      <div class="flex justify-center mb-8">
+        <img src="assets/kanban-logo.png" alt="kanban logo" class="w-24 h-24">
+      </div>
+
+      <!-- Pestañas -->
+      <div class="bg-[#7ee5d8] rounded-full p-2 flex gap-2 mb-8">
+        <button
+          [class.bg-[#40E0D0]]="authType === 'login'"
+          [class.text-black]="authType === 'login'"
+          [class.bg-transparent]="authType !== 'login'"
+          [class.text-white]="authType !== 'login'"
+          class="flex-1 py-3 px-6 rounded-full font-semibold transition-all"
+          (click)="switchToLogin()">
+          Iniciar Sesión
+        </button>
+        
+        <button
+          [class.bg-[#40E0D0]]="authType === 'register'"
+          [class.text-black]="authType === 'register'"
+          [class.bg-transparent]="authType !== 'register'"
+          [class.text-white]="authType !== 'register'"
+          class="flex-1 py-3 px-6 rounded-full font-semibold transition-all"
+          (click)="switchToRegister()">
+          Regístrate
+        </button>
+      </div>
+
+      <!-- Formulario -->
+      <form [formGroup]="authForm" (ngSubmit)="submitForm()" class="space-y-6">
+        @if (authType === "register") {
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Nombre completo
+            </label>
+            <input
+              formControlName="username"
+              placeholder="Ingresa tu correo electrónico"
+              class="w-full px-4 py-3 border-2 border-gray-300 rounded-full focus:border-[#40E0D0] focus:outline-none"
+              type="text" />
+          </div>
+        }
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Correo electrónico
+          </label>
+          <input
+            formControlName="email"
+            placeholder="Ingresa tu nombre"
+            class="w-full px-4 py-3 border-2 border-gray-300 rounded-full focus:border-[#40E0D0] focus:outline-none"
+            type="email" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Contraseña
+          </label>
+          <div class="relative">
+            <input
+              formControlName="password"
+              [type]="showPassword ? 'text' : 'password'"
+              placeholder="{{authType === 'register' ? 'Crear contraseña' : 'Ingresa tu contraseña'}}"
+              class="w-full px-4 py-3 border-2 border-gray-300 rounded-full focus:border-[#40E0D0] focus:outline-none pr-12" />
+            <button
+              type="button"
+              (click)="togglePassword()"
+              class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">
+              👁️
+            </button>
+          </div>
+        </div>
+
+        @if (authType === "register") {
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Confirmar contraseña
+            </label>
+            <div class="relative">
+              <input
+                formControlName="confirmPassword"
+                [type]="showConfirmPassword ? 'text' : 'password'"
+                placeholder="Vuelve a colocar tu contraseña"
+                class="w-full px-4 py-3 border-2 border-gray-300 rounded-full focus:border-[#40E0D0] focus:outline-none pr-12" />
+              <button
+                type="button"
+                (click)="toggleConfirmPassword()"
+                class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">
+                👁️
+              </button>
+            </div>
+          </div>
+        }
+
+        @if (authType === "login") {
+          <div class="flex items-center justify-between">
+            <label class="flex items-center">
+              <input type="checkbox" class="rounded border-gray-300 text-[#40E0D0] focus:ring-[#40E0D0]" />
+              <span class="ml-2 text-sm text-gray-600">Recuérdame</span>
+            </label>
+            <a href="#" class="text-sm text-gray-600 hover:text-[#40E0D0]">
+              ¿Olvidaste la contraseña?
+            </a>
+          </div>
+        }
+
+        <app-list-errors [errors]="errors" />
+
+        <button
+          type="submit"
+          [disabled]="!authForm.valid || isSubmitting"
+          class="w-full bg-[#40E0D0] hover:bg-[#38c9b8] text-black font-semibold py-3 px-6 rounded-full disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors">
+          {{ authType === 'login' ? 'Iniciar sesión' : 'Regístrate' }}
+        </button>
+      </form>
+    </div>
+  </div>
+</div>

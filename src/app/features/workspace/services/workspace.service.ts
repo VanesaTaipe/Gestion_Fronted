@@ -11,7 +11,7 @@ import { CreateWorkspaceRequest, Espacio } from '../models/espacio.interface';
 })
 export class WorkspaceService {
   private http = inject(HttpClient);
-  // CORREGIDO: usar backticks en lugar de comillas simples
+  
   private readonly apiUrl = `${environment.apiUrl}/espacios`;
   
   // Subject para manejar el estado de espacios
@@ -40,7 +40,7 @@ export class WorkspaceService {
     headers: this.getHeaders()
   }).pipe(
     map(response => {
-      // Si el backend devuelve un error, significa que no hay espacios
+   
       if (response.error) {
         console.log('Backend response:', response.error);
         this.workspacesSubject.next([]);
@@ -79,7 +79,6 @@ export class WorkspaceService {
    * Crear un nuevo espacio
    */
   createWorkspace(workspaceData: CreateWorkspaceRequest): Observable<Espacio> {
-    // CORREGIDO: estructura que espera el backend según Postman
     const dataWithUser = {
       espacio: {
         nombre: workspaceData.title,
@@ -153,7 +152,7 @@ export class WorkspaceService {
     );
   }
 
-  // MÉTODOS TEMPORALES PARA MANEJO DE USUARIO
+ 
 
   /**
    * Obtener el ID del usuario almacenado localmente

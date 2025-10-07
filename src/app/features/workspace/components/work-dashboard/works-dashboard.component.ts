@@ -9,6 +9,7 @@ import { CreateProjectDialogComponent } from '../../../project/components/create
 import { CreateWorkspaceDialogComponent } from '../../../workspace/components/create-workspace-dialog.component/create-workspace-dialog.compent';
 import { Espacio } from '../../models/espacio.interface';
 import { WorkspaceService } from '../../services/workspace.service';
+
 @Component({
   selector: 'app-workspace-dashboard',
   standalone: true,
@@ -20,11 +21,12 @@ import { WorkspaceService } from '../../services/workspace.service';
   ],
   template: `
     <div class="workspace-container">
-      <!-- Header Section -->
       <div class="welcome-section">
         <div class="welcome-content">
+          <!-- Contenido izquierdo -->
           <div class="text-content">
             <h1 class="welcome-title">¡Bienvenido a tu nueva forma de gestionar proyectos!</h1>
+            
             <div class="quote-section">
               <p class="quote">"La clave de la gestión del tiempo es ver el valor de cada momento!"</p>
               <p class="author">Menachem Mendel Schneerson</p>
@@ -36,264 +38,202 @@ import { WorkspaceService } from '../../services/workspace.service';
             </p>
 
             <div class="features-list">
-              <div class="feature-item">
-                <mat-icon>check_circle</mat-icon>
-                <span>Tableros Kanban colaborativos en tiempo real</span>
-              </div>
-              <div class="feature-item">
-                <mat-icon>check_circle</mat-icon>
-                <span>Reportes automáticos con métricas clave</span>
-              </div>
-              <div class="feature-item">
-                <mat-icon>check_circle</mat-icon>
-                <span>Gestión de equipos y asignación de tareas</span>
-              </div>
-              <div class="feature-item">
-                <mat-icon>check_circle</mat-icon>
-                <span>Notificaciones y recordatorios inteligentes</span>
-              </div>
-              <div class="feature-item">
-                <mat-icon>check_circle</mat-icon>
-                <span>Control de acceso y roles de usuario</span>
-              </div>
+              <div class="feature-item">• Tableros Kanban colaborativos en tiempo real</div>
+              <div class="feature-item">• Reportes automáticos con métricas clave</div>
+              <div class="feature-item">• Gestión de equipos y asignación de tareas</div>
+              <div class="feature-item">• Notificaciones y recordatorios inteligentes</div>
+              <div class="feature-item">• Control de acceso y roles de usuario</div>
             </div>
           </div>
           
+          <!-- Contenido derecho -->
           <div class="illustration-section">
+            <div class="illustration-image">
+              <img src="assets/bien.png" alt="Ilustración gestión del tiempo" />
+            </div>
+            
             <div class="user-greeting">
-              <!-- Avatar del usuario -->
-              <div class="user-avatar">
-          <img 
-        src="assetsk/kanban.png" 
-        alt="Avatar del usuario"
-        class="avatar-image" />
-              </div>
               <h2>¡Hola, {{ getCurrentUserName() }}!</h2>
-              <p class="user-info">Usuario ID: {{ getCurrentUserId() }}</p>
               <button 
                 mat-raised-button 
-                color="primary" 
                 class="create-workspace-btn"
                 (click)="openCreateWorkspaceDialog()">
                 Crear espacio
               </button>
             </div>
-            
           </div>
-        </div>
-      </div>
-
-      <!-- Workspaces Section -->
-      <div class="workspaces-section" *ngIf="workspaces.length > 0">
-        <h2>Mis Espacios de Trabajo</h2>
-        <div class="workspaces-grid">
-          <mat-card 
-            *ngFor="let espacio of workspaces" 
-            class="workspace-card"
-            (click)="selectWorkspace(espacio)">
-            <mat-card-header>
-              <mat-card-title>{{ espacio.nombre }}</mat-card-title>
-            </mat-card-header>
-            <mat-card-content>
-              <p>{{ espacio.descripcion }}</p>
-            </mat-card-content>
-            <mat-card-actions>
-              <button mat-button color="primary">Abrir</button>
-            </mat-card-actions>
-          </mat-card>
         </div>
       </div>
     </div>
   `,
   styles: [`
     .workspace-container {
+      min-height: 100vh;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       padding: 2rem;
-      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-      min-height: 900px;
-      max-width: 1440px;
     }
 
     .welcome-section {
-      background: white;
-      border-radius: 16px;
-      padding: 3rem;
-      margin-bottom: 2rem;
-      box-shadow: 0 8px 32px rgba(165, 119, 119, 0.1);
+      max-width: 1200px;
+      width: 100%;
     }
 
     .welcome-content {
       display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 3rem;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
       align-items: center;
+    }
+
+    .text-content {
+      padding-right: 2rem;
     }
 
     .welcome-title {
-      font-style:poppins
-      font-weight:704;
-      size: 40;
-      color: #000000ff
+      font-family: 'Poppins', sans-serif;
+      font-weight: 700;
+      font-size: 2.5rem;
+      color: #000000;
+      margin-bottom: 1.5rem;
+      line-height: 1.2;
     }
 
     .quote-section {
-      background: #ffffffff;
-      border-left: 4px solid #ffffffff;
-      padding: 1rem 1.5rem;
+      background: transparent;
+      padding: 1rem 0;
       margin: 1.5rem 0;
-      border-radius: 0 8px 8px 0;
     }
 
     .quote {
-      font-style:Italic;
-      color: #000000ff;
-      size:20;
+      font-style: italic;
+      color: #000000;
+      font-size: 1rem;
+      margin: 0 0 0.3rem 0;
+      line-height: 1.5;
     }
 
     .author {
-      font-style:Italic;
-      color: #000000ff;
-      size:20;
+      font-style: italic;
+      color: #666666;
+      font-size: 0.9rem;
+      margin: 0;
     }
 
     .description {
-      color: #7f8c8d;
-      font-size: 1.1rem;
-      size:18
-            min-height: 156px;
-      max-width: 477px;
+      color: #000000;
+      font-size: 1rem;
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
     }
+
     .features-list {
-      background:rgba(64, 224, 208, 0.3);
+      background: rgba(64, 224, 208, 0.2);
       border-radius: 12px;
-      padding: 1.5rem;
+      padding: 1.5rem 2rem;
       margin: 1.5rem 0;
-      min-height: 156px;
-      max-width: 477px;
     }
+
     .feature-item {
-      display: flex;
-      align-items: center;
+      color: #000000;
       margin-bottom: 0.8rem;
-      color: #000000ff;
+      font-size: 0.95rem;
+      line-height: 1.5;
     }
-    
 
     .feature-item:last-child {
       margin-bottom: 0;
     }
 
-    .feature-item mat-icon {
-      color: #000000ff;
-      font-size: 1.2rem;
-    }
-
     .illustration-section {
-      align-items: center; 
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2rem;
     }
-    .user-avatar {
-  width: 80px;
-  height: 80px;
-}
 
-.avatar-image {
-  width: 100%;
-  
-}    
+    .illustration-image {
+      width: 100%;
+      max-width: 400px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .illustration-image img {
+      width: 100%;
+      height: auto;
+      object-fit: contain;
+    }
+
     .user-greeting {
       text-align: center;
-      margin-bottom: 2rem;
+      width: 100%;
     }
-
 
     .user-greeting h2 {
-      color: #2c3e50;
+      color: #000000;
       font-size: 1.8rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .user-info {
-      color: #7f8c8d;
-      font-size: 0.9rem;
-      margin-bottom: 1rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
     }
 
     .create-workspace-btn {
       background: #40E0D0 !important;
-      color: #000000ff !important;
-      padding: 12px 32px !important;
-      border-radius: 25px !important;
+      color: #000000 !important;
+      padding: 14px 48px !important;
+      border-radius: 50px !important;
       font-size: 1.1rem !important;
       font-weight: 600 !important;
-      box-shadow: 0 4px 16px rgba(0, 188, 212, 0.3) !important;
+      box-shadow: 0 4px 16px rgba(64, 224, 208, 0.3) !important;
       transition: all 0.3s ease !important;
+      border: none !important;
     }
 
     .create-workspace-btn:hover {
       transform: translateY(-2px) !important;
-      box-shadow: 0 6px 20px rgba(0, 188, 212, 0.4) !important;
+      box-shadow: 0 6px 20px rgba(64, 224, 208, 0.4) !important;
+      background: #38c9b8 !important;
     }
 
-    .workspace-illustration {
-      position: relative;
-      width: 200px;
-      height: 200px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .large-icon {
-      font-size: 80px !important;
-      color: #40E0D0;
-      opacity: 0.8;
-    }
-
-    .floating-icon {
-      position: absolute;
-      font-size: 24px !important;
-      color: #ff6b6b;
-      animation: float 3s ease-in-out infinite;
-    }
-
-    .workspaces-section h2 {
-      color: #2c3e50;
-      margin-bottom: 1.5rem;
-      font-size: 1.8rem;
-    }
-
-    .workspaces-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 1.5rem;
-    }
-
-    .workspace-card {
-      cursor: pointer;
-      transition: all 0.3s ease;
-      border-radius: 12px;
-    }
-
-    .workspace-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-    }
-
-    @media (max-width: 768px) {
+    /* Responsive */
+    @media (max-width: 968px) {
       .welcome-content {
         grid-template-columns: 1fr;
+        gap: 3rem;
+      }
+
+      .text-content {
+        padding-right: 0;
         text-align: center;
       }
-      
+
       .welcome-title {
         font-size: 2rem;
       }
-      
+
+      .features-list {
+        text-align: left;
+      }
+
       .workspace-container {
         padding: 1rem;
       }
-      
-      .welcome-section {
-        padding: 2rem;
+    }
+
+    @media (max-width: 600px) {
+      .welcome-title {
+        font-size: 1.6rem;
+      }
+
+      .illustration-image {
+        max-width: 280px;
+      }
+
+      .create-workspace-btn {
+        padding: 12px 36px !important;
+        font-size: 1rem !important;
       }
     }
   `]
@@ -301,7 +241,7 @@ import { WorkspaceService } from '../../services/workspace.service';
 export class WorkspaceDashboardComponent implements OnInit {
   private dialog = inject(MatDialog);
   private workspaceService = inject(WorkspaceService);
-  private route=inject(Router)
+  private route = inject(Router);
   
   workspaces: Espacio[] = [];
   isLoading = false;
@@ -316,7 +256,10 @@ export class WorkspaceDashboardComponent implements OnInit {
       next: (workspaces) => {
         this.workspaces = workspaces;
         this.isLoading = false;
-        console.log('Workspaces cargados:', workspaces);
+        // Si ya tiene espacios, redirigir automáticamente
+        if (workspaces.length > 0) {
+          this.route.navigate(['/workspace', workspaces[0].id]);
+        }
       },
       error: (error) => {
         console.error('Error al cargar workspaces:', error);
@@ -346,8 +289,7 @@ export class WorkspaceDashboardComponent implements OnInit {
       next: (newWorkspace) => {
         this.workspaces.push(newWorkspace);
         this.isLoading = false;
-        console.log('Workspace creado exitosamente:', newWorkspace);
-        this.route.navigate(['/workspace', newWorkspace.id])
+        this.route.navigate(['/workspace', newWorkspace.id]);
       },
       error: (error) => {
         console.error('Error al crear workspace:', error);
@@ -355,14 +297,9 @@ export class WorkspaceDashboardComponent implements OnInit {
       }
     });
   }
-  
 
   selectWorkspace(workspace: Espacio): void {
-    console.log('Workspace seleccionado:', workspace);
-     console.log('Workspace seleccionado:', workspace);
-    // Navegar al detalle del workspace
     this.route.navigate(['/workspace', workspace.id]);
-    
   }
 
   getCurrentUserId(): number {
@@ -373,6 +310,7 @@ export class WorkspaceDashboardComponent implements OnInit {
     const storedName = localStorage.getItem('tempUserName');
     return storedName || 'Usuario';
   }
+
   createProject(workspaceId: number, workspaceName: string): void {
     const dialogRef = this.dialog.open(CreateProjectDialogComponent, {
       width: '600px',
@@ -387,12 +325,8 @@ export class WorkspaceDashboardComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        console.log('✅ Proyecto creado:', result);
-        // Navegar al tablero del proyecto
         this.route.navigate(['/workspace', workspaceId, 'project', result.id, 'board']);
       }
     });
   }
-
-
 }

@@ -26,7 +26,6 @@ import { title } from 'process';
       <div class="dialog-header">
         <h2 mat-dialog-title>Completa los detalles para crear un nuevo espacio.</h2>
       </div>
-
       <!-- Form content -->
       <mat-dialog-content class="dialog-content">
         <form [formGroup]="workspaceForm" class="workspace-form">
@@ -87,8 +86,6 @@ import { title } from 'process';
   styles: [`
     .dialog-container {
       padding: 2rem;
-      min-height: 581px;
-      max-width: 618px;
       background: white;
       border-radius: 16px;
     }

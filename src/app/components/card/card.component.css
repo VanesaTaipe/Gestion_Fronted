@@ -1,0 +1,37 @@
+/* acciones solo al hover */
+.card-wrapper { position: relative; }
+.card-wrapper:hover .actions { opacity: 1; }
+
+/* botón de icono */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  background: transparent;
+  color: #374151; /* gray-700 */
+}
+.icon-btn:hover { background: rgba(0,0,0,0.06); }
+
+/* preview: 1 línea con … */
+.desc-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* badges */
+.badge {
+  font-size: 12px;
+  line-height: 1;
+  padding: 6px 10px;
+  border-radius: 9999px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.badge-green  { background: #DCFCE7; color: #065F46; } /* baja */
+.badge-yellow { background: #FEF9C3; color: #854D0E; } /* media */
+.badge-red    { background: #FEE2E2; color: #991B1B; } /* alta */
+.badge-gray   { background: #E5E7EB; color: #374151; } /* tag */

@@ -1,12 +1,46 @@
 <!-- Contenedor de la columna -->
-<div class="w-full bg-gray-50 rounded-lg shadow h-[80vh] flex flex-col">
-  <!-- Encabezado (handle de drag para la columna lo tienes en el padre) -->
+<div class="w-full bg-gray-50 rounded-lg shadow h-[80vh] flex flex-col relative">
+  <!-- Encabezado -->
   <h2
     class="text-sm font-medium text-center text-gray-800 py-2 rounded-t-lg"
     [ngClass]="[column.color]"
   >
     {{ column.title }}
   </h2>
+
+  <!-- Kebab menu (Angular Material) -->
+  <button
+    mat-icon-button
+    color="primary"
+    class="absolute top-2 right-2"
+    (click)="openMenu($event)"
+    [attr.data-colmenu]="column.id"
+    aria-label="Opciones de la columna"
+  >
+    <mat-icon>more_vert</mat-icon>
+  </button>
+
+  <!-- Menú contextual -->
+  <div
+    *ngIf="menuOpen"
+    class="absolute z-20 right-2 top-10 w-40 rounded-lg shadow-lg bg-white border"
+    [attr.data-colmenu]="column.id"
+  >
+    <button
+      type="button"
+      class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+      (click)="onClickEdit($event)"
+    >
+      ✏️ <span>Editar</span>
+    </button>
+    <button
+      type="button"
+      class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 text-red-600 flex items-center gap-2"
+      (click)="onClickDelete($event)"
+    >
+      🗑️ <span>Eliminar</span>
+    </button>
+  </div>
 
   <!-- Lista de tarjetas con DnD vertical -->
   <div
@@ -18,7 +52,12 @@
     (cdkDropListDropped)="drop($event)"
   >
     <div *ngFor="let card of column.cards; trackBy: trackById" cdkDrag>
-      <app-card [card]="card"></app-card>
+      <app-card
+        [card]="card"
+        (open)="openDetails($event)"
+        (edit)="editCard($event)"
+        (remove)="deleteCard($event)"
+      ></app-card>
     </div>
   </div>
 
@@ -87,6 +126,19 @@
             formControlName="fecha_vencimiento"
             class="w-full rounded-xl border px-3 py-2 outline-none focus:ring"
           />
+        </div>
+
+        <!-- NUEVO: Prioridad (visual) -->
+        <div>
+          <label class="block text-sm mb-1">Prioridad</label>
+          <select
+            formControlName="prioridad"
+            class="w-full rounded-xl border px-3 py-2 outline-none focus:ring"
+          >
+            <option value="baja">Baja</option>
+            <option value="media">Media</option>
+            <option value="alta">Alta</option>
+          </select>
         </div>
       </div>
 

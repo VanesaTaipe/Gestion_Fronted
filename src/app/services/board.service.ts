@@ -5,12 +5,16 @@ import { forkJoin, Observable, of } from 'rxjs';
 import { map, switchMap, catchError } from 'rxjs/operators';
 import { Board, Column, Card } from '../models/board.model';
 import { environment } from '../../environments/environment';
+import { TaskService } from './task.service';
 
 @Injectable({ providedIn: 'root' })
 export class BoardService {
   private api = environment.apiBase;
+  taskSvc: any;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, taskSvc: TaskService) {
+    this.taskSvc = taskSvc;
+  }
 
   // Paleta para colores por defecto (Tailwind las “ve” y no las purga)
 private palette = [
@@ -38,19 +42,20 @@ private defaultColorByIndex(idx: number): string {
     return [];
   }
 
+
   getBoard(id = 1): Observable<Board> {
-    // 1) Proyecto
+    //Proyecto
     return this.http.get<any>(`${this.api}/proyectos/${id}`).pipe(
       switchMap((resProyecto: any) => {
         const proyecto = resProyecto?.proyecto?.data ?? resProyecto?.proyecto ?? resProyecto;
 
-        // 2) Columnas (desempaquetado robusto)
+        //Columnas (desempaquetado robusto)
         const columnas$ = this.http.get<any>(`${this.api}/proyectos/${id}/columnas`).pipe(
           map(res => this.unwrapArray(res, 'columnas')),
           catchError(() => of([]))
         );
 
-        // 3) Tareas del proyecto (si tienes ese endpoint)
+        //Tareas del proyecto 
         const tareas$ = this.http.get<any>(`${this.api}/tareas?proyecto=${id}`).pipe(
           map(res => {
             // acepta varias formas: { items: [...] } | { tareas: [...] } | [...]
@@ -65,7 +70,7 @@ private defaultColorByIndex(idx: number): string {
 
         return forkJoin([columnas$, tareas$]).pipe(
           map(([cols, tasks]) => {
-            // Mapea columnas
+            // Mapear columnas
             const columns: Column[] = (cols || [])
               .sort((a: any, b: any) => (a.posicion ?? 0) - (b.posicion ?? 0))
               .map((c: any, idx: number) => {
@@ -74,20 +79,24 @@ private defaultColorByIndex(idx: number): string {
                 return {
                   id,
                   title: c.nombre ?? c.title ?? '',
-                  color: saved || this.defaultColorByIndex(idx), // ← aquí se aplica el color
+                  color: saved || this.defaultColorByIndex(idx), // aquí se aplica el color
                   cards: [],
-                  order: c.posicion ?? 0
+                  order: c.posicion ?? 0,
+                  status: Number(c.status ?? 0),
                 } as Column;
               });
-            // Distribuye tareas en su columna
+            // Distribuir tareas en su columna
             const colById = new Map<number, Column>(columns.map(c => [Number(c.id), c]));
             (tasks as any[]).forEach(t => {
+              const taskId = t.id_tarea ?? t.id;
+              const dueStored = this.taskSvc.getDueDate(taskId);
               const card: Card = {
-                id: t.id_tarea ?? t.id,
+                id: taskId,                                 
                 id_columna: Number(t.id_columna),
                 title: t.titulo ?? t.title ?? '',
                 descripcion: t.descripcion ?? '',
-                prioridad: 'media'
+                prioridad: this.taskSvc.getPriority(taskId),
+                fecha_vencimiento: t.due_at ?? t.fecha_vencimiento ?? dueStored,  
               };
               const col = colById.get(card.id_columna);
               if (col) col.cards.push(card);
@@ -107,14 +116,14 @@ private defaultColorByIndex(idx: number): string {
     );
   }
 
-  updateColumnPosition(colId: number | string, posicion: number) {
+  updateColumnPosition(colId: number | string, posicion: number) { //actualizar POSICION de la columna
     const body = { columna: { posicion: Number(posicion) } };
     return this.http.put(`${this.api}/columnas/${colId}/`, body, {
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
     });
   }
 
-  createColumn(projectId: number | string, nombre: string, posicion: number) {
+  createColumn(projectId: number | string, nombre: string, posicion: number) { //crear columna 
     const body = { columna: { id_proyecto: Number(projectId), nombre, posicion: Number(posicion), status: '0' } };
     return this.http.post<any>(`${this.api}/columnas`, body).pipe(
       map((res: any) => {
@@ -130,11 +139,23 @@ private defaultColorByIndex(idx: number): string {
     );
   }
 
-  deleteColumn(columnId: number | string) {
+  deleteColumn(columnId: number | string) { //eliminar columna
     return this.http.delete(`${this.api}/columnas/${columnId}`, { headers: { Accept: 'application/json' } });
   }
 
-  saveColumnColor(colId: number | string, color: string) {
+  saveColumnColor(colId: number | string, color: string) { //funciona para guardar el color de la columna  por si se reinicia la pagina 
     try { localStorage.setItem(`col_color_${colId}`, color); } catch {}
   }
+
+
+  updateColumn(colId: number | string, partial: { nombre?: string; posicion?: number; status?: '0'|'1' }) { //actualizar la columna nomas
+  const body = { columna: { ...partial } };
+  return this.http.put(`${this.api}/columnas/${colId}`, body, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+      }
+    });
+  }
+
 }

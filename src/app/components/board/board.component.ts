@@ -1,4 +1,3 @@
-// src/app/components/board/board.component.ts
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ColumnComponent } from '../column/column.component';
@@ -22,6 +21,8 @@ export class BoardComponent {
   dropListIds: string[] = [];
   private snapshotCols: Column[] = [];
 
+  editingCol: Column | null = null;
+
   // ===== modal para crear columna =====
   colModalOpen = false;
   colForm!: FormGroup;
@@ -40,27 +41,38 @@ export class BoardComponent {
   ngOnInit() {
     this.boardService.getBoard(1).subscribe({
       next: (data) => {
+        // Solo mostrar columnas activas osea status = 0. Status 0 = columnas activas , status 1 = columnas desactivadas
+        data.columns = data.columns.filter(c => c.status === 0);
+
         this.board = data;
+
+        // restaurar colores guardados 
+        this.board.columns.forEach(c => {
+          try {
+            const saved = localStorage.getItem(`col_color_${c.id}`);
+            if (saved) c.color = saved;
+          } catch {}
+        });
+
         this.board.columns
           .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
           .forEach((c, i) => (c.order = i + 1));
+
         this.dropListIds = this.board.columns.map(c => 'col-' + c.id);
       },
-      error: (e) => {
-        console.error('No se pudo cargar el tablero:', e);
-      }
+      error: (e) => console.error('No se pudo cargar el tablero:', e)
     });
   }
 
-  private defaultBoard(): Board {
+  private defaultBoard(): Board { //(creacion de tablero por defecto jeje )
     return {
       id: 1,
       name: 'Nombre de Tablero',
       columns: [
-        { id: 1, title: 'Backlog',       color: 'bg-teal-200',   cards: [], order: 1 },
-        { id: 2, title: 'Por Hacer',     color: 'bg-blue-200',   cards: [], order: 2 },
-        { id: 3, title: 'En Desarrollo', color: 'bg-yellow-200', cards: [], order: 3 },
-        { id: 4, title: 'Hecho',         color: 'bg-green-200',  cards: [], order: 4 },
+        { id: 1, title: 'Backlog',       color: 'bg-teal-200',   cards: [], order: 1, status: 0 },
+        { id: 2, title: 'Por Hacer',     color: 'bg-blue-200',   cards: [], order: 2, status: 0 },
+        { id: 3, title: 'En Desarrollo', color: 'bg-yellow-200', cards: [], order: 3, status: 0 },
+        { id: 4, title: 'Hecho',         color: 'bg-green-200',  cards: [], order: 4, status: 0 },
       ]
     };
   }
@@ -87,18 +99,19 @@ export class BoardComponent {
 
   trackByColId = (_: number, c: Column) => c.id;
 
-  persistReorder() {
-    // hook opcional para futuras persistencias
-  }
-
-  // ===== modal: nueva columna =====
+  //  modal: nueva columna
   openAddColumn() {
+    this.editingCol = null;
     this.colForm.reset({ nombre: '', color: this.colorPalette[0] });
     this.colModalOpen = true;
   }
-  closeAddColumn() { this.colModalOpen = false; }
 
-  // crear columna
+  closeAddColumn() {
+    this.colModalOpen = false;
+    this.editingCol = null;
+  }
+
+  // crear columna 
   submitAddColumn() {
     if (!this.board) return;
     if (this.colForm.invalid) { this.colForm.markAllAsTouched(); return; }
@@ -107,30 +120,41 @@ export class BoardComponent {
     const color  = this.colForm.value.color as string;
     const nextPos = (this.board.columns?.length ?? 0) + 1;
 
+    // Evita duplicar nombres activos y filtro
+    const duplicado = this.board.columns.some(
+      c => c.status === 0 && c.title.toLowerCase() === nombre.toLowerCase()
+    );
+
+    if (duplicado) {
+      alert('Ya existe una columna activa con ese nombre');
+      return;
+    }
+
     this.boardService.createColumn(this.board.id, nombre, nextPos).subscribe({
       next: (newCol) => {
-        // aplicar color elegido (solo visual)
         newCol.color = color;
+        newCol.status = 0;
+        this.boardService.saveColumnColor(newCol.id, color);
         this.board!.columns.push(newCol);
         this.dropListIds = this.board!.columns.map(x => 'col-' + x.id);
         this.closeAddColumn();
       },
-      error: (e) => {
-        alert(e?.error?.error ?? 'No se pudo crear la columna');
-      }
+      error: (e) => alert(e?.error?.error ?? 'No se pudo crear la columna')
     });
   }
 
-  // ===== eliminar columna =====
+  // eliminar columna 
   onDeleteColumn(col: Column) {
     if (!this.board) return;
     if (!confirm(`¿Eliminar la columna "${col.title}"?`)) return;
 
     this.boardService.deleteColumn(col.id).subscribe({
       next: () => {
+        // Ocultar columnas status 1 
         this.board!.columns = this.board!.columns
-          .filter(c => c.id !== col.id)
+          .filter(c => c.id !== col.id && c.status === 0)
           .map((c, i) => ({ ...c, order: i + 1 }));
+
         this.dropListIds = this.board!.columns.map(x => 'col-' + x.id);
 
         from(this.board!.columns)
@@ -140,4 +164,44 @@ export class BoardComponent {
       error: (e) => alert(e?.error?.error ?? 'No se pudo eliminar la columna')
     });
   }
+
+  //editar columna 
+  onEditColumn(col: Column) {
+    this.editingCol = col;
+    this.colForm.reset({
+      nombre: col.title,
+      color : col.color || this.colorPalette[0],
+    });
+    this.colModalOpen = true;
+  }
+
+  submitEditColumn() {
+    if (!this.board || !this.editingCol) return;
+    if (this.colForm.invalid) { this.colForm.markAllAsTouched(); return; }
+
+    const nombre = (this.colForm.value.nombre as string).trim();
+    const color  = this.colForm.value.color as string;
+    const colId  = this.editingCol.id;
+
+    //Evita duplicar nombres activos, ignorando la columna actual
+    const duplicado = this.board.columns.some(
+      c => c.status === 0 && c.id !== colId && c.title.toLowerCase() === nombre.toLowerCase()
+    );
+
+    if (duplicado) {
+      alert('Ya existe otra columna activa con ese nombre');
+      return;
+    }
+
+    this.boardService.updateColumn(colId, { nombre }).subscribe({
+      next: () => {
+        this.editingCol!.title = nombre;
+        this.editingCol!.color = color;
+        this.boardService.saveColumnColor(colId, color);
+        this.closeAddColumn();
+      },
+      error: (e) => alert(e?.error?.error ?? 'No se pudo actualizar la columna')
+    });
+  }
+  persistReorder(): void {}
 }

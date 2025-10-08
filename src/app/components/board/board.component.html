@@ -29,7 +29,9 @@
           [column]="column"
           [proyectoId]="b.id"                 
           [connectedDropLists]="dropListIds"
-          (cardsChanged)="persistReorder()"   
+          (cardsChanged)="persistReorder()"
+          (editColumn)="onEditColumn($event)"
+          (deleteColumn)="onDeleteColumn($event)"   
         ></app-column>
       </div>
     </div>

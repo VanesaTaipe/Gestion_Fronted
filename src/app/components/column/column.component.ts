@@ -5,11 +5,14 @@ import { CardComponent } from '../card/card.component';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
 import { CdkDropList, CdkDrag, CdkDragDrop, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { TaskService } from '../../services/task.service';
+import { HostListener } from '@angular/core';
+import { MatIconModule } from '@angular/material/icon';
+
 
 @Component({
   selector: 'app-column',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, CardComponent, CdkDropList, CdkDrag],
+  imports: [CommonModule, ReactiveFormsModule, CardComponent, CdkDropList, CdkDrag, MatIconModule],
   templateUrl: './column.component.html',
   styleUrls: ['./column.component.css'],
 })
@@ -18,6 +21,24 @@ export class ColumnComponent {
   @Input() proyectoId!: number | string;
   @Input() connectedDropLists: string[] = [];
   @Output() cardsChanged = new EventEmitter<Card[]>();
+
+  @Output() editColumn = new EventEmitter<Column>();
+  @Output() deleteColumn = new EventEmitter<Column>();
+
+  menuOpen = false;
+
+  @HostListener('document:click', ['$event'])
+  onDocClick(ev: MouseEvent) {
+    const el = ev.target as HTMLElement; 
+
+    if(!el.closest(`[data-colmenu="${this.column.id}"]`)) {
+      this.menuOpen = false;
+    }
+
+  }
+
+  detailOpen = false;
+  detailCard: Card | null = null;
 
   showModal = false;
   form!: FormGroup;
@@ -30,6 +51,7 @@ export class ColumnComponent {
       assignee: [''],            // solo visual (nombre)
       assigneeId: [null],        // <-- id numérico real
       fecha_vencimiento: [''],   // yyyy-MM-dd
+      prioridad:['media', [Validators.required]],
     });
   }
 
@@ -42,6 +64,24 @@ export class ColumnComponent {
       fecha_vencimiento: '',
     });
     this.showModal = true;
+  }
+
+  openMenu(ev : MouseEvent) {
+    ev.stopPropagation();
+    this.menuOpen = !this.menuOpen;
+  }
+  onClickEdit(ev: MouseEvent) {
+    ev.stopPropagation();
+    this.menuOpen = false;
+    this.editColumn.emit(this.column)
+
+  }
+
+  onClickDelete(ev : MouseEvent) {
+    ev.stopPropagation();
+    this.menuOpen = false;
+    this.deleteColumn.emit(this.column);
+
   }
 
   cerrarTarea() { this.showModal = false; }
@@ -75,7 +115,14 @@ export class ColumnComponent {
       next: (created) => {
         // Decoración visual
         created.asignado_a = (v.assignee ?? '') as string;
-        if (!created.fecha_vencimiento) created.fecha_vencimiento = dueISO;
+        if (!created.fecha_vencimiento) {
+          created.fecha_vencimiento = dueISO;
+          this.taskSvc.saveDueDate(created.id, dueISO);
+        }
+
+        const prio = (this.form.value as any).prioridad ?? 'media';
+        created.prioridad = prio;
+        this.taskSvc.savePriority(created.id,created.prioridad!);
 
         // Empuja en esta columna (la designada)
         this.column.cards.push(created);
@@ -91,6 +138,28 @@ export class ColumnComponent {
       },
     });
   }
+  
+
+  // iconos desde CardComponent
+  openDetails(card: Card) { this.detailCard = card; this.detailOpen = true; }
+  closeDetails() { this.detailOpen = false; this.detailCard = null; }
+
+  editCard(card: Card) {
+    // abrir detalle de tarea clickeada juasjaus
+    this.openDetails(card);
+  }
+
+  deleteCard(card: Card) { // eliminar tarea
+    if (!confirm('¿Eliminar esta tarea?')) return;
+    this.taskSvc.deleteCard(card.id).subscribe({
+      next: () => {
+        this.column.cards = this.column.cards.filter(c => c.id !== card.id);
+        this.cardsChanged.emit(this.column.cards);
+      },
+      error: (e) => alert(e?.error?.error ?? 'No se pudo eliminar la tarea')
+    });
+  }
+
 
   drop(event: CdkDragDrop<Card[]>) {
     const mismaLista = event.previousContainer === event.container;

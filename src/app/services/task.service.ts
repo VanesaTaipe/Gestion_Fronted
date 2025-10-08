@@ -10,8 +10,8 @@ export interface TaskCreateDTO {
   id_columna:  number | string;
   title:       string;
   descripcion?: string;
-  due_at?:      string | Date;   // "YYYY-MM-DD" del input o Date
-  id_asignado?: number;          // opcional
+  due_at?:      string | Date;   // "YYYY-MM-DD" del Date
+  id_asignado?: number;          
 }
 
 export interface Card {
@@ -56,7 +56,7 @@ export class TaskService {
       id_columna : Number(p.id_columna),
       titulo     : p.title,
       descripcion: p.descripcion ?? '',
-      id_creador : 1,   // TODO: id del usuario logueado
+      id_creador : 1,   // id del usuario logueado
       status     : '0',
     };
 
@@ -85,17 +85,51 @@ export class TaskService {
     );
   }
 
-  moveCard(taskId: number | string, toColumnId: number | string, toIndex1Based: number): Observable<any> {
+  moveCard(taskId: number | string, toColumnId: number | string, toIndex1Based: number): Observable<any> { //mover carta (drag and drop)
     return this.http.patch(`${this.api}/tareas/${taskId}/move`, {
       id_columna: Number(toColumnId),
       position  : Number(toIndex1Based),
     });
   }
 
-  reorderCard(columnId: number | string, items: { id: number | string; position: number }[]): Observable<any> {
+  reorderCard(columnId: number | string, items: { id: number | string; position: number }[]): Observable<any> { //funcion para ordenar el orden de posiciones 
     return this.http.post(`${this.api}/tareas/bulk/reorder`, {
       id_columna: Number(columnId),
       items: items.map(i => ({ id: Number(i.id), position: Number(i.position) })),
     });
   }
+
+  savePriority(taskId: number | string, prio: 'baja'|'media'|'alta') { //guardar prioridad (solo visual no afecta al back)
+    try { localStorage.setItem(`task_prio_${taskId}`, prio); } catch {}
+  }
+  getPriority(taskId: number | string): 'baja'|'media'|'alta' { //obtener prioridad elegida 
+    try {
+      const v = localStorage.getItem(`task_prio_${taskId}`) as any;
+      return v === 'baja' || v === 'alta' ? v : 'media';
+    } catch { return 'media'; }
+  }
+
+
+  saveDueDate(taskId: number | string, iso?: string) { //guardar fecha
+    try {
+      if (iso) localStorage.setItem(`task_due_${taskId}`, iso);
+      else localStorage.removeItem(`task_due_${taskId}`);
+    } catch {}
+  }
+
+  getDueDate(taskId: number | string): string | undefined { //Obtener fecha 
+    try {
+      const v = localStorage.getItem(`task_due_${taskId}`);
+      return v || undefined;
+    } catch { return undefined; }
+  }
+
+
+  //  Eliminar tarea en backend
+  deleteCard(id: number | string) {
+    return this.http.delete(`${this.api}/tareas/${id}`, {
+      headers: { Accept: 'application/json' }
+    });
+  }
+
 }

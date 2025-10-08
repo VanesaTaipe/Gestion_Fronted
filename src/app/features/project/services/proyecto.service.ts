@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { environment } from '../../../../environments/environment';
+import { UserService as AuthUserService } from '../../../core/auth/services/use.service';
 import { Proyecto } from '../models/proyecto.interfacce';
 
 @Injectable({
@@ -12,6 +13,9 @@ export class ProyectoService {
   private apiUrl = `${environment.apiBase}/proyectos`;
   private proyectosSubject = new BehaviorSubject<Proyecto[]>([]);
   public proyectos$ = this.proyectosSubject.asObservable();
+  
+  // Usar el servicio de AUTENTICACIÓN
+  private authUserService = inject(AuthUserService);
 
   constructor(private http: HttpClient) {
     console.log('ProyectoService inicializado con HTTP');
@@ -54,46 +58,86 @@ export class ProyectoService {
   getProyectosByWorkspace(workspaceId: number): Observable<Proyecto[]> {
     console.log('Obteniendo proyectos del workspace:', workspaceId);
     
-    // Llamar a la ruta de todos los proyectos
     return this.http.get<any>(this.apiUrl).pipe(
       map((response: any) => {
         let proyectos = [];
         
-        // Manejar diferentes formatos de respuesta
         if (response.proyectos && Array.isArray(response.proyectos)) {
           proyectos = response.proyectos;
         } else if (Array.isArray(response)) {
           proyectos = response;
         }
         
-        // Filtrar por workspace en el frontend
         return proyectos.filter((p: any) => p.id_espacio === workspaceId);
       }),
       tap(proyectos => console.log('Proyectos filtrados:', proyectos.length)),
       catchError(error => {
         console.error('Error obteniendo proyectos:', error);
-        return of([]); // Retornar array vacío en caso de error
+        return of([]);
       })
     );
   }
 
   /**
-   * Crear un nuevo proyecto en la base de datos
+   * Crear proyecto con usuario actual
+   * Endpoint: POST /api/proyectos
+   * Body: { proyecto: {...}, miembros: [{id_usuario, rol}] }
    */
-  createProyecto(proyecto: any): Observable<any> {
-    console.log('Creando proyecto en BD:', proyecto);
-    return this.http.post<any>(this.apiUrl, proyecto).pipe(
+  createProyecto(proyectoData: any): Observable<any> {
+    // Obtener el ID del usuario desde el servicio de AUTENTICACIÓN
+    const userId = this.authUserService.getCurrentUserId();
+    
+    if (!userId) {
+      console.error('No hay usuario autenticado');
+      throw new Error('Usuario no autenticado. Por favor, inicia sesión.');
+    }
+
+    // Asegurar que el proyecto tenga el id_usuario_creador
+    const data = {
+      ...proyectoData,
+      proyecto: {
+        ...proyectoData.proyecto,
+        id_usuario_creador: userId
+      }
+    };
+
+    console.log('Creando proyecto:', data);
+    console.log('Usuario creador ID:', userId);
+    
+    return this.http.post<any>(this.apiUrl, data).pipe(
       tap(response => {
-        console.log('Respuesta completa:', response);
+        console.log('Proyecto creado exitosamente:', response);
         
-        const newProyecto = response.proyecto || response;
-        console.log('Proyecto creado:', newProyecto);
-        
-        const currentProyectos = this.proyectosSubject.value;
-        this.proyectosSubject.next([...currentProyectos, newProyecto]);
+        // Actualizar la lista de proyectos si el backend devuelve el proyecto
+        const nuevoProyecto = response.proyecto || response;
+        if (nuevoProyecto) {
+          const currentProyectos = this.proyectosSubject.value;
+          this.proyectosSubject.next([...currentProyectos, nuevoProyecto]);
+        }
       }),
       catchError(error => {
         console.error('Error creando proyecto:', error);
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Agregar miembro a un proyecto existente
+   * Endpoint: POST /api/proyectos/{id_proyecto}/miembros
+   */
+  agregarMiembro(idProyecto: number, idUsuario: number, rol: 'admin' | 'miembro' = 'miembro'): Observable<any> {
+    const data = {
+      id_usuario: idUsuario,
+      rol: rol
+    };
+
+    console.log(`📤 Agregando miembro al proyecto ${idProyecto}:`, data);
+    
+    return this.http.post<any>(`${this.apiUrl}/${idProyecto}/miembros`, data).pipe(
+      tap(response => console.log('Miembro agregado:', response)),
+      catchError(error => {
+        console.error('Error agregando miembro:', error);
         throw error;
       })
     );

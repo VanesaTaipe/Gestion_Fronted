@@ -1,25 +1,22 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
-import { catchError, map, tap } from 'rxjs/operators';
+import { BehaviorSubject, Observable, of } from 'rxjs';
+import { catchError, map, switchMap, take, tap } from 'rxjs/operators';
 import { environment } from '../../../../environments/environment';
+import { UserService } from '../../../core/auth/services/use.service';
 import { CreateWorkspaceRequest, Espacio } from '../models/espacio.interface';
-
 
 @Injectable({
   providedIn: 'root'
 })
 export class WorkspaceService {
   private http = inject(HttpClient);
+  private userService = inject(UserService);
   
   private readonly apiUrl = `${environment.apiUrl}/espacios`;
   
-  // Subject para manejar el estado de espacios
   private workspacesSubject = new BehaviorSubject<Espacio[]>([]);
   public workspaces$ = this.workspacesSubject.asObservable();
-
-  // Usuario temporal hasta implementar autenticación
-  private currentUserId = this.getStoredUserId();
 
   /**
    * Configurar headers para las peticiones HTTP
@@ -31,34 +28,69 @@ export class WorkspaceService {
   }
 
   /**
-   * Obtener todos los espacios del usuario
+   * Obtener el ID del usuario autenticado actual
+   */
+    private getCurrentUserId(): Observable<number> {
+    return this.userService.currentUser.pipe(
+      take(1),
+      map(user => {
+        console.log('Usuario en workspace service:', user);
+        
+        if (!user || !user.id_usuario) {
+          throw new Error('Usuario no autenticado');
+        }
+        
+        console.log('ID Usuario obtenido:', user.id_usuario);
+        return user.id_usuario;
+      })
+    );
+  }
+   /**
+   * ALTERNATIVA: Obtener userId sincrónicamente
+   */
+  private getUserIdSync(): number {
+    const userId = this.userService.getCurrentUserId();
+    
+    if (!userId) {
+      console.error('No hay usuario autenticado');
+      throw new Error('Usuario no autenticado');
+    }
+    
+    console.log('ID Usuario (sync):', userId);
+    return userId;
+  }
+  /**
+   * Obtener espacios del usuario - OPCIÓN 1: Con Observable
    */
   getWorkspaces(): Observable<Espacio[]> {
-  const url = `${this.apiUrl}?id_usuario=${this.currentUserId}`;
-  
-  return this.http.get<any>(url, {
-    headers: this.getHeaders()
-  }).pipe(
-    map(response => {
-   
-      if (response.error) {
-        console.log('Backend response:', response.error);
-        this.workspacesSubject.next([]);
-        return [];
-      }
-      
-      // Manejar respuesta exitosa con datos
-      const espacios = response.data || response.espacios || response;
-      this.workspacesSubject.next(espacios);
-      return espacios;
-    }),
-    catchError(error => {
-      console.error('Error al obtener espacios:', error);
-      this.workspacesSubject.next([]);
-      return of([]);
-    })
-  );
-}
+    return this.getCurrentUserId().pipe(
+      switchMap(userId => {
+        const url = `${this.apiUrl}?id_usuario=${userId}`;
+        console.log('📡 Obteniendo espacios desde:', url);
+        
+        return this.http.get<any>(url).pipe(
+          map(response => {
+            console.log('Respuesta espacios:', response);
+            
+            if (response.error) {
+              return [];
+            }
+            
+            const espacios = response.data || response.espacios || response;
+            return Array.isArray(espacios) ? espacios : [];
+          }),
+          catchError(error => {
+            console.error('Error obteniendo espacios:', error);
+            return of([]);
+          })
+        );
+      }),
+      catchError(error => {
+        console.error('Error obteniendo ID de usuario:', error);
+        return of([]);
+      })
+    );
+  }
 
   /**
    * Obtener un espacio por ID
@@ -74,30 +106,28 @@ export class WorkspaceService {
       })
     );
   }
-
   /**
-   * Crear un nuevo espacio
+   * Crear workspace
    */
   createWorkspace(workspaceData: CreateWorkspaceRequest): Observable<Espacio> {
-    const dataWithUser = {
-      espacio: {
-        nombre: workspaceData.title,
-        descripcion: workspaceData.description,
-        id_usuario: this.currentUserId
-      }
-    };
+    return this.getCurrentUserId().pipe(
+      switchMap(userId => {
+        const dataWithUser = {
+          espacio: {
+            nombre: workspaceData.title,
+            descripcion: workspaceData.description,
+            id_usuario: userId
+          }
+        };
 
-    return this.http.post<any>(this.apiUrl, dataWithUser, {
-      headers: this.getHeaders()
-    }).pipe(
-      map(response => response.data || response.espacio || response),
-      tap(newEspacio => {
-        const currentEspacios = this.workspacesSubject.value;
-        this.workspacesSubject.next([...currentEspacios, newEspacio]);
-      }),
-      catchError(error => {
-        console.error('Error al crear espacio:', error);
-        throw error;
+        console.log('Creando espacio:', dataWithUser);
+
+        return this.http.post<any>(this.apiUrl, dataWithUser).pipe(
+          map(response => {
+            console.log('Espacio creado:', response);
+            return response.data || response.espacio || response;
+          })
+        );
       })
     );
   }
@@ -152,54 +182,10 @@ export class WorkspaceService {
     );
   }
 
- 
-
   /**
-   * Obtener el ID del usuario almacenado localmente
+   * Limpiar datos de espacios al cerrar sesión
    */
-  private getStoredUserId(): number {
-    const storedUserId = localStorage.getItem('tempUserId');
-    return storedUserId ? parseInt(storedUserId) : 1; // Por defecto usuario 1
-  }
-
-  /**
-   * Establecer un usuario temporal (hasta implementar autenticación real)
-   */
-  setTemporaryUser(userId: number): void {
-    this.currentUserId = userId;
-    localStorage.setItem('tempUserId', userId.toString());
-    // Recargar espacios con el nuevo usuario
-    this.getWorkspaces().subscribe();
-  }
-
-  /**
-   * Obtener el ID del usuario actual
-   */
-  getCurrentUserId(): number {
-    return this.currentUserId;
-  }
-
-  /**
-   * Obtener token de autenticación (placeholder para futura implementación)
-   */
-  private getAuthToken(): string | null {
-    return localStorage.getItem('authToken');
-  }
-
-  /**
-   * Establecer token de autenticación (placeholder para futura implementación)
-   */
-  setAuthToken(token: string): void {
-    localStorage.setItem('authToken', token);
-    // Aquí podrías agregar el token a los headers automáticamente
-  }
-
-  /**
-   * Limpiar datos de autenticación y espacios
-   */
-  clearAuth(): void {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('tempUserId');
+  clearWorkspaces(): void {
     this.workspacesSubject.next([]);
   }
 
@@ -227,5 +213,12 @@ export class WorkspaceService {
       (espacio.descripcion && espacio.descripcion.toLowerCase().includes(searchTerm.toLowerCase()))
     );
     return of(filteredEspacios);
+  }
+
+  /**
+   * Obtener el usuario actual (para uso externo)
+   */
+  getCurrentUser(): Observable<number> {
+    return this.getCurrentUserId();
   }
 }

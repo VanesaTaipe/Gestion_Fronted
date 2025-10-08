@@ -1,26 +1,31 @@
 import { CommonModule } from '@angular/common';
 import { Component, Inject, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { MatChipsModule } from '@angular/material/chips';
+import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatAutocompleteModule } from '@angular/material/autocomplete';
-import { MatChipsModule } from '@angular/material/chips';
+import { Router } from '@angular/router';
 import { Observable, of } from 'rxjs';
-import { map, startWith, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
-
-import { ProyectoService } from '../../services/proyecto.service';
-import { UserService } from '../../../profile/services/user.service';
+import { catchError, debounceTime, distinctUntilChanged, map, startWith, switchMap } from 'rxjs/operators';
 import { User } from '../../../profile/models/user.interface';
-import { Router } from '@angular/router'; 
+import { UserService } from '../../../profile/services/user.service';
+import { ProyectoService } from '../../services/proyecto.service';
+import { InviteMemberDialogComponent } from '../invite-member-dialog/inivite-member-dialog.component';
 
 interface DialogData {
   workspaceId: number;
   workspaceName: string;
   currentUserId: number; 
+}
+
+interface MemberWithRole {
+  user: User;
+  rol: 'admin' | 'miembro';
 }
 
 @Component({
@@ -83,16 +88,27 @@ interface DialogData {
 
           <!-- Añadir miembros -->
           <div class="members-section">
-            <label class="section-label">Añadir miembros</label>
+            <div class="section-header">
+              <label class="section-label">Añadir miembros</label>
+              <button 
+                type="button"
+                mat-button 
+                color="primary"
+                (click)="openInviteMemberDialog()"
+                class="invite-temp-btn">
+                <mat-icon>person_add</mat-icon>
+                Invitar nuevo miembro
+              </button>
+            </div>
             
             <div class="autocomplete-wrapper">
               <input 
                 type="text"
                 class="custom-input"
                 formControlName="searchUser"
-                placeholder="Ver lista de usuarios"
+                placeholder="Buscar por email o nombre de usuario"
                 [matAutocomplete]="auto">
-              <mat-icon class="dropdown-icon">expand_more</mat-icon>
+              <mat-icon class="search-icon">search</mat-icon>
             </div>
             
             <mat-autocomplete 
@@ -107,31 +123,56 @@ interface DialogData {
                     {{ getUserInitials(user) }}
                   </div>
                   <div class="user-info">
-                    <div class="user-name">{{ user.nombre }}</div>
+                    <div class="user-name">{{ user.username }}</div>
                     <div class="user-email">{{ user.email }}</div>
                   </div>
                 </div>
               </mat-option>
               
-              <mat-option *ngIf="(filteredUsers$ | async)?.length === 0" disabled>
+              <mat-option *ngIf="(filteredUsers$ | async)?.length === 0 && !isSearchingUsers" disabled>
                 <div class="no-results">No se encontraron usuarios</div>
+              </mat-option>
+              
+              <mat-option *ngIf="isSearchingUsers" disabled>
+                <div class="no-results">Buscando...</div>
               </mat-option>
             </mat-autocomplete>
 
+            <!-- Información del creador -->
+            <div class="creator-info" *ngIf="!selectedMembers.length">
+              <mat-icon>info</mat-icon>
+              <span>Serás el líder de este proyecto automáticamente</span>
+            </div>
+
             <!-- Miembros seleccionados -->
             <div class="selected-members" *ngIf="selectedMembers.length > 0">
-              <mat-chip-listbox class="members-list">
-                <mat-chip-option 
-                  *ngFor="let member of selectedMembers"
-                  (removed)="removeMember(member)"
-                  class="member-chip">
-                  <div class="chip-avatar">{{ getUserInitials(member) }}</div>
-                  <span>{{ member.nombre }}</span>
-                  <button matChipRemove>
-                    <mat-icon>cancel</mat-icon>
+              <div class="members-list">
+                <div 
+                  *ngFor="let memberData of selectedMembers"
+                  class="member-chip"
+                  [class.admin-chip]="memberData.rol === 'admin'">
+                  <div class="chip-avatar">{{ getUserInitials(memberData.user) }}</div>
+                  <div class="chip-info">
+                    <span class="chip-name">{{ memberData.user.username || memberData.user.email }}</span>
+                    <span class="chip-email" *ngIf="memberData.user.email && memberData.user.username">{{ memberData.user.email }}</span>
+                  </div>
+                  <span class="role-badge">{{ memberData.rol === 'admin' ? 'Líder' : 'Miembro' }}</span>
+                  <button 
+                    mat-icon-button 
+                    (click)="toggleRole(memberData)"
+                    class="role-toggle"
+                    title="Cambiar rol">
+                    <mat-icon>swap_horiz</mat-icon>
                   </button>
-                </mat-chip-option>
-              </mat-chip-listbox>
+                  <button 
+                    mat-icon-button
+                    (click)="removeMember(memberData)"
+                    class="remove-btn"
+                    title="Remover">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </form>
@@ -153,253 +194,617 @@ interface DialogData {
         </button>
       </mat-dialog-actions>
     </div>
+
+    <!-- Overlay para el diálogo de credenciales -->
+    <div class="credentials-overlay" *ngIf="showCredentialsDialog" (click)="closeCredentialsDialog()">
+      <div class="credentials-dialog" (click)="$event.stopPropagation()">
+        <div class="credentials-header">
+          <div class="header-icon">
+            <mat-icon>check_circle</mat-icon>
+          </div>
+          <h2>¡Usuario Temporal Creado!</h2>
+        </div>
+
+        <div class="credentials-content">
+          <div class="alert-info">
+            <mat-icon>info</mat-icon>
+            <p>Comparte estas credenciales con el usuario de forma segura. Deberá cambiar su contraseña en el primer acceso.</p>
+          </div>
+
+          <div class="credentials-container">
+            <div class="credential-item">
+              <label>Correo electrónico</label>
+              <div class="credential-value">
+                <code>{{ tempCredentials.email }}</code>
+                <button 
+                  mat-icon-button 
+                  (click)="copyToClipboard(tempCredentials.email, 'Correo copiado')">
+                  <mat-icon>content_copy</mat-icon>
+                </button>
+              </div>
+            </div>
+
+            <div class="credential-item password-item">
+              <label>Contraseña temporal</label>
+              <div class="credential-value">
+                <code class="password">{{ tempCredentials.password }}</code>
+                <button 
+                  mat-icon-button 
+                  (click)="copyToClipboard(tempCredentials.password, 'Contraseña copiada')">
+                  <mat-icon>content_copy</mat-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="quick-copy">
+            <button 
+              mat-stroked-button 
+              (click)="copyBothCredentials()"
+              class="copy-both-btn">
+              <mat-icon>content_copy</mat-icon>
+              Copiar ambas credenciales
+            </button>
+          </div>
+        </div>
+
+        <div class="credentials-actions">
+          <button 
+            mat-raised-button 
+            color="primary"
+            (click)="closeCredentialsDialog()">
+            <mat-icon>check</mat-icon>
+            Entendido
+          </button>
+        </div>
+      </div>
+    </div>
   `,
   styles: [`
     .dialog-container {
-      width: 600px;
-      max-width: 90vw;
-    }
+  width: 600px;
+  max-width: 90vw;
+  border-radius: 12px;
+  overflow: hidden;
+  background: white;
+}
 
-    .dialog-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1.5rem 1.5rem 0;
-    }
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 1.5rem 0;
+}
 
-    h2 {
-      margin: 0;
-      font-size: 1.5rem;
-      font-weight: 600;
-      color: #2c3e50;
-    }
+h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
 
-    .close-btn {
-      margin-right: -12px;
-    }
+.close-btn {
+  margin-right: -8px;
+  color: #64748b;
+}
 
-    mat-dialog-content {
-      padding: 1rem 1.5rem;
-      max-height: 70vh;
-      overflow-y: auto;
-    }
+mat-dialog-content {
+  padding: 1rem 1.5rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
 
-    .dialog-subtitle {
-      margin: 0 0 1.5rem 0;
-      color: #6c757d;
-      font-size: 0.9rem;
-    }
+.dialog-subtitle {
+  margin: 0 0 1.5rem 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
 
-    .project-form {
-      display: flex;
-      flex-direction: column;
-      gap: 1.25rem;
-    }
+.project-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
 
-    .full-width {
-      width: 100%;
-    }
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
 
-    /* Custom Form Styles */
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
+.field-label {
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.9rem;
+}
 
-    .field-label {
-      font-weight: 500;
-      color: #1a1a1a;
-      font-size: 0.95rem;
-      margin-bottom: 0.25rem;
-    }
+.custom-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  color: #1a1a1a;
+  background: white;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
 
-    .custom-input {
-      width: 100%;
-      padding: 0.875rem 1rem;
-      border: 1px solid #d1d5db;
-      border-radius: 12px;
-      font-size: 0.95rem;
-      color: #1a1a1a;
-      background: white;
-      transition: all 0.2s;
-      font-family: inherit;
-    }
+.custom-input::placeholder {
+  color: #9ca3af;
+}
 
-    .custom-input::placeholder {
-      color: #9ca3af;
-    }
+.custom-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
 
-    .custom-input:focus {
-      outline: none;
-      border-color: #20C9AC;
-      box-shadow: 0 0 0 3px rgba(32, 201, 172, 0.1);
-    }
+.custom-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
 
-    .custom-textarea {
-      resize: vertical;
-      min-height: 80px;
-    }
+.error-message {
+  color: #dc2626;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
 
-    .error-message {
-      color: #ef4444;
-      font-size: 0.8rem;
-      margin-top: 0.25rem;
-    }
+.hint-text {
+  color: #6b7280;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
 
-    .hint-text {
-      color: #6b7280;
-      font-size: 0.8rem;
-      margin-top: 0.25rem;
-    }
+.members-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
 
-    .autocomplete-wrapper {
-      position: relative;
-      width: 100%;
-    }
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
 
-    .dropdown-icon {
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #6b7280;
-      pointer-events: none;
-    }
+.section-label {
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.9rem;
+}
 
-    .members-section {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
+.invite-temp-btn {
+  font-size: 0.85rem;
+  padding: 0.375rem 0.75rem !important;
+  min-width: auto !important;
+}
 
-    .section-label {
-      font-weight: 500;
-      color: #495057;
-      font-size: 0.9rem;
-    }
+.invite-temp-btn mat-icon {
+  font-size: 16px !important;
+  width: 16px !important;
+  height: 16px !important;
+  margin-right: 0.25rem;
+}
 
-    .user-option {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.5rem 0;
-    }
+.autocomplete-wrapper {
+  position: relative;
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
 
-    .user-avatar {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      font-size: 0.875rem;
-    }
+.search-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6b7280;
+  pointer-events: none;
+  font-size: 18px;
+}
 
-    .user-info {
-      flex: 1;
-    }
+::ng-deep .mat-mdc-autocomplete-panel {
+  border-radius: 8px !important;
+  margin-top: 4px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+}
 
-    .user-name {
-      font-weight: 500;
-      color: #2c3e50;
-    }
+::ng-deep .mat-mdc-option {
+  min-height: 56px !important;
+  padding: 8px 16px !important;
+}
 
-    .user-email {
-      font-size: 0.8rem;
-      color: #6c757d;
-    }
+.creator-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  color: #0369a1;
+  font-size: 0.85rem;
+}
 
-    .no-results {
-      padding: 1rem;
-      text-align: center;
-      color: #6c757d;
-      font-style: italic;
-    }
+.creator-info mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
 
-    .selected-members {
-      margin-top: 0.5rem;
-    }
+.user-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.25rem 0;
+  width: 100%;
+}
 
-    .members-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #3b82f6;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
 
-    .member-chip {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.5rem 0.75rem;
-    }
+.user-info {
+  flex: 1;
+  min-width: 0;
+}
 
-    .chip-avatar {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      font-size: 0.7rem;
-    }
+.user-name {
+  font-weight: 500;
+  color: #1f2937;
+  font-size: 0.9rem;
+}
 
-    mat-dialog-actions {
-      padding: 1rem 1.5rem;
-      display: flex;
-      justify-content: flex-end;
-      gap: 0.75rem;
-      border-top: 1px solid #e1e5e9;
-    }
+.user-email {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
 
-    .cancel-btn {
-      padding: 0.5rem 1.5rem;
-    }
+.no-results {
+  padding: 1rem;
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+}
 
-    .create-btn {
-      padding: 0.5rem 2rem;
-      background: #20C9AC !important;
-    }
+.selected-members {
+  margin-top: 0.75rem;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 0.25rem;
+}
 
-    .spinning {
-      animation: spin 1s linear infinite;
-    }
+.members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
 
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
+.member-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
 
-    /* Scrollbar personalizado */
-    mat-dialog-content::-webkit-scrollbar {
-      width: 6px;
-    }
+.member-chip:hover {
+  background: #f3f4f6;
+}
 
-    mat-dialog-content::-webkit-scrollbar-track {
-      background: #f1f1f1;
-    }
+.admin-chip {
+  background: #fef3c7;
+  border-color: #f59e0b;
+}
 
-    mat-dialog-content::-webkit-scrollbar-thumb {
-      background: #cbd5e0;
-      border-radius: 3px;
-    }
+.chip-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #3b82f6;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
 
-    mat-dialog-content::-webkit-scrollbar-thumb:hover {
-      background: #a0aec0;
-    }
+.chip-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.chip-name {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: #1f2937;
+}
+
+.chip-email {
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
+.role-badge {
+  font-size: 0.7rem;
+  padding: 0.25rem 0.5rem;
+  background: #e5e7eb;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.admin-chip .role-badge {
+  background: #f59e0b;
+  color: white;
+}
+
+.role-toggle,
+.remove-btn {
+  width: 32px;
+  height: 32px;
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+.role-toggle mat-icon,
+.remove-btn mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.remove-btn {
+  color: #6b7280;
+}
+
+.remove-btn:hover {
+  color: #dc2626;
+}
+
+mat-dialog-actions {
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.cancel-btn {
+  padding: 0.5rem 1.5rem;
+  color: #6b7280;
+}
+
+.create-btn {
+  padding: 0.5rem 2rem;
+  background: #3b82f6 !important;
+}
+
+.create-btn:disabled {
+  background: #9ca3af !important;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Diálogo de credenciales simplificado */
+.credentials-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.credentials-dialog {
+  width: 480px;
+  max-width: 90vw;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.credentials-header {
+  text-align: center;
+  padding: 1.5rem;
+  background: #3b82f6;
+  color: white;
+}
+
+.header-icon mat-icon {
+  font-size: 40px;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 0.5rem;
+}
+
+.credentials-header h2 {
+  margin: 0;
+  color: white;
+  font-size: 1.25rem;
+}
+
+.credentials-content {
+  padding: 1.5rem;
+}
+
+.alert-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+}
+
+.alert-info mat-icon {
+  color: #1d4ed8;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+.alert-info p {
+  margin: 0;
+  color: #1e40af;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.credentials-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.credential-item {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.password-item {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.credential-item label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: #374151;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+.credential-value {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.credential-value code {
+  flex: 1;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  color: #1f2937;
+  word-break: break-all;
+}
+
+.password-item .credential-value code {
+  background: white;
+  border-color: #86efac;
+  color: #15803d;
+  font-weight: 600;
+}
+
+.credential-value button {
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+}
+
+.quick-copy {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.copy-both-btn {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #3b82f6;
+  color: #3b82f6;
+  background: white;
+}
+
+.credentials-actions {
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: center;
+  background: #f8fafc;
+  border-top: 1px solid #e5e7eb;
+}
+
+.credentials-actions button {
+  padding: 0.75rem 2rem;
+  background: #3b82f6 !important;
+}
+
+/* Scrollbars simples */
+mat-dialog-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+mat-dialog-content::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+mat-dialog-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.selected-members::-webkit-scrollbar {
+  width: 4px;
+}
+
+.selected-members::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.selected-members::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+
+}
   `]
 })
 export class CreateProjectDialogComponent implements OnInit {
   projectForm: FormGroup;
   isCreating = false;
-  selectedMembers: User[] = [];
+  isSearchingUsers = false;
+  selectedMembers: MemberWithRole[] = [];
   filteredUsers$: Observable<User[]>;
+  
+  // Para el diálogo de credenciales
+  showCredentialsDialog = false;
+  tempCredentials = { email: '', password: '' };
 
   constructor(
     private fb: FormBuilder,
@@ -408,6 +813,7 @@ export class CreateProjectDialogComponent implements OnInit {
     private proyectoService: ProyectoService,
     private userService: UserService,
     private router: Router,
+    private dialog: MatDialog
   ) {
     this.projectForm = this.fb.group({
       nombre: ['', [Validators.required, Validators.maxLength(100)]],
@@ -415,7 +821,6 @@ export class CreateProjectDialogComponent implements OnInit {
       searchUser: ['']
     });
 
-    // Configurar búsqueda de usuarios
     this.filteredUsers$ = this.projectForm.get('searchUser')!.valueChanges.pipe(
       startWith(''),
       debounceTime(300),
@@ -424,57 +829,190 @@ export class CreateProjectDialogComponent implements OnInit {
         if (typeof searchTerm !== 'string') {
           return of([]);
         }
-        return this.searchUsers(searchTerm);
+        
+        this.isSearchingUsers = true;
+        return this.searchUsers(searchTerm).pipe(
+          map(users => {
+            this.isSearchingUsers = false;
+            return users;
+          }),
+          catchError(error => {
+            console.error('Error buscando usuarios:', error);
+            this.isSearchingUsers = false;
+            return of([]);
+          })
+        );
       })
     );
   }
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    console.log('Datos del diálogo:', this.data);
+    console.log('Usuario actual (creador):', this.data.currentUserId);
+  }
 
   private searchUsers(searchTerm: string): Observable<User[]> {
     if (!searchTerm || searchTerm.trim().length === 0) {
-      return this.userService.getUsers(); // Obtener todos los usuarios
+      return this.userService.getUsers().pipe(
+        map(users => this.filterUsers(users)),
+        catchError(() => of([]))
+      );
     }
     
-    // Buscar usuarios por nombre o apellido desde la API
     return this.userService.searchUsers(searchTerm).pipe(
-      map(users => users.filter(user => 
-        !this.selectedMembers.some(member => member.id === user.id)
-      ))
+      map(users => this.filterUsers(users)),
+      catchError(() => of([]))
     );
   }
 
+  private filterUsers(users: User[]): User[] {
+    return users.filter(user => {
+      const isCurrentUser = user.id_usuario === this.data.currentUserId;
+      const isAlreadySelected = this.selectedMembers.some(
+        m => m.user.id_usuario === user.id_usuario
+      );
+      return !isCurrentUser && !isAlreadySelected;
+    });
+  }
+
   displayUser(user: User | null): string {
-    return ''; // No mostrar nada en el input después de seleccionar
+    return '';
   }
 
   getUserInitials(user: User): string {
-    const firstInitial = user.nombre?.charAt(0).toUpperCase() || '';
-    return `${firstInitial}`;
+    if (user.username) {
+      return user.username.charAt(0).toUpperCase();
+    }
+    if (user.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
+    return 'U';
   }
 
   addMember(user: User): void {
-    if (!this.selectedMembers.some(m => m.id === user.id)) {
-      this.selectedMembers.push(user);
+    if (user.id_usuario === this.data.currentUserId) {
+      console.warn('⚠️ No puedes agregarte a ti mismo como miembro');
+      return;
     }
+
+    if (!this.selectedMembers.some(m => m.user.id_usuario === user.id_usuario)) {
+      this.selectedMembers.push({
+        user: user,
+        rol: 'miembro'
+      });
+      console.log('Miembro agregado:', user.username, 'con rol: miembro');
+    }
+    
     this.projectForm.get('searchUser')?.setValue('');
   }
 
-  removeMember(user: User): void {
-    const index = this.selectedMembers.findIndex(m => m.id === user.id);
+  removeMember(memberData: MemberWithRole): void {
+    const index = this.selectedMembers.findIndex(
+      m => m.user.id_usuario === memberData.user.id_usuario
+    );
     if (index >= 0) {
       this.selectedMembers.splice(index, 1);
+      console.log('Miembro removido:', memberData.user.username);
     }
+  }
+
+  toggleRole(memberData: MemberWithRole): void {
+    memberData.rol = memberData.rol === 'admin' ? 'miembro' : 'admin';
+    console.log('Rol cambiado:', memberData.user.username, '→', memberData.rol);
+  }
+
+  openInviteMemberDialog(): void {
+    console.log('Abriendo diálogo de invitación para nuevo miembro');
+    
+    const inviteDialogRef = this.dialog.open(InviteMemberDialogComponent, {
+      width: '550px',
+      data: {
+        projectId: 0,
+        projectName: this.projectForm.get('nombre')?.value || 'Nuevo Proyecto'
+      },
+      disableClose: false
+    });
+
+    inviteDialogRef.afterClosed().subscribe(result => {
+      if (result && result.user) {
+        console.log('Usuario temporal creado:', result);
+        
+        if (result.user.id_usuario === this.data.currentUserId) {
+          console.warn('No puedes agregarte a ti mismo');
+          return;
+        }
+
+        // Asegurar que el usuario tenga un username válido
+        const user = {
+          ...result.user,
+          username: result.user.username || result.user.email?.split('@')[0] || 'Usuario',
+          email: result.user.email
+        };
+
+        const newMember: MemberWithRole = {
+          user: user,
+          rol: result.rol === 'lider' ? 'admin' : 'miembro'
+        };
+        
+        if (!this.selectedMembers.some(m => m.user.id_usuario === newMember.user.id_usuario)) {
+          this.selectedMembers.push(newMember);
+          console.log('Miembro invitado agregado:', newMember.user.username, 'con rol:', newMember.rol);
+          console.log('Email:', newMember.user.email);
+          console.log('Contraseña temporal:', result.tempPassword);
+          
+          // Mostrar diálogo con credenciales si hay contraseña
+          if (result.tempPassword) {
+            this.showCredentials(user.email, result.tempPassword);
+          }
+        } else {
+          console.warn('El usuario ya está en la lista de miembros');
+        }
+      }
+    });
+  }
+
+  showCredentials(email: string, password: string): void {
+    this.tempCredentials = { email, password };
+    this.showCredentialsDialog = true;
+  }
+
+  closeCredentialsDialog(): void {
+    this.showCredentialsDialog = false;
+    this.tempCredentials = { email: '', password: '' };
+  }
+
+  copyToClipboard(text: string, message: string): void {
+    navigator.clipboard.writeText(text).then(() => {
+      alert(message);
+    }).catch(err => {
+      console.error('Error al copiar:', err);
+    });
+  }
+
+  copyBothCredentials(): void {
+    const credentials = `Correo: ${this.tempCredentials.email}\nContraseña temporal: ${this.tempCredentials.password}`;
+    navigator.clipboard.writeText(credentials).then(() => {
+      alert('Credenciales copiadas al portapapeles');
+    }).catch(err => {
+      console.error('Error al copiar:', err);
+    });
   }
 
   createProject(): void {
     if (this.projectForm.invalid) {
+      console.warn('Formulario inválido');
       return;
     }
     
     this.isCreating = true;
 
-    const requestData = {
+    // Preparar miembros con sus roles (sin incluir al creador)
+    const miembrosConRoles = this.selectedMembers.map(memberData => ({
+      id_usuario: memberData.user.id_usuario,
+      rol: memberData.rol
+    }));
+
+    const requestData: any = {
       proyecto: {
         nombre: this.projectForm.get('nombre')?.value,
         descripcion: this.projectForm.get('descripcion')?.value || '',
@@ -483,32 +1021,27 @@ export class CreateProjectDialogComponent implements OnInit {
       }
     };
 
-    if (this.selectedMembers.length > 0) {
-      Object.assign(requestData, {
-        miembros: this.selectedMembers.map(member => ({
-          id_usuario: member.id,
-          rol: 'miembro'
-        }))
-      });
+    // Solo agregar miembros si hay alguno seleccionado
+    if (miembrosConRoles.length > 0) {
+      requestData.miembros = miembrosConRoles;
     }
 
-    console.log('📤 Creando proyecto:', requestData);
+    console.log('Creando proyecto con datos:', requestData);
+    console.log('Creador (líder automático):', this.data.currentUserId);
+    console.log('Miembros adicionales:', miembrosConRoles.length);
 
     this.proyectoService.createProyecto(requestData).subscribe({
       next: (response) => {
-        console.log('📦 Respuesta del servidor:', response);
+        console.log('Respuesta del servidor:', response);
         
-        // CORRECCIÓN: Extraer correctamente el proyecto
         const proyectoData = response.proyecto || response;
-        console.log('✅ Proyecto extraído:', proyectoData);
+        console.log('Proyecto creado:', proyectoData);
         
-        // CORRECCIÓN: Obtener el ID correcto
         const projectId = proyectoData.id_proyecto || proyectoData.id;
-        console.log('🔑 ID del proyecto:', projectId);
+        console.log('ID del proyecto:', projectId);
         
-        // Validar que el ID exista
         if (!projectId) {
-          console.error('❌ No se pudo obtener el ID del proyecto');
+          console.error(' No se pudo obtener el ID del proyecto');
           this.isCreating = false;
           alert('Error: No se pudo obtener el ID del proyecto');
           return;
@@ -517,7 +1050,7 @@ export class CreateProjectDialogComponent implements OnInit {
         this.isCreating = false;
         this.dialogRef.close(proyectoData);
         
-        // Navegar al tablero
+        // Navegar al tablero del proyecto
         this.router.navigate([
           '/workspace', 
           this.data.workspaceId, 
@@ -529,15 +1062,23 @@ export class CreateProjectDialogComponent implements OnInit {
             projectName: proyectoData.nombre
           }
         }).then(success => {
-          console.log('✅ Navegación exitosa:', success);
+          console.log('Navegación exitosa al proyecto:', success);
         }).catch(error => {
-          console.error('❌ Error en navegación:', error);
+          console.error('Error en navegación:', error);
         });
       },
       error: (error) => {
-        console.error('❌ Error al crear proyecto:', error);
+        console.error('Error al crear proyecto:', error);
         this.isCreating = false;
-        alert('Error al crear el proyecto. Por favor, intenta nuevamente.');
+        
+        let errorMessage = 'Error al crear el proyecto. Por favor, intenta nuevamente.';
+        if (error.error?.message) {
+          errorMessage = error.error.message;
+        } else if (error.error?.error) {
+          errorMessage = error.error.error;
+        }
+        
+        alert(errorMessage);
       }
     });
   }

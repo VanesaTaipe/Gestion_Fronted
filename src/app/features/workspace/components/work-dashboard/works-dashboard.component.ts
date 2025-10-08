@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, DestroyRef, inject, OnInit } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
-import { CreateProjectDialogComponent } from '../../../project/components/create-project/create-project.component';
+import { UserService as AuthUservice } from '../../../../core/auth/services/use.service';
 import { CreateWorkspaceDialogComponent } from '../../../workspace/components/create-workspace-dialog.component/create-workspace-dialog.compent';
 import { Espacio } from '../../models/espacio.interface';
 import { WorkspaceService } from '../../services/workspace.service';
@@ -242,34 +243,79 @@ export class WorkspaceDashboardComponent implements OnInit {
   private dialog = inject(MatDialog);
   private workspaceService = inject(WorkspaceService);
   private route = inject(Router);
-  
+  private authUserService = inject(AuthUservice);
+  private destroyRef = inject(DestroyRef);
+
   workspaces: Espacio[] = [];
   isLoading = false;
+  currentUserId = 0;
+  currentUserName = '';
 
   ngOnInit(): void {
-    this.loadWorkspaces();
+    console.log('WorkspaceDashboard inicializado');
+    
+    this.authUserService.currentUser
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(user => {
+        if (!user) {
+          console.log('No hay usuario autenticado, redirigiendo al login');
+          this.route.navigate(['/login']);
+          return;
+        }
+        
+        console.log('Usuario autenticado:', user);
+        this.currentUserName = user.username || 'Usuario';
+        this.currentUserId = user.id_usuario;
+
+        console.log('ID de usuario extraído:', user.id_usuario);
+
+        if (this.currentUserId > 0) {
+          //  Llamar a checkUserWorkspaces en vez de loadWorkspaces
+          this.checkUserWorkspaces();
+        } else {
+          console.error('ID de usuario inválido:', this.currentUserId);
+        }
+      });
   }
 
-  loadWorkspaces(): void {
+  // verificar espacios y redirigir si existen
+  checkUserWorkspaces(): void {
+    console.log('Verificando espacios del usuario...');
     this.isLoading = true;
-    this.workspaceService.getWorkspaces().subscribe({
-      next: (workspaces) => {
-        this.workspaces = workspaces;
-        this.isLoading = false;
-        // Si ya tiene espacios, redirigir automáticamente
-        if (workspaces.length > 0) {
-          this.route.navigate(['/workspace', workspaces[0].id]);
+    
+    this.workspaceService.getWorkspaces()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (workspaces) => {
+          this.workspaces = workspaces;
+          this.isLoading = false;
+
+          console.log('Total de espacios encontrados:', workspaces.length);
+
+          //  Redirigir si tiene espacios
+          if (workspaces.length > 0) {
+            console.log('Usuario tiene espacios, redirigiendo al primer espacio...');
+            const firstWorkspace = workspaces[0];
+            
+            // Redirigir al primer workspace
+            this.route.navigate(['/workspace', firstWorkspace.id]).then(() => {
+              console.log('Redirigido a workspace:', firstWorkspace.nombre);
+            });
+          } else {
+            console.log(' Usuario nuevo sin espacios, mostrando pantalla de bienvenida');
+          }
+        },
+        error: (error) => {
+          console.error('Error al verificar workspaces:', error);
+          this.isLoading = false;
+          // En caso de error, quedarse en la pantalla de bienvenida
         }
-      },
-      error: (error) => {
-        console.error('Error al cargar workspaces:', error);
-        this.isLoading = false;
-        this.workspaces = [];
-      }
-    });
+      });
   }
 
   openCreateWorkspaceDialog(): void {
+    console.log('Abriendo diálogo crear workspace');
+    
     const dialogRef = this.dialog.open(CreateWorkspaceDialogComponent, {
       width: '500px',
       disableClose: true,
@@ -278,55 +324,48 @@ export class WorkspaceDashboardComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
+        console.log('Datos del nuevo workspace:', result);
         this.createWorkspace(result);
+      } else {
+        console.log('Diálogo cancelado');
       }
     });
   }
 
   createWorkspace(workspaceData: { title: string; description: string }): void {
+    console.log('Creando workspace:', workspaceData);
     this.isLoading = true;
+    
     this.workspaceService.createWorkspace(workspaceData).subscribe({
       next: (newWorkspace) => {
+        console.log('Workspace creado exitosamente:', newWorkspace);
         this.workspaces.push(newWorkspace);
         this.isLoading = false;
-        this.route.navigate(['/workspace', newWorkspace.id]);
+        
+        // Navegar al nuevo workspace creado
+        this.route.navigate(['/workspace', newWorkspace.id]).then(() => {
+          console.log('Navegado al nuevo workspace');
+        });
       },
       error: (error) => {
         console.error('Error al crear workspace:', error);
+        console.error('Detalles del error:', error.error);
         this.isLoading = false;
+        
+        // Mostrar mensaje de error más específico
+        let errorMessage = 'Error al crear el espacio de trabajo.';
+        if (error.error?.message) {
+          errorMessage = error.error.message;
+        } else if (error.error?.error) {
+          errorMessage = error.error.error;
+        }
+        
+        alert(errorMessage + ' Por favor, intenta nuevamente.');
       }
     });
-  }
-
-  selectWorkspace(workspace: Espacio): void {
-    this.route.navigate(['/workspace', workspace.id]);
-  }
-
-  getCurrentUserId(): number {
-    return this.workspaceService.getCurrentUserId();
   }
 
   getCurrentUserName(): string {
-    const storedName = localStorage.getItem('tempUserName');
-    return storedName || 'Usuario';
-  }
-
-  createProject(workspaceId: number, workspaceName: string): void {
-    const dialogRef = this.dialog.open(CreateProjectDialogComponent, {
-      width: '600px',
-      maxWidth: '90vw',
-      data: {
-        workspaceId: workspaceId,
-        workspaceName: workspaceName
-      },
-      disableClose: false,
-      autoFocus: true
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        this.route.navigate(['/workspace', workspaceId, 'project', result.id, 'board']);
-      }
-    });
+    return this.currentUserName || 'Usuario';
   }
 }

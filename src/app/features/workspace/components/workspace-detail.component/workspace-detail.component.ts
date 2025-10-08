@@ -12,7 +12,7 @@ import { Espacio } from '../../models/espacio.interface';
 import { Proyecto } from '../../../project/models/proyecto.interfacce';
 import { CreateProjectDialogComponent } from '../../../project/components/create-project/create-project.component';
 import { CreateWorkspaceDialogComponent } from '../create-workspace-dialog.component/create-workspace-dialog.compent';
-
+import { UserService } from '../../../../core/auth/services/use.service';
 @Component({
   selector: 'app-workspace-detail',
   standalone: true,
@@ -133,7 +133,7 @@ import { CreateWorkspaceDialogComponent } from '../create-workspace-dialog.compo
       <div class="p-8">
         <!-- Texto descriptivo - SOLO cuando NO hay proyectos -->
         <p *ngIf="!isLoading && proyectos.length === 0" class="text-center text-gray-600 mb-8 max-w-4xl mx-auto">
-          Estás a punto de transformar la manera en que gestionas tus proyectos. Comencemos creando tu primer espacio de trabajo
+          Estás a punto de transformar la manera en que gestionas tus proyectos.
         </p>
 
         <!-- Empty State -->
@@ -276,7 +276,7 @@ export class WorkspaceDetailComponent implements OnInit {
   private workspaceService = inject(WorkspaceService);
   private proyectoService = inject(ProyectoService);
   private dialog = inject(MatDialog);
-  
+  private authUserService = inject(UserService);
   workspace: Espacio | null = null;
   workspaceId: number = 0;
   proyectos: Proyecto[] = [];
@@ -291,7 +291,6 @@ export class WorkspaceDetailComponent implements OnInit {
       this.loadWorkspace();
       this.loadProjects();
       this.loadAllWorkspaces();
-      // Expandir automáticamente el workspace actual
       this.expandedWorkspaces.add(this.workspaceId);
     });
   }
@@ -325,8 +324,8 @@ export class WorkspaceDetailComponent implements OnInit {
   this.isLoading = true;
   this.proyectoService.getProyectosByWorkspace(this.workspaceId).subscribe({
     next: (proyectos) => {
-      console.log('📦 Proyectos recibidos:', proyectos); // <-- AÑADE ESTE LOG
-      console.log('📦 Primer proyecto:', proyectos[0]); // <-- Y ESTE
+      console.log('Proyectos recibidos:', proyectos); 
+      console.log('Primer proyecto:', proyectos[0]); 
       
       this.proyectos = proyectos;
       this.workspaceProjects = proyectos;
@@ -368,12 +367,12 @@ getProjectId(proyecto: Proyecto): number {
       if (result) {
         this.workspaceService.createWorkspace(result).subscribe({
           next: (newWorkspace) => {
-            console.log('✅ Espacio creado:', newWorkspace);
+            console.log('Espacio creado:', newWorkspace);
             this.loadAllWorkspaces();
             this.router.navigate(['/workspace', newWorkspace.id]);
           },
           error: (error) => {
-            console.error('❌ Error:', error);
+            console.error('Error:', error);
           }
         });
       }
@@ -381,35 +380,45 @@ getProjectId(proyecto: Proyecto): number {
   }
 
   createProject(): void {
-    const currentUserId = this.workspaceService.getCurrentUserId();
-    
-    const dialogRef = this.dialog.open(CreateProjectDialogComponent, {
-      width: '800px',
-      maxWidth: '95vw',
-      data: {
-        workspaceId: this.workspaceId,
-        workspaceName: this.workspace?.nombre,
-        currentUserId: currentUserId
-      }
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        this.loadProjects();
-      }
-    });
+  const currentUserId = this.authUserService.getCurrentUserId();
+  
+  if (!currentUserId) {
+    alert('Error: Usuario no autenticado');
+    return;
   }
 
+  console.log('Abriendo diálogo crear proyecto');
+  console.log('ID Usuario:', currentUserId);
+  console.log('ID Workspace:', this.workspaceId);
+  
+  const dialogRef = this.dialog.open(CreateProjectDialogComponent, {
+    width: '800px',
+    maxWidth: '95vw',
+    data: {
+      workspaceId: this.workspaceId,
+      workspaceName: this.workspace?.nombre,
+      currentUserId: currentUserId 
+    }
+  });
+
+  dialogRef.afterClosed().subscribe(result => {
+    if (result) {
+      console.log('Proyecto creado:', result);
+      this.loadProjects();
+    }
+  });
+}
+
   openProjectBoard(projectId: number | undefined): void {
-  console.log('🔍 Intentando abrir proyecto:', projectId); // <-- AÑADE ESTE LOG
+  console.log('Intentando abrir proyecto:', projectId); 
   
   if (!projectId || projectId <= 0) {
-    console.error('❌ ID de proyecto inválido:', projectId);
+    console.error('ID de proyecto inválido:', projectId);
     return;
   }
   
   const targetRoute = ['/workspace', this.workspaceId, 'projects', projectId, 'board'];
-  console.log('🎯 Navegando a:', targetRoute); // <-- AÑADE ESTE LOG
+  console.log('Navegando a:', targetRoute); 
   
   this.router.navigate(targetRoute);
 }

@@ -1,14 +1,16 @@
+import { inject } from '@angular/core';
 import { Routes } from '@angular/router';
+import { map } from 'rxjs/operators';
+import { UserService } from './core/auth/services/use.service';
 import { BoardComponent } from './features/board/components/board/board.component';
 import { WorkspaceDashboardComponent } from './features/workspace/components/work-dashboard/works-dashboard.component';
 import { WorkspaceDetailComponent } from './features/workspace/components/workspace-detail.component/workspace-detail.component';
-
 
 export const routes: Routes = [
   // ====================
   // RUTA PRINCIPAL
   // ====================
- /* {
+  {
     path: '',
     redirectTo: 'login',
     pathMatch: 'full'
@@ -26,22 +28,8 @@ export const routes: Routes = [
     canActivate: [
       () => inject(UserService).isAuthenticated.pipe(map(isAuth => !isAuth))
     ],
-  },*/
-  {
-    path: '',
-    redirectTo: 'user-select',
-    pathMatch: 'full'
   },
 
-  // ====================
-  // SELECCIÓN DE USUARIO
-  // ====================
-  {
-    path: 'user-select',
-    loadComponent: () => import('./features/profile/components/user-selector.component')
-      .then(m => m.UserSelectorComponent),
-    title: 'Seleccionar Usuario'
-  },
 
   // ====================
   // WORKSPACES (ESPACIOS)

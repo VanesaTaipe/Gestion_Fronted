@@ -84,7 +84,7 @@ export class BoardService {
         return forkJoin([columnas$, tareas$]).pipe(
           switchMap(([cols, tasks]) => {
             const columns: Column[] = (cols || [])
-              .filter((c: any) => c.status === '0' || c.status === 0)
+              .filter((c: any) => {const status = String(c.status);return status === '0';})
               .sort((a: any, b: any) => (a.posicion ?? 0) - (b.posicion ?? 0))
               .map((c: any, idx: number) => this.mapColumnFromBackend(c, idx));
 
@@ -160,7 +160,7 @@ export class BoardService {
 
   updateColumnPosition(colId: number | string, posicion: number) {
     const body = { columna: { posicion: Number(posicion) } };
-    return this.http.put(`${this.api}/columnas/${colId}/`, body, {
+    return this.http.put(`${this.api}/columnas/${colId}`, body, {
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
     });
   }

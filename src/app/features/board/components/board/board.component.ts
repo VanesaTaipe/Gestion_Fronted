@@ -3,9 +3,9 @@ import { CommonModule, Location } from '@angular/common';
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { forkJoin, from, of } from 'rxjs';
-import { concatMap, map, catchError } from 'rxjs/operators';
-import { Board, Column } from '../../models/board.model';
+import { from, of } from 'rxjs';
+import { catchError, concatMap, map } from 'rxjs/operators';
+import { Board, Column,Card } from '../../models/board.model';
 import { BoardService } from '../../services/board.service';
 import { ColumnComponent } from '../column/column.component';
 import { HeaderComponent } from '../header/header.component';
@@ -25,6 +25,9 @@ export class BoardComponent {
   private route = inject(ActivatedRoute);
   projectId?: number;
   workspaceId?: number;
+   columns: Column[] = [];
+  selectedCard: Card | null = null;
+  selectedColumnName: string = '';
 
   colModalOpen = false;
   editMode = false;
@@ -262,7 +265,7 @@ export class BoardComponent {
 
   onDeleteColumn(col: Column) {
     if (!this.board) return;
-    if (!confirm(`¿Eliminar la columna "${col.nombre}" y todas sus tarjetas?`)) return;
+    if (!confirm(`¿Eliminar la columna "${col.nombre}"?`)) return;
 
     this.boardService.deleteColumn(col.id).subscribe({
       next: () => {
@@ -310,4 +313,5 @@ export class BoardComponent {
   onDeleteColumnFromChild(column: Column) {
     this.onDeleteColumn(column);
   }
+  
 }

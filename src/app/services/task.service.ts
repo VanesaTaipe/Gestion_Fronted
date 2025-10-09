@@ -9,9 +9,10 @@ export interface TaskCreateDTO {
   id_proyecto: number | string;
   id_columna:  number | string;
   title:       string;
+  prioridad?: 'baja'|'media'|'alta';
   descripcion?: string;
   due_at?:      string | Date;   // "YYYY-MM-DD" del Date
-  id_asignado?: number;          
+  id_asignado?: number;         
 }
 
 export interface Card {
@@ -55,6 +56,7 @@ export class TaskService {
       id_proyecto: Number(p.id_proyecto),
       id_columna : Number(p.id_columna),
       titulo     : p.title,
+      prioridad  : (p as any).prioridad ?? 'media',
       descripcion: p.descripcion ?? '',
       id_creador : 1,   // id del usuario logueado
       status     : '0',
@@ -71,6 +73,7 @@ export class TaskService {
           id               : t.id_tarea ?? t.id,
           id_columna       : t.id_columna ?? Number(p.id_columna),
           title            : t.titulo ?? p.title,
+          prioridad        : ((t.prioridad ?? (p as any).prioridad ?? 'media') as any),
           descripcion      : t.descripcion ?? body.descripcion,
           id_asignado      : t.id_asignado ?? p.id_asignado,
           fecha_vencimiento: t.due_at ?? dueMySQL,

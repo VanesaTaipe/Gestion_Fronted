@@ -39,9 +39,9 @@
 
   <div *ngIf="colModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
     <div class="bg-white w-[520px] max-w-[95vw] rounded-2xl shadow-xl p-6">
-      <h3 class="text-lg font-semibold mb-4">Nueva columna</h3>
+      <h3 class="text-lg font-semibold mb-4">{{ editingCol ? 'Editar columna' : 'Nueva columna' }}</h3>
 
-      <form [formGroup]="colForm" (ngSubmit)="submitAddColumn()" class="space-y-4">
+      <form [formGroup]="colForm" (ngSubmit)="editingCol ? submitEditColumn() : submitAddColumn()" class="space-y-4">
         <!-- Nombre -->
         <div>
           <label class="block text-sm mb-1">Nombre</label>
@@ -88,7 +88,7 @@
             class="px-4 py-2 rounded-xl text-white bg-cyan-500 hover:bg-cyan-600"
             [disabled]="colForm.invalid"
           >
-            Crear
+            {{ editingCol ? 'Guardar' : 'Crear' }}
           </button>
         </div>
       </form>

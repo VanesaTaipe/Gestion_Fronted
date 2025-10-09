@@ -55,6 +55,22 @@ private defaultColorByIndex(idx: number): string {
           catchError(() => of([]))
         );
 
+        const columnasEnsured$ = columnas$.pipe(
+          switchMap(cols => {
+            if (cols.length > 0) return of(cols); // ya hay columnas, no crear
+            const nombres = ['Backlog', 'Por Hacer', 'En Desarrollo', 'Hecho'];
+            const reqs = nombres.map((name, i) => this.createColumn(id, name, i + 1));
+            return forkJoin(reqs).pipe(
+              switchMap(() =>
+                this.http.get<any>(`${this.api}/proyectos/${id}/columnas`).pipe(
+                  map(res => this.unwrapArray(res, 'columnas'))
+                )
+              )
+            );
+          })
+        );
+
+
         //Tareas del proyecto 
         const tareas$ = this.http.get<any>(`${this.api}/tareas?proyecto=${id}`).pipe(
           map(res => {
@@ -68,7 +84,7 @@ private defaultColorByIndex(idx: number): string {
           catchError(() => of([]))
         );
 
-        return forkJoin([columnas$, tareas$]).pipe(
+        return forkJoin([columnasEnsured$, tareas$]).pipe(
           map(([cols, tasks]) => {
             // Mapear columnas
             const columns: Column[] = (cols || [])

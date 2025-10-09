@@ -1,85 +1,186 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { map, Observable, throwError } from 'rxjs';
+import { forkJoin, map, Observable, of, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { environment } from '../../../../environments/environment';
+import { UserService as AuthService } from '../../../core/auth/services/use.service';
 
 export interface TaskCreateDTO {
   id_proyecto: number | string;
-  id_columna:  number | string;
-  title:       string;
+  id_columna: number | string;
+  titulo: string;
   descripcion?: string;
-  due_at?:      string | Date;   // "YYYY-MM-DD" del input o Date
-  id_asignado?: number;          // opcional
+  due_at?: string | Date;
+  id_asignado?: number;
+  id_creador?: number;
+  position?: number;
+  prioridad: string;
+  images?: File[]; 
+  imageUrls?: string[];
 }
 
 export interface Card {
   id: number;
   id_columna: number;
-  title: string;
+  titulo: string;
+  title?: string;
   descripcion: string;
   id_asignado?: number;
   asignado_a?: string;
   fecha_vencimiento?: string;
   tag?: string;
-  prioridad?: 'baja'|'media'|'alta';
+  prioridad: 'baja' | 'media' | 'alta' | 'No asignada';
+  images?: string[];
+  comentarios?: any[];
 }
 
 @Injectable({ providedIn: 'root' })
 export class TaskService {
-  private api = environment.apiBase; // '/api' si usas proxy o 'http://localhost:8000/api'
+  private api = environment.apiBase;
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private authService: AuthService
+  ) {}
 
-  /** Convierte "YYYY-MM-DD" o Date a "YYYY-MM-DD HH:MM:SS" (MySQL TIMESTAMP) */
+  /** Convierte "YYYY-MM-DD" a "YYYY-MM-DD HH:MM:SS" (MySQL TIMESTAMP) */
   private toMySQLDateTime(value?: string | Date): string | undefined {
     if (!value) return undefined;
-    const d = typeof value === 'string' ? new Date(value) : value;
-    if (Number.isNaN(d.getTime())) return undefined;
+    
+    try {
+      let date: Date;
+      
+      if (typeof value === 'string') {
+        if (value.length === 10) {
+          date = new Date(value + 'T23:59:59');
+        } else {
+          date = new Date(value);
+        }
+      } else {
+        date = value;
+      }
+      
+      if (Number.isNaN(date.getTime())) {
+        console.warn('⚠️ Fecha inválida:', value);
+        return undefined;
+      }
 
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    const yyyy = d.getFullYear();
-    const mm   = pad(d.getMonth() + 1);
-    const dd   = pad(d.getDate());
-    const hh   = pad(0);
-    const mi   = pad(0);
-    const ss   = pad(0);
-    // guardamos a las 00:00:00; ajusta si quieres hora real
-    return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const yyyy = date.getFullYear();
+      const mm = pad(date.getMonth() + 1);
+      const dd = pad(date.getDate());
+      const hh = pad(date.getHours());
+      const mi = pad(date.getMinutes());
+      const ss = pad(date.getSeconds());
+      
+      return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+    } catch (error) {
+      console.error('❌ Error formateando fecha:', error);
+      return undefined;
+    }
   }
 
-  /** Crear tarea y devolverla mapeada a Card */
   createCard(p: TaskCreateDTO): Observable<Card> {
+    const currentUserId = this.authService.getCurrentUserId();
+    if (!currentUserId) {
+      return throwError(() => new Error('Usuario no autenticado'));
+    }
+
+    if (!p.prioridad) {
+      return throwError(() => new Error('La prioridad es obligatoria'));
+    }
+
     const body: any = {
       id_proyecto: Number(p.id_proyecto),
-      id_columna : Number(p.id_columna),
-      titulo     : p.title,
+      id_columna: Number(p.id_columna),
+      titulo: p.titulo,
       descripcion: p.descripcion ?? '',
-      id_creador : 1,   // TODO: id del usuario logueado
-      status     : '0',
+      id_creador: currentUserId,
+      position: p.position || 0,
+      status: '0',
+      prioridad: p.prioridad
     };
 
     const dueMySQL = this.toMySQLDateTime(p.due_at);
     if (dueMySQL) body.due_at = dueMySQL;
+    
     if (p.id_asignado != null) body.id_asignado = Number(p.id_asignado);
+
+    console.log('📤 POST /tareas:', body);
 
     return this.http.post(`${this.api}/tareas`, body).pipe(
       map((res: any) => {
+        console.log('Tarea creada:', res);
+        
         const t = res?.tarea?.data ?? res?.tarea ?? res;
+        
         const card: Card = {
-          id               : t.id_tarea ?? t.id,
-          id_columna       : t.id_columna ?? Number(p.id_columna),
-          title            : t.titulo ?? p.title,
-          descripcion      : t.descripcion ?? body.descripcion,
-          id_asignado      : t.id_asignado ?? p.id_asignado,
+          id: t.id_tarea ?? t.id,
+          id_columna: t.id_columna ?? Number(p.id_columna),
+          titulo: t.titulo ?? p.titulo,
+          title: t.titulo ?? p.titulo,
+          descripcion: t.descripcion ?? body.descripcion,
+          id_asignado: t.id_asignado ?? p.id_asignado,
           fecha_vencimiento: t.due_at ?? dueMySQL,
-          asignado_a       : '',
+          prioridad: (t.prioridad ?? p.prioridad) as 'baja' | 'media' | 'alta' | 'No asignada',
+          asignado_a: '',
+          images: [],
         };
+        
+        if (p.images && p.images.length > 0 && card.id) {
+          this.uploadFilesForTask(card.id, p.images).subscribe({
+            next: (urls) => {
+              console.log('Archivos subidos correctamente:', urls);
+              card.images = urls;
+            },
+            error: (err) => console.error('Error subiendo archivos:', err)
+          });
+        }
+        
         return card;
       }),
       catchError(err => {
-        console.error('POST /tareas falló:', err);
+        console.error('Error creando tarea:', err);
+        console.error('Error details:', err.error);
         return throwError(() => err);
+      })
+    );
+  }
+
+  uploadFilesForTask(taskId: number, files: File[]): Observable<string[]> {
+    if (!files.length) return of([]);
+    
+    const uploadRequests = files.map((file, index) => {
+      return this.uploadFile(taskId, file, index + 1);
+    });
+    
+    console.log(`📤 Subiendo ${files.length} archivos para tarea ${taskId}`);
+    return forkJoin(uploadRequests);
+  }
+
+  private uploadFile(taskId: number, file: File, order: number): Observable<string> {
+    const formData = new FormData();
+    formData.append('archivo', file);
+    formData.append('archivo[id_tarea]', taskId.toString());
+    
+    console.log('POST /archivos con FormData:', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      taskId: taskId,
+      order: order
+    });
+    
+    return this.http.post<any>(`${this.api}/archivos`, formData).pipe(
+      map((res: any) => {
+        console.log('Archivo subido:', res);
+        // Retornar la URL del archivo subido
+        const archivo = res?.archivo?.data ?? res?.archivo ?? res;
+        return archivo.url ?? '';
+      }),
+      catchError(err => {
+        console.error('Error subiendo archivo:', err);
+        return of('');
       })
     );
   }
@@ -87,7 +188,7 @@ export class TaskService {
   moveCard(taskId: number | string, toColumnId: number | string, toIndex1Based: number): Observable<any> {
     return this.http.patch(`${this.api}/tareas/${taskId}/move`, {
       id_columna: Number(toColumnId),
-      position  : Number(toIndex1Based),
+      position: Number(toIndex1Based),
     });
   }
 

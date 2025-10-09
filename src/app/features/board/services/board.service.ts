@@ -11,53 +11,67 @@ export class BoardService {
 
   constructor(private http: HttpClient) {}
 
-  // Paleta para colores por defecto (Tailwind las “ve” y no las purga)
-private palette = [
-  'bg-teal-200','bg-blue-200','bg-amber-200','bg-lime-200','bg-rose-200',
-  'bg-cyan-200','bg-purple-200','bg-orange-200','bg-emerald-200','bg-pink-200'
-];
+  private palette = [
+    'bg-teal-200','bg-blue-200','bg-amber-200','bg-lime-200','bg-rose-200',
+    'bg-cyan-200','bg-purple-200','bg-orange-200','bg-emerald-200','bg-pink-200'
+  ];
 
-// Lee color guardado para una columna
-private getSavedColumnColor(colId: number | string): string | null {
-  try { return localStorage.getItem(`col_color_${colId}`); } catch { return null; }
-}
+  private getSavedColumnColor(colId: number | string): string | null {
+    try { return localStorage.getItem(`col_color_${colId}`); } catch { return null; }
+  }
 
-// Color por defecto si no hay guardado
-private defaultColorByIndex(idx: number): string {
-  return this.palette[idx % this.palette.length] || 'bg-gray-200';
-}
+  private defaultColorByIndex(idx: number): string {
+    return this.palette[idx % this.palette.length] || 'bg-gray-200';
+  }
 
-  /** Normaliza distintas formas de respuesta a un array */
   private unwrapArray(res: any, key?: string): any[] {
     const source = key ? (res?.[key] ?? res) : res;
     if (Array.isArray(source)) return source;
     if (Array.isArray(source?.data)) return source.data;
-    // a veces viene { key: { data: [...] } }
     if (key && Array.isArray(res?.[key]?.data)) return res[key].data;
     return [];
   }
+
+  private mapColumnFromBackend(c: any, idx: number): Column {
+    const id = c.id_columna ?? c.id;
+    const saved = this.getSavedColumnColor(id);
+    
+    return {
+      id: id,
+      title: c.nombre ?? c.title ?? '',
+      nombre: c.nombre ?? c.title ?? '',
+      color: saved || this.defaultColorByIndex(idx),
+      cards: [],
+      order: c.posicion ?? 0,
+      posicion: c.posicion ?? 0,
+      status: c.status ?? 0
+    } as Column;
+  }
+
   createBoard(projectId: number, name: string): Observable<Board> {
-  return this.http.post<Board>(`${this.api}/boards`, {
-    id_proyecto: projectId,
-    nombre: name
-  });
-}
-  getBoard(id = 1): Observable<Board> {
-    // 1) Proyecto
-    return this.http.get<any>(`${this.api}/proyectos/${id}`).pipe(
+    return this.http.post<Board>(`${this.api}/boards`, {
+      id_proyecto: projectId,
+      nombre: name
+    });
+  }
+
+  getBoard(id: number | string = 1): Observable<Board> {
+    const projectId = Number(id);
+    if (isNaN(projectId)) {
+      return of(this.createEmptyBoard());
+    }
+
+    return this.http.get<any>(`${this.api}/proyectos/${projectId}`).pipe(
       switchMap((resProyecto: any) => {
         const proyecto = resProyecto?.proyecto?.data ?? resProyecto?.proyecto ?? resProyecto;
 
-        // 2) Columnas (desempaquetado robusto)
-        const columnas$ = this.http.get<any>(`${this.api}/proyectos/${id}/columnas`).pipe(
+        const columnas$ = this.http.get<any>(`${this.api}/proyectos/${projectId}/columnas`).pipe(
           map(res => this.unwrapArray(res, 'columnas')),
           catchError(() => of([]))
         );
 
-        // 3) Tareas del proyecto (si tienes ese endpoint)
-        const tareas$ = this.http.get<any>(`${this.api}/tareas?proyecto=${id}`).pipe(
+        const tareas$ = this.http.get<any>(`${this.api}/tareas?proyecto=${projectId}`).pipe(
           map(res => {
-            // acepta varias formas: { items: [...] } | { tareas: [...] } | [...]
             const items = this.unwrapArray(res, 'items');
             if (items.length) return items;
             const tareas = this.unwrapArray(res, 'tareas');
@@ -68,47 +82,80 @@ private defaultColorByIndex(idx: number): string {
         );
 
         return forkJoin([columnas$, tareas$]).pipe(
-          map(([cols, tasks]) => {
-            // Mapea columnas
+          switchMap(([cols, tasks]) => {
             const columns: Column[] = (cols || [])
+              .filter((c: any) => c.status === '0' || c.status === 0)
               .sort((a: any, b: any) => (a.posicion ?? 0) - (b.posicion ?? 0))
-              .map((c: any, idx: number) => {
-                const id = c.id_columna ?? c.id;
-                const saved = this.getSavedColumnColor(id);
-                return {
-                  id,
-                  title: c.nombre ?? c.title ?? '',
-                  color: saved || this.defaultColorByIndex(idx), // ← aquí se aplica el color
-                  cards: [],
-                  order: c.posicion ?? 0
-                } as Column;
-              });
-            // Distribuye tareas en su columna
+              .map((c: any, idx: number) => this.mapColumnFromBackend(c, idx));
+
+            console.log('Columnas mapeadas:', columns);
+
+            const taskFilesRequests = (tasks as any[]).map(task => 
+              this.http.get<any>(`${this.api}/tareas/${task.id_tarea ?? task.id}/archivos`).pipe(
+                map(filesRes => {
+                  const files = filesRes?.archivos?.data ?? filesRes?.archivos ?? filesRes;
+                  return {
+                    taskId: task.id_tarea ?? task.id,
+                    images: Array.isArray(files) 
+                      ? files.filter((f: any) => f.tipo === 'imagen').map((f: any) => f.url)
+                      : []
+                  };
+                }),
+                catchError(() => of({ taskId: task.id_tarea ?? task.id, images: [] }))
+              )
+            );
+
+            return taskFilesRequests.length > 0 
+              ? forkJoin(taskFilesRequests).pipe(
+                  map(taskFiles => ({ cols, tasks, columns, taskFiles }))
+                )
+              : of({ cols, tasks, columns, taskFiles: [] });
+          }),
+          map(({ cols, tasks, columns, taskFiles }) => {
+            const imagesByTask = new Map();
+            taskFiles.forEach(({ taskId, images }) => {
+              imagesByTask.set(taskId, images);
+            });
+
             const colById = new Map<number, Column>(columns.map(c => [Number(c.id), c]));
             (tasks as any[]).forEach(t => {
+              const taskId = t.id_tarea ?? t.id;
               const card: Card = {
-                id: t.id_tarea ?? t.id,
+                id: taskId,
                 id_columna: Number(t.id_columna),
                 title: t.titulo ?? t.title ?? '',
                 descripcion: t.descripcion ?? '',
-                prioridad: 'media'
+                prioridad: t.prioridad ?? 'media',
+                asignado_a: t.asignado_a ?? '',
+                fecha_vencimiento: t.due_at ?? t.fecha_vencimiento,
+                images: imagesByTask.get(taskId) || [],
+                comentarios: t.comentarios ?? []
               };
               const col = colById.get(card.id_columna);
               if (col) col.cards.push(card);
             });
 
-            // Orden opcional de tarjetas
             columns.forEach(c => c.cards.sort((a, b) => (a.id ?? 0) - (b.id ?? 0)));
 
             return {
-              id: proyecto.id_proyecto ?? proyecto.id,
-              name: proyecto.nombre ?? proyecto.name ?? 'Nombre de Tablero',
+              id: proyecto.id_proyecto ?? proyecto.id ?? projectId,
+              nombre: proyecto.nombre ?? proyecto.name ?? 'Nombre de Tablero',
               columns
             } as Board;
           })
         );
-      })
+      }),
+      catchError(() => of(this.createEmptyBoard(projectId)))
     );
+  }
+
+  private createEmptyBoard(id?: number | string): Board {
+    const projectId = id ? Number(id) : 1;
+    return {
+      id: isNaN(projectId) ? 1 : projectId,
+      nombre: `Tablero Proyecto ${id}`,
+      columns: []
+    };
   }
 
   updateColumnPosition(colId: number | string, posicion: number) {
@@ -118,28 +165,62 @@ private defaultColorByIndex(idx: number): string {
     });
   }
 
-  createColumn(projectId: number | string, nombre: string, posicion: number) {
-    const body = { columna: { id_proyecto: Number(projectId), nombre, posicion: Number(posicion), status: '0' } };
+
+  createColumn(projectId: number | string, nombre: string, posicion: number): Observable<Column> {
+    const body = { 
+      columna: { 
+        id_proyecto: Number(projectId), 
+        nombre, 
+        posicion: Number(posicion), 
+        status: '0' 
+      } 
+    };
+    
+    console.log('📤 Enviando columna:', body);
+    
     return this.http.post<any>(`${this.api}/columnas`, body).pipe(
       map((res: any) => {
-        const c = res?.columna?.data ?? res?.columna ?? res;
-        return {
+        console.log('Respuesta crear columna:', res);
+        
+        const c = res?.columna?.data ?? res?.columna ?? res?.data ?? res;
+        
+        const column: Column = {
           id: c.id_columna ?? c.id,
-          title: c.nombre ?? nombre,
+          nombre: c.nombre ?? nombre,
           color: 'bg-gray-200',
           cards: [],
-          order: c.posicion ?? posicion
-        } as Column;
+          order: c.posicion ?? posicion,
+          posicion: c.posicion ?? posicion,
+          status: 0
+        };
+        
+        console.log('Columna mapeada:', column);
+        return column;
+      }),
+      catchError(error => {
+        console.error(' Error crear columna:', error);
+        if (error.error?.error?.includes('ya existe')) {
+          throw new Error(`Ya existe una columna con el nombre "${nombre}"`);
+        }
+        throw error;
       })
     );
   }
 
+  updateColumn(columnId: number | string, data: { nombre: string }) {
+    const body = { columna: { nombre: data.nombre } };
+    return this.http.put(`${this.api}/columnas/${columnId}`, body, {
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
+    });
+  }
+
   deleteColumn(columnId: number | string) {
-    return this.http.delete(`${this.api}/columnas/${columnId}`, { headers: { Accept: 'application/json' } });
+    return this.http.delete(`${this.api}/columnas/${columnId}`, { 
+      headers: { Accept: 'application/json' } 
+    });
   }
 
   saveColumnColor(colId: number | string, color: string) {
     try { localStorage.setItem(`col_color_${colId}`, color); } catch {}
   }
-  
 }

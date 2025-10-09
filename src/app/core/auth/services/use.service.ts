@@ -1,8 +1,8 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Router } from "@angular/router";
-import { BehaviorSubject, Observable } from "rxjs";
-import { distinctUntilChanged, map, shareReplay, tap } from "rxjs/operators";
+import { BehaviorSubject, Observable, throwError } from "rxjs";
+import { distinctUntilChanged, map, shareReplay, tap, catchError } from "rxjs/operators";
 import { environment } from "../../../../environments/environment";
 import { User } from "../../../features/profile/models/user.interface";
 import { JwtService } from "./jwt.service";
@@ -21,7 +21,6 @@ export class UserService {
     private readonly jwtService: JwtService,
     private readonly router: Router,
   ) {
-    this.loadUserFromToken();;
     console.log('UserService inicializado');
     console.log('API URL:', environment.apiUrl);
     
@@ -36,7 +35,9 @@ export class UserService {
     const token = this.jwtService.getToken();
     if (token) {
       console.log('Token encontrado, cargando usuario...');
-      this.getCurrentUser().subscribe();
+      this.getCurrentUser().subscribe({
+        error: (err) => console.error('Error al cargar usuario desde token:', err)
+      });
     }
   }
 
@@ -45,18 +46,19 @@ export class UserService {
    * Backend: POST /api/users/login
    */
   login(credentials: {
-    email: string;
+    correo: string;
     password: string;
   }): Observable<{ user: User }> {
     const loginData = {
       user: {
-        correo: credentials.email,
+        correo: credentials.correo,
         password: credentials.password
       }
     };
 
     console.log('Iniciando sesión...');
     console.log('URL:', `${environment.apiUrl}/users/login`);
+    console.log('Datos de login:', { correo: credentials.correo });
 
     return this.http
       .post<{ user: User }>(`${environment.apiUrl}/users/login`, loginData)
@@ -64,7 +66,14 @@ export class UserService {
         tap(({ user }) => {
           console.log('Login exitoso:', user);
           console.log('ID Usuario:', user.id_usuario);
+          console.log('Token recibido:', user.token ? 'Sí' : 'No');
           this.setAuth(user);
+        }),
+        catchError((error) => {
+          console.error('Error en login:', error);
+          console.error('Status:', error.status);
+          console.error('Mensaje:', error.error);
+          return throwError(() => error);
         })
       );
   }
@@ -74,27 +83,46 @@ export class UserService {
    * Backend: POST /api/users
    */
   register(credentials: {
-    username: string;
-    email: string;
+    nombre: string;
+    correo: string;
     password: string;
   }): Observable<{ user: User }> {
     const registerData = {
       user: {
-        nombre: credentials.username,
-        correo: credentials.email,
+        nombre: credentials.nombre,
+        correo: credentials.correo,
         password: credentials.password
       }
     };
 
     console.log('Registrando usuario...');
-    console.log('Datos:', registerData);
+    console.log('URL:', `${environment.apiUrl}/users`);
+    console.log('Datos de registro:', {
+      nombre: registerData.user.nombre,
+      correo: registerData.user.correo,
+      passwordLength: registerData.user.password.length
+    });
 
     return this.http
       .post<{ user: User }>(`${environment.apiUrl}/users`, registerData)
       .pipe(
         tap(({ user }) => {
           console.log('Registro exitoso:', user);
+          console.log('ID Usuario:', user.id_usuario);
+          console.log('Token recibido:', user.token ? 'Sí' : 'No');
           this.setAuth(user);
+        }),
+        catchError((error) => {
+          console.error('Error en registro:', error);
+          console.error('Status:', error.status);
+          console.error('Mensaje completo:', error.error);
+          
+          // Log más detallado para debugging
+          if (error.error) {
+            console.error('Detalles del error:', JSON.stringify(error.error, null, 2));
+          }
+          
+          return throwError(() => error);
         })
       );
   }
@@ -103,7 +131,7 @@ export class UserService {
    * LOGOUT
    */
   logout(): void {
-    console.log('Cerrando sesión...');
+    console.log('🚪 Cerrando sesión...');
     this.purgeAuth();
     void this.router.navigate(["/login"]);
   }
@@ -151,17 +179,20 @@ export class UserService {
     
     if (user.token) {
       this.jwtService.saveToken(user.token);
+      console.log('Token guardado en localStorage');
+    } else {
+      console.warn('No se recibió token del backend');
     }
     
     this.currentUserSubject.next(user);
-    console.log('Autenticación guardada');
+    console.log('Autenticación completada');
   }
 
   /**
    * LIMPIAR AUTENTICACIÓN
    */
   purgeAuth(): void {
-    console.log('Limpiando autenticación...');
+    console.log('🧹 Limpiando autenticación...');
     this.jwtService.destroyToken();
     this.currentUserSubject.next(null);
   }

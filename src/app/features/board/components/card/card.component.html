@@ -1,38 +1,76 @@
-<div class="bg-white rounded-xl shadow p-3">
+<div class="bg-white rounded-xl shadow p-3 hover:shadow-lg transition-shadow cursor-pointer">
   <!-- Título -->
-  <h3 class="font-semibold text-gray-800 leading-snug">
+  <h3 class="font-semibold text-gray-800 leading-snug mb-2">
     {{ card.title }}
   </h3>
 
-  <!-- Asignado -->
-  <div class="mt-1 text-sm text-gray-600 flex items-center gap-2">
-    <img src="assets/user.png" class="w-4 h-4" alt="user">
-    <ng-container *ngIf="card.asignado_a || card.id_asignado; else sinAsignar">
-      <!-- Muestra el nombre que pusiste en el modal o, si no, el id_asignado -->
-      <span class="font-medium">
-        {{ card.asignado_a || ('#' + card.id_asignado) }}
-      </span>
-    </ng-container>
-    <ng-template #sinAsignar>
-      <span class="text-gray-400 italic">sin asignar</span>
-    </ng-template>
+  <!-- Imágenes (si existen) -->
+  <div *ngIf="card.images && card.images.length > 0" class="mb-2">
+    <div class="flex gap-1 overflow-x-auto">
+      <img 
+        *ngFor="let img of card.images" 
+        [src]="img" 
+        alt="Imagen adjunta"
+        class="w-16 h-16 object-cover rounded border"
+      />
+    </div>
   </div>
 
-  <!-- (Opcional) Badges -->
-  <div class="mt-2 flex gap-2 items-center">
-    <span *ngIf="card.prioridad"
-          class="badge"
-          [ngClass]="{
-            'badge-green': card.prioridad === 'baja',
-            'badge-yellow': card.prioridad === 'media',
-            'badge-red': card.prioridad === 'alta'
-          }">
-      {{ card.prioridad }}
-    </span>
+  <!-- Footer: Asignado, Prioridad y Comentarios -->
+  <div class="space-y-2">
+    <!-- Asignado -->
+    <div class="text-sm text-gray-600 flex items-center gap-2">
+      <img src="assets/user.png" class="w-4 h-4" alt="user">
+      <ng-container *ngIf="card.asignado_a || card.id_asignado; else sinAsignar">
+        <span class="font-medium">
+          {{ card.asignado_a || ('#' + card.id_asignado) }}
+        </span>
+      </ng-container>
+      <ng-template #sinAsignar>
+        <span class="text-gray-400 italic">sin asignar</span>
+      </ng-template>
+    </div>
 
-    <span *ngIf="card.tag"
-          class="badge badge-gray">
-      {{ card.tag }}
-    </span>
+    <!-- Badges: Prioridad, Fecha, Comentarios -->
+    <div class="flex gap-2 items-center flex-wrap">
+      <!-- Prioridad -->
+      <span *ngIf="card.prioridad"
+            class="text-xs px-2 py-1 rounded-full font-medium"
+            [ngClass]="{
+              'bg-green-100 text-green-700': card.prioridad === 'baja',
+              'bg-yellow-100 text-yellow-700': card.prioridad === 'media',
+              'bg-red-100 text-red-700': card.prioridad === 'alta',
+              'bg-gray-100 text-gray-700': card.prioridad === 'No asignada',
+            }">
+        {{ card.prioridad }}
+      </span>
+
+      <!-- Fecha de vencimiento -->
+      <span *ngIf="card.fecha_vencimiento" 
+            class="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 flex items-center gap-1">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+        {{ formatDate(card.fecha_vencimiento) }}
+      </span>
+
+      <!-- Contador de comentarios -->
+      <span *ngIf="card.comentarios && card.comentarios.length > 0" 
+            class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700 flex items-center gap-1">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        {{ card.comentarios.length }}
+      </span>
+
+      <!-- Tag personalizado -->
+      <span *ngIf="card.tag"
+            class="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-700">
+        {{ card.tag }}
+      </span>
+    </div>
   </div>
 </div>

@@ -59,7 +59,8 @@ import { WorkspaceService } from '../../services/workspace.service';
                 mat-raised-button 
                 class="create-workspace-btn"
                 (click)="openCreateWorkspaceDialog()">
-                Crear espacio
+                <mat-icon>add</mat-icon>
+                Crear tu primer espacio
               </button>
             </div>
           </div>
@@ -190,6 +191,15 @@ import { WorkspaceService } from '../../services/workspace.service';
       box-shadow: 0 4px 16px rgba(64, 224, 208, 0.3) !important;
       transition: all 0.3s ease !important;
       border: none !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 0.5rem !important;
+    }
+
+    .create-workspace-btn mat-icon {
+      font-size: 24px;
+      width: 24px;
+      height: 24px;
     }
 
     .create-workspace-btn:hover {
@@ -258,19 +268,19 @@ export class WorkspaceDashboardComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(user => {
         if (!user) {
-          console.log('No hay usuario autenticado, redirigiendo al login');
+          console.log('❌ No hay usuario autenticado, redirigiendo al login');
           this.route.navigate(['/login']);
           return;
         }
         
         console.log('Usuario autenticado:', user);
+        console.log('Username:', user.username);
+        console.log('ID Usuario:', user.id_usuario);
+        
         this.currentUserName = user.username || 'Usuario';
         this.currentUserId = user.id_usuario;
 
-        console.log('ID de usuario extraído:', user.id_usuario);
-
         if (this.currentUserId > 0) {
-          //  Llamar a checkUserWorkspaces en vez de loadWorkspaces
           this.checkUserWorkspaces();
         } else {
           console.error('ID de usuario inválido:', this.currentUserId);
@@ -278,43 +288,61 @@ export class WorkspaceDashboardComponent implements OnInit {
       });
   }
 
-  // verificar espacios y redirigir si existen
+  /**
+   * Verificar espacios del usuario y redirigir si tiene alguno
+   */
   checkUserWorkspaces(): void {
-    console.log('Verificando espacios del usuario...');
+    console.log('Verificando espacios del usuario ID:', this.currentUserId);
     this.isLoading = true;
     
     this.workspaceService.getWorkspaces()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (workspaces) => {
+          console.log('Total espacios recibidos (ya filtrados):', workspaces.length);
+          
           this.workspaces = workspaces;
           this.isLoading = false;
 
-          console.log('Total de espacios encontrados:', workspaces.length);
-
-          //  Redirigir si tiene espacios
           if (workspaces.length > 0) {
-            console.log('Usuario tiene espacios, redirigiendo al primer espacio...');
-            const firstWorkspace = workspaces[0];
+            console.log('Usuario tiene', workspaces.length, 'espacio(s):');
+            workspaces.forEach((ws, index) => {
+              console.log(`  ${index + 1}. "${ws.nombre}" (ID: ${ws.id}, Usuario: ${ws.id_usuario})`);
+            });
             
-            // Redirigir al primer workspace
-            this.route.navigate(['/workspace', firstWorkspace.id]).then(() => {
-              console.log('Redirigido a workspace:', firstWorkspace.nombre);
+            const firstWorkspace = workspaces[0];
+            console.log(`🔀 Redirigiendo al primer espacio: "${firstWorkspace.nombre}" (ID: ${firstWorkspace.id})`);
+            
+            this.route.navigate(['/workspace', firstWorkspace.id]).then(success => {
+              if (success) {
+                console.log('Navegación exitosa al workspace');
+              } else {
+                console.error('Error en la navegación al workspace');
+              }
             });
           } else {
-            console.log(' Usuario nuevo sin espacios, mostrando pantalla de bienvenida');
+            console.log('Usuario nuevo - No tiene espacios propios');
+            console.log('Mostrando pantalla de bienvenida');
           }
         },
         error: (error) => {
           console.error('Error al verificar workspaces:', error);
+          console.error('Detalles del error:', {
+            status: error.status,
+            message: error.message,
+            error: error.error
+          });
           this.isLoading = false;
           // En caso de error, quedarse en la pantalla de bienvenida
         }
       });
   }
 
+  /**
+   * Abrir diálogo para crear nuevo workspace
+   */
   openCreateWorkspaceDialog(): void {
-    console.log('Abriendo diálogo crear workspace');
+    console.log('Abriendo diálogo para crear workspace');
     
     const dialogRef = this.dialog.open(CreateWorkspaceDialogComponent, {
       width: '500px',
@@ -324,37 +352,60 @@ export class WorkspaceDashboardComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        console.log('Datos del nuevo workspace:', result);
+        console.log('Datos del nuevo workspace recibidos:', result);
         this.createWorkspace(result);
       } else {
-        console.log('Diálogo cancelado');
+        console.log('Diálogo cancelado - No se creó workspace');
       }
     });
   }
 
+  /**
+   * Crear nuevo workspace
+   */
   createWorkspace(workspaceData: { title: string; description: string }): void {
-    console.log('Creando workspace:', workspaceData);
+    console.log('Creando workspace:', {
+      titulo: workspaceData.title,
+      descripcion: workspaceData.description,
+      usuario: this.currentUserId
+    });
+    
     this.isLoading = true;
     
     this.workspaceService.createWorkspace(workspaceData).subscribe({
       next: (newWorkspace) => {
-        console.log('Workspace creado exitosamente:', newWorkspace);
+        console.log(' Workspace creado exitosamente:', newWorkspace);
+        console.log(' ID del nuevo workspace:', newWorkspace.id);
+        console.log('Nombre:', newWorkspace.nombre);
+        
         this.workspaces.push(newWorkspace);
         this.isLoading = false;
         
         // Navegar al nuevo workspace creado
-        this.route.navigate(['/workspace', newWorkspace.id]).then(() => {
-          console.log('Navegado al nuevo workspace');
+        console.log('Navegando al nuevo workspace...');
+        this.route.navigate(['/workspace', newWorkspace.id]).then(success => {
+          if (success) {
+            console.log('Navegación exitosa al nuevo workspace');
+          } else {
+            console.error('Error en la navegación');
+          }
         });
       },
       error: (error) => {
         console.error('Error al crear workspace:', error);
-        console.error('Detalles del error:', error.error);
+        console.error(' Detalles completos del error:', error);
         this.isLoading = false;
         
         // Mostrar mensaje de error más específico
         let errorMessage = 'Error al crear el espacio de trabajo.';
-        if (error.error?.message) {
+        
+        if (error.status === 401) {
+          errorMessage = 'No estás autenticado. Por favor, inicia sesión nuevamente.';
+        } else if (error.status === 403) {
+          errorMessage = 'No tienes permisos para crear espacios de trabajo.';
+        } else if (error.status === 422) {
+          errorMessage = 'Datos inválidos. Verifica el título y descripción.';
+        } else if (error.error?.message) {
           errorMessage = error.error.message;
         } else if (error.error?.error) {
           errorMessage = error.error.error;
@@ -365,7 +416,10 @@ export class WorkspaceDashboardComponent implements OnInit {
     });
   }
 
+  /**
+   * Obtener nombre del usuario actual
+   */
   getCurrentUserName(): string {
-    return this.currentUserName || 'Usuario';
+    return this.currentUserName;
   }
 }

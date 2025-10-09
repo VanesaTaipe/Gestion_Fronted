@@ -1,12 +1,56 @@
 <!-- Contenedor de la columna -->
 <div class="w-full bg-gray-50 rounded-lg shadow h-[80vh] flex flex-col">
-  <!-- Encabezado (handle de drag para la columna lo tienes en el padre) -->
-  <h2
-    class="text-sm font-medium text-center text-gray-800 py-2 rounded-t-lg"
-    [ngClass]="[column.color]"
-  >
-    {{ column.title }}
-  </h2>
+  <!-- Encabezado con menú de opciones -->
+  <div class="relative">
+    <div
+      class="text-sm font-medium text-center text-gray-800 py-2 rounded-t-lg flex items-center justify-between px-3"
+      [ngClass]="[column.color]"
+    >
+      <span class="flex-1">{{ column.nombre }}</span>
+      
+      <!-- Botón menú de tres puntos -->
+      <button
+        type="button"
+        class="text-gray-600 hover:text-gray-800 p-1 rounded hover:bg-white/50"
+        (click)="toggleMenu($event)"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="5" r="1" />
+          <circle cx="12" cy="12" r="1" />
+          <circle cx="12" cy="19" r="1" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Menú desplegable -->
+    <div
+      *ngIf="menuOpen"
+      class="absolute right-2 top-10 bg-white rounded-lg shadow-lg border z-10 w-40"
+    >
+      <button
+        type="button"
+        class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 rounded-t-lg"
+        (click)="editColumnAction()"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </svg>
+        Editar
+      </button>
+      <button
+        type="button"
+        class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 rounded-b-lg"
+        (click)="deleteColumnAction()"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+        </svg>
+        Eliminar
+      </button>
+    </div>
+  </div>
 
   <!-- Lista de tarjetas con DnD vertical -->
   <div
@@ -35,13 +79,13 @@
 
 <!-- ===== Modal Crear Tarea ===== -->
 <div *ngIf="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-  <div class="bg-white w-[520px] max-w-[95vw] rounded-2xl shadow-xl p-6">
+  <div class="bg-white w-[600px] max-w-[95vw] max-h-[90vh] overflow-y-auto rounded-2xl shadow-xl p-6">
     <h3 class="text-lg font-semibold mb-4">Crear tarea</h3>
 
     <form [formGroup]="form" (ngSubmit)="crearTareaBD()" class="space-y-4">
       <!-- Título -->
       <div>
-        <label class="block text-sm mb-1">Título</label>
+        <label class="block text-sm mb-1">Título*</label>
         <input
           type="text"
           formControlName="titulo"
@@ -67,9 +111,9 @@
         ></textarea>
       </div>
 
-      <!-- Asignado (solo visual en UI) -->
+      <!-- Asignar a -->
       <div>
-        <label class="block text-sm mb-1">Asignar a (solo visual)</label>
+        <label class="block text-sm mb-1">Asignar a</label>
         <input
           type="text"
           formControlName="assignee"
@@ -78,7 +122,7 @@
         />
       </div>
 
-      <!-- Fecha & Prioridad -->
+      <!-- Fecha de vencimiento y Prioridad -->
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="block text-sm mb-1">Fecha de vencimiento</label>
@@ -88,13 +132,128 @@
             class="w-full rounded-xl border px-3 py-2 outline-none focus:ring"
           />
         </div>
+        
+        <div>
+          <label class="block text-sm mb-1">Prioridad*</label>
+          <select
+            formControlName="prioridad"
+            class="w-full rounded-xl border px-3 py-2 outline-none focus:ring appearance-none bg-white"
+            style="background-image: url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e'); background-repeat: no-repeat; background-position: right 0.5rem center; background-size: 1.5em 1.5em; padding-right: 2.5rem;"
+          >
+            <option value="">Elige la prioridad de la tarea</option>
+            <option value="baja">Baja</option>
+            <option value="media">Media</option>
+            <option value="alta">Alta</option>
+            <option value="No asignada">No asignada</option>
+          </select>
+          <div
+            *ngIf="form.controls['prioridad']?.touched && form.controls['prioridad']?.invalid"
+            class="text-xs text-red-600 mt-1"
+          >
+            La prioridad es obligatoria.
+          </div>
+        </div>
+      </div>
+
+      <!-- ✅ Adjuntar imágenes (URLs + Archivos) -->
+      <div>
+        <label class="block text-sm mb-1">Adjuntar imágenes (máximo 3)</label>
+        <div class="space-y-3">
+          <!-- Input para pegar URL -->
+          <div class="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Pegar link de imagen aquí"
+              class="flex-1 rounded-xl border px-3 py-2 outline-none focus:ring text-sm"
+              [(ngModel)]="imageUrlInput"
+              [ngModelOptions]="{standalone: true}"
+              [disabled]="getTotalImages() >= 3"
+            />
+            <button
+              type="button"
+              (click)="addImageUrl()"
+              [disabled]="getTotalImages() >= 3 || !imageUrlInput"
+              class="p-2 rounded-full bg-cyan-500 hover:bg-cyan-600 text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-300"
+              title="Agregar URL"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Divisor con "O" -->
+          <div class="flex items-center gap-3">
+            <div class="flex-1 border-t border-gray-300"></div>
+            <span class="text-sm text-gray-500 font-medium">O</span>
+            <div class="flex-1 border-t border-gray-300"></div>
+          </div>
+          
+          <!-- Input de archivo oculto -->
+          <input
+            #fileInput
+            type="file"
+            accept="image/*"
+            multiple
+            class="hidden"
+            (change)="onFileSelected($event)"
+          />
+          
+          <!-- Botón para seleccionar archivos desde el dispositivo -->
+          <button
+            type="button"
+            (click)="fileInput.click()"
+            [disabled]="getTotalImages() >= 3"
+            class="w-full py-3 px-4 border-2 border-dashed rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            <span class="text-sm text-gray-600">
+              {{ getTotalImages() >= 3 ? 'Máximo 3 imágenes alcanzado' : 'Seleccionar desde dispositivo' }}
+            </span>
+          </button>
+          
+          <!-- Preview de imágenes (archivos + URLs) -->
+          <div *ngIf="previewUrls.length > 0" class="flex gap-2 flex-wrap pt-2">
+            <div *ngFor="let url of previewUrls; let i = index" class="relative group">
+              <img [src]="url" alt="Preview" class="w-20 h-20 object-cover rounded-lg border shadow-sm">
+              <button
+                type="button"
+                (click)="removeImage(i)"
+                class="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                ×
+              </button>
+              <!-- Etiqueta de tipo de imagen -->
+              <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-xs px-1.5 py-1 rounded-b-lg">
+                <div class="flex items-center gap-1">
+                  <svg *ngIf="i < selectedFiles.length" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+                    <polyline points="13 2 13 9 20 9" />
+                  </svg>
+                  <svg *ngIf="i >= selectedFiles.length" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                  </svg>
+                  <span class="truncate">
+                    {{ i < selectedFiles.length ? selectedFiles[i].name : 'URL' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Botones -->
       <div class="flex justify-end gap-3 pt-3">
         <button
           type="button"
-          class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
+          class="px-6 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 font-medium"
           (click)="cerrarTarea()"
           [disabled]="creating"
         >
@@ -102,7 +261,7 @@
         </button>
         <button
           type="submit"
-          class="px-4 py-2 rounded-xl text-white"
+          class="px-6 py-2 rounded-xl text-white font-medium"
           [class.bg-cyan-500]="!creating"
           [class.hover\:bg-cyan-600]="!creating"
           [class.bg-cyan-300]="creating"
@@ -111,6 +270,6 @@
           {{ creating ? 'Creando…' : 'Crear' }}
         </button>
       </div>
-    </form>
+    </form> 
   </div>
 </div>

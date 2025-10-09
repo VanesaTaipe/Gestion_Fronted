@@ -15,9 +15,9 @@ import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { CommonModule } from "@angular/common";
 
 interface AuthForm {
-  email: FormControl<string>;
+  correo: FormControl<string>;
   password: FormControl<string>;
-  username?: FormControl<string>;
+  nombre?: FormControl<string>;
   confirmPassword?: FormControl<string>;
 }
 
@@ -43,7 +43,7 @@ export default class AuthComponent implements OnInit {
     private readonly userService: UserService,
   ) {
     this.authForm = new FormGroup<AuthForm>({
-      email: new FormControl("", {
+      correo: new FormControl("", {
         validators: [Validators.required, Validators.email],
         nonNullable: true,
       }),
@@ -60,7 +60,7 @@ export default class AuthComponent implements OnInit {
     
     if (this.authType === "register") {
       this.authForm.addControl(
-        "username",
+        "nombre",
         new FormControl("", {
           validators: [Validators.required, Validators.minLength(3)],
           nonNullable: true,
@@ -125,11 +125,11 @@ export default class AuthComponent implements OnInit {
       }
 
       // Validar campos requeridos
-      const username = this.authForm.value.username?.trim();
-      const email = this.authForm.value.email?.trim();
+      const nombre = this.authForm.value.nombre?.trim();
+      const correo = this.authForm.value.correo?.trim();
       const password = this.authForm.value.password;
 
-      if (!username || !email || !password) {
+      if (!nombre || !correo || !password) {
         this.errors = { 
           errors: { 
             'Campos': 'Todos los campos son obligatorios' 
@@ -140,18 +140,18 @@ export default class AuthComponent implements OnInit {
       }
 
       // Log para debugging - eliminar en producción
-      console.log('Datos de registro:', { username, email, passwordLength: password.length });
+      console.log('Datos de registro:', { nombre, correo, passwordLength: password.length });
     }
 
     let observable =
       this.authType === "login"
         ? this.userService.login({
-            email: this.authForm.value.email!.trim(),
+            correo: this.authForm.value.correo!.trim(),
             password: this.authForm.value.password!,
           })
         : this.userService.register({
-            username: this.authForm.value.username!.trim(),
-            email: this.authForm.value.email!.trim(),
+            nombre: this.authForm.value.nombre!.trim(),
+            correo: this.authForm.value.correo!.trim(),
             password: this.authForm.value.password!,
           });
 

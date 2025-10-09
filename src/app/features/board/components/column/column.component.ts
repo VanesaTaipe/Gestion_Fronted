@@ -1,97 +1,151 @@
-import { CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
+import { Component, Input, Output, EventEmitter, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { CardComponent } from '../card/card.component';
-import { Card, Column } from '../../models/board.model';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, FormsModule } from '@angular/forms';
+import { CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
+import { Column, Card } from '../../models/board.model';
 import { TaskService } from '../../services/task.service';
+import { CardComponent } from '../card/card.component';
 
 @Component({
   selector: 'app-column',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, CardComponent, CdkDropList, CdkDrag],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, CdkDropList, CdkDrag, CardComponent],
   templateUrl: './column.component.html',
-  styleUrls: ['./column.component.css'],
+  styleUrls: ['./column.component.css']
 })
 export class ColumnComponent {
-  @Input({ required: true }) column!: Column;
-  @Input() proyectoId!: number | string;
+  @Input() column!: Column;
+  @Input() proyectoId!: number;
   @Input() connectedDropLists: string[] = [];
-  @Output() cardsChanged = new EventEmitter<Card[]>();
+  
+  @Output() cardsChanged = new EventEmitter<void>();
+  @Output() editColumn = new EventEmitter<Column>();
+  @Output() deleteColumn = new EventEmitter<Column>();
 
   showModal = false;
-  form!: FormGroup;
+  menuOpen = false;
   creating = false;
+  form!: FormGroup;
 
-  constructor(private fb: FormBuilder, private taskSvc: TaskService) {
+  //  Para archivos Y URLs
+  selectedFiles: File[] = [];
+  imageUrls: string[] = [];
+  imageUrlInput = '';
+  previewUrls: string[] = [];
+
+  constructor(
+    private fb: FormBuilder,
+    private taskSvc: TaskService
+  ) {
     this.form = this.fb.group({
-      titulo: ['', [Validators.required, Validators.maxLength(120)]],
+      titulo: ['', [Validators.required, Validators.maxLength(200)]],
       descripcion: [''],
-      assignee: [''],            // solo visual (nombre)
-      assigneeId: [null],        // <-- id numérico real
-      fecha_vencimiento: [''],   // yyyy-MM-dd
+      assignee: [''],
+      fecha_vencimiento: [''],
+      prioridad: ['', Validators.required]
     });
   }
 
-  AbrirTarea() {
-    this.form.reset({
-      titulo: '',
-      descripcion: '',
-      assignee: '',
-      assigneeId: null,
-      fecha_vencimiento: '',
-    });
-    this.showModal = true;
+  // ===== Menú de tres puntos =====
+  toggleMenu(event: Event) {
+    event.stopPropagation();
+    this.menuOpen = !this.menuOpen;
   }
 
-  cerrarTarea() { this.showModal = false; }
-
-  crearTareaBD() {
-    if (this.creating) return;
-
-    const v = this.form.value;
-    const titulo = (v.titulo ?? '').trim();
-    if (!this.proyectoId || !titulo) {
-      this.form.get('titulo')?.setErrors({ required: true });
-      this.form.markAllAsTouched();
-      return;
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.relative') || target.closest('button')) {
+      if (!target.closest('.absolute')) {
+        this.menuOpen = false;
+      }
     }
-
-    this.creating = true;
-
-    const dueISO = v.fecha_vencimiento
-      ? new Date(v.fecha_vencimiento as string).toISOString()
-      : undefined;
-
-    this.taskSvc.createCard({
-      id_proyecto: this.proyectoId,
-      id_columna : this.column.id,
-      title      : titulo,
-      descripcion: (v.descripcion ?? '').trim(),
-      due_at     : dueISO,
-      id_asignado: v.assigneeId ? Number(v.assigneeId) : undefined,
-    })
-    .subscribe({
-      next: (created) => {
-        // Decoración visual
-        created.asignado_a = (v.assignee ?? '') as string;
-        if (!created.fecha_vencimiento) created.fecha_vencimiento = dueISO;
-
-        // Empuja en esta columna (la designada)
-        this.column.cards.push(created);
-        this.cardsChanged.emit(this.column.cards);
-
-        this.creating = false;
-        this.cerrarTarea();
-      },
-      error: (e) => {
-        console.error('Error creando tarea:', e);
-        this.creating = false;
-        alert(`No se pudo crear la tarea (HTTP ${e?.status ?? 0})`);
-      },
-    });
   }
 
+  editColumnAction() {
+    this.menuOpen = false;
+    this.editColumn.emit(this.column);
+  }
+
+  deleteColumnAction() {
+    this.menuOpen = false;
+    this.deleteColumn.emit(this.column);
+  }
+
+  // Total de imágenes (archivos + URLs)
+  getTotalImages(): number {
+    return this.selectedFiles.length + this.imageUrls.length;
+  }
+
+  // Agregar URL de imagen
+  addImageUrl() {
+    const url = this.imageUrlInput.trim();
+    if (url && this.getTotalImages() < 3) {
+      // Validar que sea una URL válida
+      try {
+        new URL(url);
+        this.imageUrls.push(url);
+        this.previewUrls.push(url);
+        this.imageUrlInput = '';
+      } catch {
+        alert('Por favor ingresa una URL válida');
+      }
+    }
+  }
+
+  // Manejar selección de archivos
+  onFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (input.files) {
+      const files = Array.from(input.files);
+      
+      // Limitar a 3 imágenes totales
+      const availableSlots = 3 - this.getTotalImages();
+      const filesToAdd = files.slice(0, availableSlots);
+      
+      filesToAdd.forEach(file => {
+        // Validar que sea imagen
+        if (!file.type.startsWith('image/')) {
+          alert(`${file.name} no es una imagen válida`);
+          return;
+        }
+        
+        // Validar tamaño (máximo 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          alert(`${file.name} es muy grande (máximo 5MB)`);
+          return;
+        }
+        
+        this.selectedFiles.push(file);
+        
+        // Crear preview
+        const reader = new FileReader();
+        reader.onload = (e: any) => {
+          this.previewUrls.push(e.target.result);
+        };
+        reader.readAsDataURL(file);
+      });
+      
+      // Limpiar el input
+      input.value = '';
+    }
+  }
+
+  // Eliminar imagen 
+  removeImage(index: number) {
+    // Determinar si es archivo o URL
+    if (index < this.selectedFiles.length) {
+      // Es un archivo
+      this.selectedFiles.splice(index, 1);
+    } else {
+      // Es una URL
+      const urlIndex = index - this.selectedFiles.length;
+      this.imageUrls.splice(urlIndex, 1);
+    }
+    this.previewUrls.splice(index, 1);
+  }
+
+  // ===== Drag & Drop de tarjetas =====
   drop(event: CdkDragDrop<Card[]>) {
     const mismaLista = event.previousContainer === event.container;
 
@@ -99,7 +153,7 @@ export class ColumnComponent {
       moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
       const items = event.container.data.map((c, i) => ({ id: c.id, position: i + 1 }));
       this.taskSvc.reorderCard(this.column.id, items).subscribe({
-        next: () => this.cardsChanged.emit(this.column.cards),
+        next: () => this.cardsChanged.emit(),
         error: (e) => console.error('No se pudo reordenar', e),
       });
     } else {
@@ -124,7 +178,7 @@ export class ColumnComponent {
             this.taskSvc.reorderCard(prevColId, prevItems).subscribe();
           }
 
-          this.cardsChanged.emit(this.column.cards);
+          this.cardsChanged.emit();
         },
         error: (e) => {
           console.error('No se pudo mover:', e);
@@ -134,5 +188,115 @@ export class ColumnComponent {
     }
   }
 
-  trackById = (_: number, c: Card) => c.id;
+  trackById = (_: number, card: Card) => card.id;
+
+  // ===== Modal de crear tarea =====
+  AbrirTarea() {
+    this.form.reset({
+      titulo: '',
+      descripcion: '',
+      assignee: '',
+      fecha_vencimiento: '',
+      prioridad: ''
+    });
+    this.selectedFiles = [];
+    this.imageUrls = [];
+    this.imageUrlInput = '';
+    this.previewUrls = [];
+    this.showModal = true;
+  }
+
+  cerrarTarea() {
+    this.showModal = false;
+    this.creating = false;
+    this.selectedFiles = [];
+    this.imageUrls = [];
+    this.imageUrlInput = '';
+    this.previewUrls = [];
+  }
+
+  crearTareaBD() {
+    this.form.markAllAsTouched();
+
+    if (this.form.invalid) {
+      if (!this.form.value.prioridad) {
+        const prioridadControl = this.form.get('prioridad');
+        prioridadControl?.markAsTouched();
+      }
+      return;
+    }
+
+    this.creating = true;
+    const titulo = (this.form.value.titulo as string).trim();
+    const descripcion = (this.form.value.descripcion as string)?.trim() || '';
+    const assignee = (this.form.value.assignee as string)?.trim() || '';
+    const fecha = this.form.value.fecha_vencimiento || null;
+    const prioridad = this.form.value.prioridad;
+
+    if (!prioridad) {
+      alert('Por favor selecciona una prioridad');
+      this.creating = false;
+      return;
+    }
+
+    console.log('Creando tarea con:', { 
+      titulo, 
+      descripcion, 
+      prioridad, 
+      fecha,
+      archivos: this.selectedFiles.length,
+      urls: this.imageUrls.length
+    });
+
+    let idAsignado: number | undefined;
+    if (assignee && !isNaN(Number(assignee))) {
+      idAsignado = Number(assignee);
+    }
+
+    this.taskSvc.createCard({
+      id_proyecto: this.proyectoId,
+      id_columna: this.column.id,
+      titulo: titulo,
+      descripcion: descripcion,
+      due_at: fecha,
+      prioridad: prioridad,
+      id_asignado: idAsignado,
+      id_creador: 1,
+      position: 0,
+      images: this.selectedFiles,
+      imageUrls: this.imageUrls 
+    }).subscribe({
+      next: (newCard) => {
+        console.log('Tarea creada exitosamente:', newCard);
+        
+        const cardForDisplay = {
+          ...newCard,
+          title: newCard.titulo,
+          asignado_a: assignee,
+          fecha_vencimiento: fecha,
+          images: [...this.previewUrls] // Mostrar previews
+        };
+        
+        this.column.cards.push(cardForDisplay);
+        this.cardsChanged.emit();
+        this.cerrarTarea();
+      },
+      error: (e) => {
+        console.error('Error al crear tarjeta:', e);
+        
+        let errorMsg = 'No se pudo crear la tarjeta';
+        
+        if (e.error?.error) {
+          errorMsg = e.error.error;
+        } else if (e.status === 400) {
+          errorMsg = 'Error en los datos enviados. Verifica que todos los campos obligatorios estén completos.';
+        } else if (e.status === 422) {
+          errorMsg = 'Ya existe una tarea con este nombre en la misma columna.';
+        }
+        
+        alert(`Error: ${errorMsg}`);
+        this.creating = false;
+      }
+    });
+  }
 }

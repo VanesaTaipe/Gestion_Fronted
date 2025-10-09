@@ -321,29 +321,26 @@ export class WorkspaceDetailComponent implements OnInit {
   }
 
   loadProjects() {
-  this.isLoading = true;
-  this.proyectoService.getProyectosByWorkspace(this.workspaceId).subscribe({
-    next: (proyectos) => {
-      console.log('Proyectos recibidos:', proyectos); 
-      console.log('Primer proyecto:', proyectos[0]); 
-      
-      this.proyectos = proyectos;
-      this.workspaceProjects = proyectos;
-      this.isLoading = false;
-    },
-    error: (error) => {
-      console.error('Error al cargar proyectos:', error);
-      this.proyectos = [];
-      this.workspaceProjects = [];
-      this.isLoading = false;
-    }
-  });
-}
+  this.workspaceService.getProjectsByWorkspaceId(this.workspaceId).subscribe({
+      next: (proyectos) => {
+        console.log('Proyectos recibidos:', proyectos); 
+        console.log('Primer proyecto:', proyectos[0]); 
+        
+        this.proyectos = proyectos;
+        this.workspaceProjects = proyectos;
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Error al cargar proyectos:', error);
+        this.proyectos = [];
+        this.workspaceProjects = [];
+        this.isLoading = false;
+      }
+    });
+  }
 getProjectId(proyecto: Proyecto): number {
   return proyecto.id || proyecto.id_proyecto || 0;
 }
-
-
   selectWorkspace(workspaceId: number) {
     this.router.navigate(['/workspace', workspaceId]);
   }
@@ -355,8 +352,6 @@ getProjectId(proyecto: Proyecto): number {
       this.expandedWorkspaces.add(workspaceId);
     }
   }
-
-
   openCreateWorkspaceDialog(): void {
     const dialogRef = this.dialog.open(CreateWorkspaceDialogComponent, {
       width: '500px',

@@ -14,7 +14,7 @@ export class WorkspaceService {
   private userService = inject(UserService);
   
   private readonly apiUrl = `${environment.apiUrl}/espacios`;
-  
+  private readonly apiUrlS = `${environment.apiUrl}`;
   private workspacesSubject = new BehaviorSubject<Espacio[]>([]);
   public workspaces$ = this.workspacesSubject.asObservable();
 
@@ -30,11 +30,11 @@ export class WorkspaceService {
   /**
    * Obtener el ID del usuario autenticado actual
    */
-    private getCurrentUserId(): Observable<number> {
+  private getCurrentUserId(): Observable<number> {
     return this.userService.currentUser.pipe(
       take(1),
       map(user => {
-        console.log('Usuario en workspace service:', user);
+        console.log('👤 Usuario en workspace service:', user);
         
         if (!user || !user.id_usuario) {
           throw new Error('Usuario no autenticado');
@@ -45,7 +45,8 @@ export class WorkspaceService {
       })
     );
   }
-   /**
+
+  /**
    * ALTERNATIVA: Obtener userId sincrónicamente
    */
   private getUserIdSync(): number {
@@ -59,39 +60,50 @@ export class WorkspaceService {
     console.log('ID Usuario (sync):', userId);
     return userId;
   }
-  /**
-   * Obtener espacios del usuario - OPCIÓN 1: Con Observable
-   */
-  getWorkspaces(): Observable<Espacio[]> {
-    return this.getCurrentUserId().pipe(
-      switchMap(userId => {
-        const url = `${this.apiUrl}?id_usuario=${userId}`;
-        console.log('📡 Obteniendo espacios desde:', url);
-        
-        return this.http.get<any>(url).pipe(
-          map(response => {
-            console.log('Respuesta espacios:', response);
-            
-            if (response.error) {
-              return [];
-            }
-            
-            const espacios = response.data || response.espacios || response;
-            return Array.isArray(espacios) ? espacios : [];
-          }),
-          catchError(error => {
-            console.error('Error obteniendo espacios:', error);
-            return of([]);
-          })
-        );
-      }),
-      catchError(error => {
-        console.error('Error obteniendo ID de usuario:', error);
-        return of([]);
-      })
-    );
-  }
 
+  /**
+   * Obtener espacios del usuario con filtrado en frontend
+   */
+  /**
+ * Obtener espacios del usuario - VERSIÓN SIMPLIFICADA
+ */
+getWorkspaces(): Observable<Espacio[]> {
+  return this.getCurrentUserId().pipe(
+    switchMap(userId => {
+      const url = `${this.apiUrlS}/users/${userId}/espacios`;
+      console.log('📡 Obteniendo espacios desde:', url);
+      
+      return this.http.get<any>(url).pipe(
+        map(response => {
+          console.log(' Respuesta espacios raw:', response);
+          
+          // EXTRAER DIRECTAMENTE de response.espacio
+          const espacios = response.espacio;
+          
+          if (!Array.isArray(espacios)) {
+            console.warn(' La propiedad "espacio" no es un array:', espacios);
+            return [];
+          }
+
+          console.log(`Se encontraron ${espacios.length} espacios para el usuario ${userId}`);
+                    return espacios;
+        }),
+        tap(espacios => {
+          this.workspacesSubject.next(espacios);
+          console.log('Workspaces subject actualizado con', espacios.length, 'espacios');
+        }),
+        catchError(error => {
+          console.error('Error obteniendo espacios:', error);
+          return of([]);
+        })
+      );
+    }),
+    catchError(error => {
+      console.error(' Error obteniendo ID de usuario:', error);
+      return of([]);
+    })
+  );
+}
   /**
    * Obtener un espacio por ID
    */
@@ -99,13 +111,55 @@ export class WorkspaceService {
     return this.http.get<any>(`${this.apiUrl}/${id}`, {
       headers: this.getHeaders()
     }).pipe(
-      map(response => response.data || response.espacio || response),
+      map(response => {
+        const espacio = response.data || response.espacio || response;
+        console.log(' Espacio obtenido:', espacio);
+        return espacio;
+      }),
       catchError(error => {
-        console.error('Error al obtener espacio:', error);
+        console.error('❌ Error al obtener espacio:', error);
         throw error;
       })
     );
   }
+  /**
+ * Obtener proyectos de un espacio específico
+ */
+getProjectsByWorkspaceId(workspaceId: number): Observable<any[]> {
+  const url = `${this.apiUrl}/${workspaceId}/proyectos`;
+  console.log(' Obteniendo proyectos desde:', url);
+  
+  return this.http.get<any>(url).pipe(
+    map(response => {
+      console.log(' Respuesta proyectos raw:', response);
+      
+      const proyectos = response.proyecto || response.data || response.proyectos;
+      
+      if (!Array.isArray(proyectos)) {
+        console.warn('La propiedad "proyecto" no es un array:', proyectos);
+        return [];
+      }
+
+      console.log(`Se encontraron ${proyectos.length} proyectos para el espacio ${workspaceId}`);
+      
+      // Mapear a la estructura que necesitas
+      return proyectos.map(proyecto => ({
+        id: proyecto.id_proyecto || proyecto.id,
+        nombre: proyecto.nombre,
+        descripcion: proyecto.descripcion,
+        id_usuario_creador: proyecto.id_usuario_creador,
+        id_espacio: proyecto.id_espacio,
+        created_at: proyecto.created_at,
+        updated_at: proyecto.updated_at
+      }));
+    }),
+    catchError(error => {
+      console.error('Error obteniendo proyectos:', error);
+      return of([]);
+    })
+  );
+}
+
   /**
    * Crear workspace
    */
@@ -120,12 +174,22 @@ export class WorkspaceService {
           }
         };
 
-        console.log('Creando espacio:', dataWithUser);
+        console.log(' Creando espacio:', dataWithUser);
 
         return this.http.post<any>(this.apiUrl, dataWithUser).pipe(
           map(response => {
-            console.log('Espacio creado:', response);
-            return response.data || response.espacio || response;
+            console.log(' Espacio creado:', response);
+            const nuevoEspacio = response.data || response.espacio || response;
+            
+            // Actualizar la lista de espacios
+            const currentEspacios = this.workspacesSubject.value;
+            this.workspacesSubject.next([...currentEspacios, nuevoEspacio]);
+            
+            return nuevoEspacio;
+          }),
+          catchError(error => {
+            console.error('Error al crear espacio:', error);
+            throw error;
           })
         );
       })

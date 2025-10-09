@@ -132,7 +132,7 @@ export class ProyectoService {
       rol: rol
     };
 
-    console.log(`📤 Agregando miembro al proyecto ${idProyecto}:`, data);
+    console.log(`Agregando miembro al proyecto ${idProyecto}:`, data);
     
     return this.http.post<any>(`${this.apiUrl}/${idProyecto}/miembros`, data).pipe(
       tap(response => console.log('Miembro agregado:', response)),

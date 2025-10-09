@@ -2,6 +2,9 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Card } from '../../models/board.model';
 import { MatIconModule } from '@angular/material/icon';
+import { marked } from 'marked';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+
 
 @Component({
   selector: 'app-card',
@@ -18,6 +21,9 @@ export class CardComponent {
   @Output() remove = new EventEmitter<Card>();
 
   showDetail = false
+  constructor(private sanitizer: DomSanitizer) {
+    marked.setOptions({ async: false });
+  }
 
   get firstLine(): string {
     const line = (this.card.descripcion || '').split('\n')[0] || '';
@@ -76,4 +82,8 @@ export class CardComponent {
     }
   }
 
+  parseMarkdown(text: string): SafeHtml {
+    const html = marked.parse(text || '', { async: false }) as string;
+    return this.sanitizer.bypassSecurityTrustHtml(html);
+  }
 }

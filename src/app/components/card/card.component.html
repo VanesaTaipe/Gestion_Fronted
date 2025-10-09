@@ -52,8 +52,10 @@
   </div>
 
   <!-- Vista previa de descripción (1ra línea) -->
-  <div *ngIf="descPreview" class="mt-2 text-sm text-gray-700 line-clamp-1">
-    {{ descPreview }}
+  <div 
+  *ngIf="descPreview" 
+  class="mt-2 text-sm text-gray-700 line-clamp-1"
+  [innerHTML]="parseMarkdown(descPreview)">
   </div>
 </div>
 
@@ -75,8 +77,8 @@
 
       <div>
         <div class="text-xs text-gray-500">Descripción</div>
-        <div class="text-sm text-gray-800 whitespace-pre-wrap">
-          {{ card.descripcion || '—' }}
+        <div class="text-sm text-gray-800 whitespace-pre-wrap"
+        [innerHTML]="parseMarkdown(card.descripcion || '—')">
         </div>
       </div>
 

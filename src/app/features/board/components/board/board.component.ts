@@ -5,29 +5,34 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ActivatedRoute, Router } from '@angular/router';
 import { from, of } from 'rxjs';
 import { catchError, concatMap, map } from 'rxjs/operators';
-import { Board, Column,Card } from '../../models/board.model';
+import { Board, Card, Column } from '../../models/board.model';
 import { BoardService } from '../../services/board.service';
 import { ColumnComponent } from '../column/column.component';
 import { HeaderComponent } from '../header/header.component';
+import { CardDetailModalComponent } from '../card/card-detail.component';
 
 @Component({
   selector: 'app-board',
   standalone: true,
-  imports: [CommonModule, ColumnComponent, HeaderComponent, CdkDropList, CdkDrag, ReactiveFormsModule],
+  imports: [
+    CommonModule, 
+    ColumnComponent, 
+    HeaderComponent,  
+    ReactiveFormsModule,
+    CardDetailModalComponent
+  ],
   templateUrl: './board.component.html',
   styleUrls: ['./board.component.css'],
 })
 export class BoardComponent {
   board?: Board;
-  dropListIds: string[] = [];
-  private snapshotCols: Column[] = [];
-  private location = inject(Location);
-  private route = inject(ActivatedRoute);
-  projectId?: number;
-  workspaceId?: number;
-   columns: Column[] = [];
+  columns: Column[] = []; 
+  columnIds: string[] = []; 
+  proyectoId: number = 0;
+  
   selectedCard: Card | null = null;
   selectedColumnName: string = '';
+  showCardDetail = false;
 
   colModalOpen = false;
   editMode = false;
@@ -37,6 +42,10 @@ export class BoardComponent {
     'bg-teal-200','bg-blue-200','bg-amber-200','bg-lime-200','bg-rose-200',
     'bg-cyan-200','bg-purple-200','bg-orange-200','bg-emerald-200','bg-pink-200'
   ];
+
+  private location = inject(Location);
+  private route = inject(ActivatedRoute);
+  workspaceId?: number;
 
   constructor(
     private boardService: BoardService, 
@@ -52,27 +61,23 @@ export class BoardComponent {
 
   ngOnInit() {
     this.route.params.subscribe(params => {
-      this.projectId = +params['projectId'];
+      this.proyectoId = +params['projectId']; 
       this.workspaceId = +params['workspaceId'];
       
-      console.log('Cargando tablero para proyecto:', this.projectId);
-      this.route.queryParams.subscribe(params => {
-        const projectName = params['projectName'];
-        console.log('📋 Proyecto:', projectName);
-      });
+      console.log('Cargando tablero para proyecto:', this.proyectoId);
       this.loadBoard();
     });
   }
 
   private loadBoard() {
-    if (!this.projectId) {
+    if (!this.proyectoId) {
       console.error('No hay projectId');
       return;
     }
 
-    console.log('Intentando cargar board para proyecto:', this.projectId);
+    console.log('Intentando cargar board para proyecto:', this.proyectoId);
 
-    this.boardService.getBoard(this.projectId).subscribe({
+    this.boardService.getBoard(this.proyectoId).subscribe({
       next: (data) => {
         console.log('Datos recibidos del board:', data);
         this.board = data;
@@ -82,10 +87,10 @@ export class BoardComponent {
           this.createDefaultColumns();
         } else {
           console.log('Board tiene columnas:', this.board.columns.length);
-          this.board.columns
-            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-            .forEach((c, i) => (c.order = i + 1));
-          this.dropListIds = this.board.columns.map(c => 'col-' + c.id);
+          
+          this.board.columns.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+          this.columns = [...this.board.columns]; 
+          this.columnIds = this.columns.map(c => 'col-' + c.id); 
         }
       },
       error: (e) => {
@@ -102,110 +107,135 @@ export class BoardComponent {
   }
 
   private createDefaultColumns() {
-  if (!this.board || !this.projectId) {
-    console.error('No hay board o projectId');
-    return;
-  }
-
-  console.log('🔧 Intentando crear columnas para proyecto:', this.projectId);
-  
-  if (!this.board.columns) {
-    this.board.columns = [];
-  }
-
-  const defaultColumns = [
-    { title: 'Backlog', color: 'bg-teal-200', position: 1 },
-    { title: 'Por Hacer', color: 'bg-blue-200', position: 2 },
-    { title: 'En Desarrollo', color: 'bg-amber-200', position: 3 },
-    { title: 'Hecho', color: 'bg-lime-200', position: 4 }
-  ];
-
-  console.log('Creando columnas secuencialmente...');
-  from(defaultColumns).pipe(
-    concatMap((col, index) => 
-      this.boardService.createColumn(this.projectId!, col.title, col.position).pipe(
-        map(newCol => {
-          newCol.color = col.color;
-          this.boardService.saveColumnColor(newCol.id, col.color);
-          console.log(`Columna "${col.title}" creada:`, newCol);
-          return newCol;
-        }),
-        catchError(error => {
-          console.warn(`Columna "${col.title}" no se creó:`, error.message || error);
-          return of(null);
-        })
-      )
-    )
-  ).subscribe({
-    complete: () => {
-      console.log('Proceso de creación terminado, recargando...');
-      
-
-      setTimeout(() => {
-        this.boardService.getBoard(this.projectId!).subscribe({
-          next: (boardData) => {
-            console.log(' Board recargado:', boardData);
-            
-            if (boardData.columns && boardData.columns.length > 0) {
-              this.board!.columns = boardData.columns;
-              this.dropListIds = this.board!.columns.map(x => 'col-' + x.id);
-              
-              // Aplicar colores
-              this.board!.columns.forEach((col, index) => {
-                const defaultColor = defaultColumns[index]?.color || 'bg-gray-200';
-                if (!col.color || col.color === 'bg-gray-200') {
-                  col.color = defaultColor;
-                  this.boardService.saveColumnColor(col.id, col.color);
-                }
-              });
-              
-              this.cdr.detectChanges();
-              console.log('Tablero listo con', this.board!.columns.length, 'columnas');
-            } else {
-              console.warn('No se encontraron columnas, puede que necesites recargar la página');
-            }
-          },
-          error: (err) => {
-            console.error('Error recargando:', err);
-            alert('Las columnas se crearon. Por favor, recarga la página manualmente.');
-          }
-        });
-      }, 1500);
+    if (!this.board || !this.proyectoId) {
+      console.error('No hay board o projectId');
+      return;
     }
-  });
-}
+
+    console.log('Intentando crear columnas para proyecto:', this.proyectoId);
+    
+    if (!this.board.columns) {
+      this.board.columns = [];
+    }
+
+    const defaultColumns = [
+      { title: 'Backlog', color: 'bg-teal-200', position: 1 },
+      { title: 'Por Hacer', color: 'bg-blue-200', position: 2 },
+      { title: 'En Desarrollo', color: 'bg-amber-200', position: 3 },
+      { title: 'Hecho', color: 'bg-lime-200', position: 4 }
+    ];
+
+    from(defaultColumns).pipe(
+      concatMap((col) => 
+        this.boardService.createColumn(this.proyectoId!, col.title, col.position).pipe(
+          map(newCol => {
+            newCol.color = col.color;
+            this.boardService.saveColumnColor(newCol.id, col.color);
+            return newCol;
+          }),
+          catchError(error => {
+            console.warn(`Columna "${col.title}" no se creó:`, error);
+            return of(null);
+          })
+        )
+      )
+    ).subscribe({
+      complete: () => {
+        setTimeout(() => {
+          this.boardService.getBoard(this.proyectoId!).subscribe({
+            next: (boardData) => {
+              if (boardData.columns && boardData.columns.length > 0) {
+                this.board!.columns = boardData.columns;
+                this.columns = [...boardData.columns]; // ← Actualizar array local
+                this.columnIds = this.columns.map(x => 'col-' + x.id);
+                this.cdr.detectChanges();
+              }
+            },
+            error: (err) => console.error('Error recargando:', err)
+          });
+        }, 1500);
+      }
+    });
+  }
 
   private defaultBoard(): Board {
     return {
-      id: this.projectId || 1,
-      nombre: `Tablero Proyecto ${this.projectId}`,
+      id: this.proyectoId || 1,
+      nombre: `Tablero Proyecto ${this.proyectoId}`,
       columns: []
     };
   }
 
+  // Mover COLUMNAS
   dropColumn(event: CdkDragDrop<Column[]>) {
-    if (!this.board?.columns) return;
+    if (event.previousIndex === event.currentIndex) {
+      return;
+    }
 
-    this.snapshotCols = this.board.columns.map(c => ({ ...c }));
-
-    const arr = [...event.container.data];
-    moveItemInArray(arr, event.previousIndex, event.currentIndex);
-
-    arr.forEach((c, i) => (c.order = i + 1));
-    this.board.columns = arr;
-
-    from(arr)
-      .pipe(concatMap(c => this.boardService.updateColumnPosition(c.id, c.order!)))
-      .subscribe({
-        next: () => {},
-        error: () => { this.board!.columns = this.snapshotCols; }
-      });
+    moveItemInArray(this.columns, event.previousIndex, event.currentIndex);
+    
+    // Actualizar el board también
+    if (this.board) {
+      this.board.columns = [...this.columns];
+    }
+    
+    this.updateColumnPositions();
   }
 
-  trackByColId = (_: number, c: Column) => c.id;
+updateColumnPositions() {
+  const positions = this.columns.map((col, index) => ({
+    id: col.id,
+    position: index + 1
+  }));
+  
+  this.boardService.updateColumnPositions(this.proyectoId!, positions).subscribe({
+    next: () => console.log('Posiciones de columnas actualizadas'),
+    error: (e) => console.error('Error actualizando posiciones de columnas:', e)
+  });
+}
 
-  persistReorder() {}
+  // TrackBy para columnas
+  trackByColumnId = (_: number, column: Column) => column.id;
 
+  // Cuando las tarjetas cambian
+  onCardsChanged() {
+    console.log('Tarjetas actualizadas');
+  }
+
+  // Modal de detalle de tarjeta
+  closeCardDetail() {
+    this.showCardDetail = false;
+    this.selectedCard = null;
+    this.selectedColumnName = '';
+  }
+
+  onCardUpdated(updatedCard: Card) {
+    if (!this.columns) return;
+    
+    for (const col of this.columns) {
+      const cardIndex = col.cards.findIndex(c => c.id === updatedCard.id);
+      if (cardIndex !== -1) {
+        col.cards[cardIndex] = { ...updatedCard };
+        break;
+      }
+    }
+  }
+
+  onCardDeleted(cardId: number) {
+    if (!this.columns) return;
+    
+    for (const col of this.columns) {
+      const cardIndex = col.cards.findIndex(c => c.id === cardId);
+      if (cardIndex !== -1) {
+        col.cards.splice(cardIndex, 1);
+        break;
+      }
+    }
+    
+    this.closeCardDetail();
+  }
+
+  // Gestión de columnas
   openAddColumn() {
     this.editMode = false;
     this.editingColumn = undefined;
@@ -227,6 +257,7 @@ export class BoardComponent {
     const color = this.colForm.value.color as string;
 
     if (this.editMode && this.editingColumn) {
+      // Modo edición
       this.boardService.updateColumn(this.editingColumn.id, { nombre })
         .subscribe({
           next: () => {
@@ -240,7 +271,8 @@ export class BoardComponent {
           }
         });
     } else {
-      const nextPos = (this.board.columns?.length ?? 0) + 1;
+      // Modo creación
+      const nextPos = (this.columns?.length ?? 0) + 1;
 
       this.boardService.createColumn(this.board.id, nombre, nextPos)
         .subscribe({
@@ -248,49 +280,19 @@ export class BoardComponent {
             newCol.color = color;
             this.boardService.saveColumnColor(newCol.id, color);
             
-            this.board!.columns.push(newCol);
-            this.dropListIds = this.board!.columns.map(x => 'col-' + x.id);
+            this.columns.push(newCol);
+            this.board!.columns = [...this.columns];
+            this.columnIds = this.columns.map(x => 'col-' + x.id);
             this.closeAddColumn();
           },
           error: (e) => {
-            if (e.message && e.message.includes('Ya existe una columna')) {
-              alert(e.message);
-            } else {
-              alert(e?.error?.error ?? 'No se pudo crear la columna');
-            }
+            alert(e?.error?.error ?? 'No se pudo crear la columna');
           }
         });
     }
   }
 
-  onDeleteColumn(col: Column) {
-    if (!this.board) return;
-    if (!confirm(`¿Eliminar la columna "${col.nombre}"?`)) return;
-
-    this.boardService.deleteColumn(col.id).subscribe({
-      next: () => {
-        this.board!.columns = this.board!.columns
-          .filter(c => c.id !== col.id)
-          .map((c, i) => ({ ...c, order: i + 1 }));
-        this.dropListIds = this.board!.columns.map(x => 'col-' + x.id);
-
-        from(this.board!.columns)
-          .pipe(concatMap(c => this.boardService.updateColumnPosition(c.id, c.order!)))
-          .subscribe();
-      },
-      error: (e) => alert(e?.error?.error ?? 'No se pudo eliminar la columna')
-    });
-  }
-
-  goBackToWorkspace(): void {
-    if (this.workspaceId) {
-      this.router.navigate(['/workspace', this.workspaceId]);
-    } else {
-      this.location.back();
-    }
-  }
-
-  openEditColumn(column: Column) {
+  onEditColumn(column: Column) {
     this.editMode = true;
     this.editingColumn = column;
     this.colForm.reset({
@@ -300,18 +302,37 @@ export class BoardComponent {
     this.colModalOpen = true;
   }
 
+  onDeleteColumn(col: Column) {
+    if (!this.board) return;
+   
+    if (this.columns.length <= 1) {
+      alert('No se puede eliminar la última columna del tablero');
+      return;
+    }
+    
+    if (!confirm(`¿Eliminar la columna "${col.nombre}"?`)) return;
+
+    this.boardService.deleteColumn(col.id).subscribe({
+      next: () => {
+        this.columns = this.columns.filter(c => c.id !== col.id);
+        this.board!.columns = [...this.columns];
+        this.columnIds = this.columns.map(x => 'col-' + x.id);
+      },
+      error: (e) => alert(e?.error?.error ?? 'No se pudo eliminar la columna')
+    });
+  }
+
   closeAddColumn() { 
     this.colModalOpen = false;
     this.editMode = false;
     this.editingColumn = undefined;
   }
 
-  onEditColumn(column: Column) {
-    this.openEditColumn(column);
+  goBackToWorkspace(): void {
+    if (this.workspaceId) {
+      this.router.navigate(['/workspace', this.workspaceId]);
+    } else {
+      this.location.back();
+    }
   }
-
-  onDeleteColumnFromChild(column: Column) {
-    this.onDeleteColumn(column);
-  }
-  
 }

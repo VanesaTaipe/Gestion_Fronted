@@ -176,7 +176,7 @@ export class BoardService {
       } 
     };
     
-    console.log('📤 Enviando columna:', body);
+    console.log('Enviando columna:', body);
     
     return this.http.post<any>(`${this.api}/columnas`, body).pipe(
       map((res: any) => {
@@ -219,6 +219,11 @@ export class BoardService {
       headers: { Accept: 'application/json' } 
     });
   }
+updateColumnPositions(projectId: number, positions: { id: number; position: number }[]): Observable<any> {
+  return this.http.post(`${this.api}/proyectos/${projectId}/columnas/reorder`, {
+    positions: positions
+  });
+}
 
   saveColumnColor(colId: number | string, color: string) {
     try { localStorage.setItem(`col_color_${colId}`, color); } catch {}

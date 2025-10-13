@@ -27,100 +27,98 @@
   <div class="flex-1 flex flex-col">
     <!-- Header -->
     <app-header 
-      [title]="board?.nombre?? 'Tablero'"
+      [title]="board?.nombre ?? 'Tablero'"
       (newColumn)="openAddColumn()">
     </app-header>
 
-    <!-- Área de columnas -->
-    <div class="flex-1 overflow-hidden bg-gray-100">
-      <ng-container *ngIf="board && board.columns && board.columns.length > 0; else loading">
-        <div
-          class="h-full flex overflow-x-auto flex-nowrap gap-4 px-4 py-4"
-          cdkDropList
-          cdkDropListOrientation="horizontal"
-          [cdkDropListData]="board.columns"
-          (cdkDropListDropped)="dropColumn($event)">
-          
+<!-- Área de columnas -->
+<div class="flex-1 overflow-x-auto overflow-y-hidden bg-gray-100 p-6">
+  <ng-container *ngIf="columns && columns.length > 0; else loading">
+    <!-- Contenedor de columnas SIN cdkDropList si no quieres mover columnas -->
+    <div class="flex gap-4 h-full">
+      
+      <!-- Cada columna SIN cdkDrag -->
+      <app-column
+        *ngFor="let col of columns; trackBy: trackByColumnId"
+        [column]="col"
+        [proyectoId]="proyectoId"
+        [connectedDropLists]="columnIds"
+        (cardsChanged)="onCardsChanged()"
+        (editColumn)="onEditColumn($event)"
+        (deleteColumn)="onDeleteColumn($event)">
+      </app-column>
+    </div>
+  </ng-container>
+
+  <ng-template #loading>
+    <div class="h-full flex items-center justify-center">
+      <p class="text-gray-500">Cargando columnas...</p>
+    </div>
+  </ng-template>
+</div>
+
+  </div>
+
+  <!-- Modal crear/editar columna -->
+  <div *ngIf="colModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div class="bg-white w-[520px] max-w-[95vw] rounded-2xl shadow-xl p-6">
+      <h3 class="text-lg font-semibold mb-4">
+        {{ editMode ? 'Editar columna' : 'Nueva columna' }}
+      </h3>
+
+      <form [formGroup]="colForm" (ngSubmit)="submitAddColumn()" class="space-y-4">
+        <div>
+          <label class="block text-sm mb-1">Nombre</label>
+          <input
+            type="text"
+            formControlName="nombre"
+            class="w-full rounded-xl border px-3 py-2 outline-none focus:ring"
+            placeholder="Ej. Backlog" />
           <div
-            *ngFor="let column of board.columns; trackBy: trackByColId"
-            cdkDrag
-            [cdkDragDisabled]="col?.showModal"
-            cdkDragLockAxis="x"
-            class="flex-shrink-0 w-64">
-            
-            <div cdkDragHandle class="mb-2 cursor-grab select-none text-xs text-gray-500"></div>
-            
-            <app-column
-              #col
-              [column]="column"
-              [proyectoId]="board.id"
-              [connectedDropLists]="dropListIds"
-              (cardsChanged)="persistReorder()"
-              (editColumn)="onEditColumn($event)"
-              (deleteColumn)="onDeleteColumnFromChild($event)">
-            </app-column>
+            *ngIf="colForm.controls['nombre']?.touched && colForm.controls['nombre']?.invalid"
+            class="text-xs text-red-600 mt-1">
+            El nombre es obligatorio.
           </div>
         </div>
-      </ng-container>
 
-      <ng-template #loading>
-        <div class="h-full flex items-center justify-center">
-          <p class="text-gray-500">Cargando columnas...</p>
+        <div>
+          <label class="block text-sm mb-2">Color</label>
+          <div class="grid grid-cols-5 gap-2">
+            <label *ngFor="let c of colorPalette" class="cursor-pointer">
+              <input type="radio" formControlName="color" [value]="c" class="sr-only peer" />
+              <div
+                class="h-8 w-8 rounded-lg border shadow-sm peer-checked:ring-2 peer-checked:ring-cyan-500"
+                [ngClass]="c">
+              </div>
+            </label>
+          </div>
         </div>
-      </ng-template>
+
+        <div class="flex justify-end gap-3 pt-3">
+          <button
+            type="button"
+            class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
+            (click)="closeAddColumn()">
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            class="px-4 py-2 rounded-xl text-white bg-cyan-500 hover:bg-cyan-600"
+            [disabled]="colForm.invalid">
+            {{ editMode ? 'Actualizar' : 'Crear' }}
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
- <!-- Modal crear/editar columna -->
-<div *ngIf="colModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-  <div class="bg-white w-[520px] max-w-[95vw] rounded-2xl shadow-xl p-6">
-    <h3 class="text-lg font-semibold mb-4">
-      {{ editMode ? 'Editar columna' : 'Nueva columna' }}
-    </h3>
-
-    <form [formGroup]="colForm" (ngSubmit)="submitAddColumn()" class="space-y-4">
-      <div>
-        <label class="block text-sm mb-1">Nombre</label>
-        <input
-          type="text"
-          formControlName="nombre"
-          class="w-full rounded-xl border px-3 py-2 outline-none focus:ring"
-          [placeholder]="editMode ? 'Nombre de la columna' : 'Ej. Backlog'" />
-        <div
-          *ngIf="colForm.controls['nombre']?.touched && colForm.controls['nombre']?.invalid"
-          class="text-xs text-red-600 mt-1">
-          El nombre es obligatorio.
-        </div>
-      </div>
-
-      <div>
-        <label class="block text-sm mb-2">Color</label>
-        <div class="grid grid-cols-5 gap-2">
-          <label *ngFor="let c of colorPalette" class="cursor-pointer">
-            <input type="radio" formControlName="color" [value]="c" class="sr-only peer" />
-            <div
-              class="h-8 w-8 rounded-lg border shadow-sm peer-checked:ring-2 peer-checked:ring-cyan-500"
-              [ngClass]="c">
-            </div>
-          </label>
-        </div>
-      </div>
-
-      <div class="flex justify-end gap-3 pt-3">
-        <button
-          type="button"
-          class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
-          (click)="closeAddColumn()">
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          class="px-4 py-2 rounded-xl text-white bg-cyan-500 hover:bg-cyan-600"
-          [disabled]="colForm.invalid">
-          {{ editMode ? 'Actualizar' : 'Crear' }}
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
+  <!-- Modal de detalle de tarjeta -->
+  <app-card-detail-modal
+    *ngIf="showCardDetail && selectedCard"
+    [card]="selectedCard"
+    [columnName]="selectedColumnName"
+    (closeModal)="closeCardDetail()"
+    (cardUpdated)="onCardUpdated($event)"
+    (cardDeleted)="onCardDeleted($event)">
+  </app-card-detail-modal>
 </div>

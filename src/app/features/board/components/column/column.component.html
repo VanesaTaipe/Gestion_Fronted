@@ -1,6 +1,6 @@
 <!-- Contenedor de la columna -->
-<div class="w-full bg-gray-50 rounded-lg shadow h-[80vh] flex flex-col">
-  <!-- Encabezado con menú de opciones -->
+<div class="w-[300px] min-w-[300px] flex-shrink-0 bg-gray-50 rounded-lg shadow h-[80vh] flex flex-col">
+<!-- Encabezado con menú de opciones -->
   <div class="relative">
     <div
       class="text-sm font-medium text-center text-gray-800 py-2 rounded-t-lg flex items-center justify-between px-3"
@@ -53,18 +53,24 @@
   </div>
 
   <!-- Lista de tarjetas con DnD vertical -->
-  <div
-    class="flex-1 overflow-y-auto flex flex-col gap-3 p-3"
-    cdkDropList
-    [id]="'col-' + column.id"
-    [cdkDropListData]="column.cards"
-    [cdkDropListConnectedTo]="connectedDropLists"
-    (cdkDropListDropped)="drop($event)"
-  >
-    <div *ngFor="let card of column.cards; trackBy: trackById" cdkDrag>
-      <app-card [card]="card"></app-card>
-    </div>
-  </div>
+  <!-- Drop list para TARJETAS dentro de esta columna -->
+      <div
+        cdkDropList
+        [id]="'col-' + column.id"
+        [cdkDropListData]="column.cards"
+        [cdkDropListConnectedTo]="connectedDropLists"
+        (cdkDropListDropped)="drop($event)"
+        class="flex-1 space-y-2 min-h-[100px]">
+        
+        <!-- Cada tarjeta -->
+        <app-card 
+          *ngFor="let card of column.cards; trackBy: trackById"
+          [card]="card"
+          (cardClicked)="openCardDetail($event)"
+          (deleteCard)="deleteCardFromColumn($event)"
+          cdkDrag>
+        </app-card>
+      </div>
 
   <!-- Botón añadir -->
   <button
@@ -75,7 +81,7 @@
     <img src="assets/add.png" alt="" class="w-4 h-4 mr-1" />
     Añade una tarjeta
   </button>
-</div>
+
 
 <!-- ===== Modal Crear Tarea ===== -->
 <div *ngIf="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">

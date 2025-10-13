@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { Card } from '../../models/board.model';
-
 @Component({
   selector: 'app-card',
   standalone: true,
@@ -19,7 +18,7 @@ import { Card } from '../../models/board.model';
 export class CardComponent {
   @Input() card!: Card;
   @Output() cardClicked = new EventEmitter<Card>();
-
+  @Output() deleteCard = new EventEmitter<Card>();
   formatDateShort(dateStr: string): string {
     try {
       const date = new Date(dateStr);
@@ -39,7 +38,6 @@ export class CardComponent {
 
   getDescriptionPreview(): string {
     if (!this.card.descripcion) return '';
-    // Remover markdown y obtener solo texto plano
     const plainText = this.card.descripcion
       .replace(/[#*_\[\]]/g, '')
       .replace(/- \[[ x]\]/g, '')
@@ -52,5 +50,11 @@ export class CardComponent {
   onCardClick(event: Event) {
     event.stopPropagation();
     this.cardClicked.emit(this.card);
+  }
+  onDelete(event: Event) {
+    event.stopPropagation();
+    if (confirm(`¿Eliminar la tarjeta "${this.card.title}"?`)) {
+      this.deleteCard.emit(this.card);
+    }
   }
 }

@@ -1,18 +1,18 @@
-import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Component, OnInit, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import { MatIconModule } from '@angular/material/icon';
 import { MatDialog } from '@angular/material/dialog';
+import { MatIconModule } from '@angular/material/icon';
+import { ActivatedRoute, Router } from '@angular/router';
 
-import { WorkspaceService } from '../../services/workspace.service';
+import { UserService } from '../../../../core/auth/services/use.service';
+import { CreateProjectDialogComponent } from '../../../project/components/create-project/create-project.component';
+import { Proyecto } from '../../../project/models/proyecto.interfacce';
 import { ProyectoService } from '../../../project/services/proyecto.service';
 import { Espacio } from '../../models/espacio.interface';
-import { Proyecto } from '../../../project/models/proyecto.interfacce';
-import { CreateProjectDialogComponent } from '../../../project/components/create-project/create-project.component';
+import { WorkspaceService } from '../../services/workspace.service';
 import { CreateWorkspaceDialogComponent } from '../create-workspace-dialog.component/create-workspace-dialog.compent';
-import { UserService } from '../../../../core/auth/services/use.service';
 @Component({
   selector: 'app-workspace-detail',
   standalone: true,
@@ -78,7 +78,9 @@ import { UserService } from '../../../../core/auth/services/use.service';
             </div>
 
             <!-- Configuración -->
-            <div class="flex items-center gap-2 p-2 text-sm text-gray-600 hover:bg-gray-100 rounded cursor-pointer">
+            <div 
+              (click)="openSettings($event)"
+              class="flex items-center gap-2 p-2 text-sm text-gray-600 hover:bg-gray-100 rounded cursor-pointer">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -110,9 +112,6 @@ import { UserService } from '../../../../core/auth/services/use.service';
           <h1 class="text-3xl font-bold text-gray-800">
             {{ workspace?.nombre || 'Espacio de trabajo' }}
           </h1>
-          <p class="text-gray-600 mt-1">
-            {{ workspace?.descripcion }}
-          </p>
         </div>
         
         <div class="flex items-center gap-4">
@@ -352,6 +351,11 @@ getProjectId(proyecto: Proyecto): number {
       this.expandedWorkspaces.add(workspaceId);
     }
   }
+  openSettings(event: Event): void {
+  event.stopPropagation();
+  event.preventDefault();
+    this.router.navigate(['/workspace-settings', 1]);
+}
   openCreateWorkspaceDialog(): void {
     const dialogRef = this.dialog.open(CreateWorkspaceDialogComponent, {
       width: '500px',
@@ -443,4 +447,5 @@ getProjectId(proyecto: Proyecto): number {
       return 'nunca';
     }
   }
+  
 }

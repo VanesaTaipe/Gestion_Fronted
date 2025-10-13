@@ -147,15 +147,7 @@ interface InviteResult {
           {{ isInviting ? 'Creando...' : 'Crear Usuario Temporal' }}
         </button>
         
-        <!-- Botones cuando ya se creó el usuario -->
-        <button 
-          mat-raised-button
-          class="done-btn"
-          mat-dialog-close
-          *ngIf="tempPasswordGenerated">
-          <mat-icon>check</mat-icon>
-          Agregar al Proyecto
-        </button>
+
       </mat-dialog-actions>
     </div>
   `,
@@ -163,7 +155,7 @@ interface InviteResult {
     .dialog-container {
       width: 550px;
       max-width: 90vw;
-      border-radius: 20px;
+      border-radius: 10px;
       overflow: hidden;
     }
 
@@ -171,14 +163,14 @@ interface InviteResult {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 1.5rem 1.5rem 1rem;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 1rem 1.25rem;
+      background:  #6878DB;
     }
 
     h2 {
       margin: 0;
-      font-size: 1.5rem;
-      font-weight: 600;
+      font-size: 1rem;
+      font-weight: 500;
       color: white;
     }
 
@@ -188,7 +180,7 @@ interface InviteResult {
     }
 
     mat-dialog-content {
-      padding: 2rem 1.5rem;
+      padding: 1.25rem 1.5rem;
       max-height: 70vh;
       overflow-y: auto;
       background: #f8f9fa;
@@ -202,7 +194,7 @@ interface InviteResult {
       background: #e3f2fd;
       border: 1px solid #90caf9;
       border-radius: 12px;
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
     }
 
     .info-banner mat-icon {
@@ -215,7 +207,7 @@ interface InviteResult {
 
     .banner-text {
       flex: 1;
-      font-size: 0.875rem;
+      font-size: 0.8rem;
       color: #0d47a1;
       line-height: 1.5;
     }
@@ -319,8 +311,8 @@ interface InviteResult {
 
     .password-info {
       padding: 1.25rem;
-      background: #f0fdf4;
-      border: 2px solid #86efac;
+      background: #93d2ffff;
+      border: 2px solid #93d2ffff;
       border-radius: 12px;
     }
 
@@ -330,11 +322,11 @@ interface InviteResult {
       gap: 0.5rem;
       margin-bottom: 1rem;
       font-size: 1rem;
-      color: #166534;
+      color: #184d9dff;
     }
 
     .success-icon {
-      color: #16a34a;
+      color: #294cccff;
       font-size: 24px;
       width: 24px;
       height: 24px;
@@ -345,7 +337,7 @@ interface InviteResult {
       flex-direction: column;
       gap: 0.75rem;
       font-size: 0.875rem;
-      color: #166534;
+      color: #aaaaaaff;
     }
 
     .credential-row {
@@ -355,7 +347,7 @@ interface InviteResult {
     }
 
     .credential-row strong {
-      color: #15803d;
+      color: #21569cff;
       font-size: 0.85rem;
     }
 
@@ -365,7 +357,7 @@ interface InviteResult {
       background: white;
       border-radius: 6px;
       font-size: 0.9rem;
-      color: #166534;
+      color: #aaaaaaff;
       font-family: 'Courier New', monospace;
     }
 
@@ -379,14 +371,14 @@ interface InviteResult {
       flex: 1;
       font-size: 1.1rem;
       font-weight: 700;
-      color: #16a34a;
+      color: #cdcdcdff;
       padding: 0.75rem;
       letter-spacing: 0.5px;
     }
 
     .password-display button {
       background: white;
-      border: 1px solid #86efac;
+      border: 1px solid #386fc3ff;
     }
 
     .warning-text {
@@ -446,22 +438,6 @@ interface InviteResult {
       cursor: not-allowed;
     }
 
-    .done-btn {
-      width: 100%;
-      padding: 1rem 2rem;
-      font-size: 1rem;
-      font-weight: 600;
-      background: linear-gradient(135deg, #16a34a 0%, #15803d 100%) !important;
-      color: white !important;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
-      transition: all 0.2s;
-    }
-
-    .done-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(22, 163, 74, 0.4);
-    }
 
     .spinning {
       animation: spin 1s linear infinite;
@@ -509,7 +485,7 @@ export class InviteMemberDialogComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    console.log('📧 Invitando miembro al proyecto:', this.data.projectName);
+    console.log('Invitando miembro al proyecto:', this.data.projectName);
   }
 
   copyPassword(): void {
@@ -538,7 +514,7 @@ export class InviteMemberDialogComponent implements OnInit {
       correo: formData.correo 
     };
 
-    console.log('📤 Creando usuario temporal con:', tempUserData);
+    console.log('Creando usuario temporal con:', tempUserData);
 
     this.userService.createTemporalUser(tempUserData).subscribe({
       next: (response) => {

@@ -5,6 +5,7 @@ import { CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray, transferArrayItem }
 import { Column, Card } from '../../models/board.model';
 import { TaskService } from '../../services/task.service';
 import { CardComponent } from '../card/card.component';
+import { CardDetailModalComponent } from '../card/card-detail.component';
 
 @Component({
   selector: 'app-column',
@@ -26,6 +27,8 @@ export class ColumnComponent {
   menuOpen = false;
   creating = false;
   form!: FormGroup;
+   showCardDetail = false;
+  selectedCard: Card | null = null;
 
   //  Para archivos Y URLs
   selectedFiles: File[] = [];
@@ -131,7 +134,6 @@ export class ColumnComponent {
     }
   }
 
-  // Eliminar imagen 
   removeImage(index: number) {
     // Determinar si es archivo o URL
     if (index < this.selectedFiles.length) {
@@ -147,46 +149,104 @@ export class ColumnComponent {
 
   // ===== Drag & Drop de tarjetas =====
   drop(event: CdkDragDrop<Card[]>) {
-    const mismaLista = event.previousContainer === event.container;
-
-    if (mismaLista) {
-      moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
-      const items = event.container.data.map((c, i) => ({ id: c.id, position: i + 1 }));
-      this.taskSvc.reorderCard(this.column.id, items).subscribe({
-        next: () => this.cardsChanged.emit(),
-        error: (e) => console.error('No se pudo reordenar', e),
-      });
-    } else {
-      const previo = event.previousContainer.data;
-      const actual = event.container.data;
-
-      transferArrayItem(previo, actual, event.previousIndex, event.currentIndex);
-
-      const movido = actual[event.currentIndex];
-      const posicionNueva = event.currentIndex + 1;
-      const columnaDestino = this.column.id;
-
-      this.taskSvc.moveCard(movido.id, columnaDestino, posicionNueva).subscribe({
-        next: () => {
-          const actualItems = actual.map((c, i) => ({ id: c.id, position: i + 1 }));
-          this.taskSvc.reorderCard(columnaDestino, actualItems).subscribe();
-
-          const prevItems = previo.map((c, i) => ({ id: c.id, position: i + 1 }));
-          if (prevItems.length) {
-            const prevColIdAttr = (event.previousContainer.id || '').replace('col-', '');
-            const prevColId = Number(prevColIdAttr) || prevColIdAttr || this.column.id;
-            this.taskSvc.reorderCard(prevColId, prevItems).subscribe();
-          }
-
-          this.cardsChanged.emit();
-        },
-        error: (e) => {
-          console.error('No se pudo mover:', e);
-          transferArrayItem(actual, previo, event.currentIndex, event.previousIndex);
-        },
-      });
-    }
+  // Verificar que estamos arrastrando tarjetas, no columnas
+  if (!event.container.data || !Array.isArray(event.container.data)) {
+    console.warn('Drop event no contiene datos de tarjetas');
+    return;
   }
+
+  const mismaLista = event.previousContainer === event.container;
+
+  if (mismaLista) {
+    // ===== MISMA COLUMNA: Solo reordenar =====
+    moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
+    const items = event.container.data.map((c, i) => ({ id: c.id, position: i + 1 }));
+    
+    this.taskSvc.reorderCard(this.column.id, items).subscribe({
+      next: () => this.cardsChanged.emit(),
+      error: (e) => {
+        console.error('No se pudo reordenar', e);
+        // Revertir el cambio visual
+        moveItemInArray(event.container.data, event.currentIndex, event.previousIndex);
+      },
+    });
+  } else {
+    // ===== COLUMNA DIFERENTE: Mover y reordenar =====
+    const previo = event.previousContainer.data;
+    const actual = event.container.data;
+    
+    // Verificar que ambos arrays existen
+    if (!previo || !actual) {
+      console.warn('Arrays de tarjetas no válidos');
+      return;
+    }
+
+    // Guardar estado anterior por si necesitamos revertir
+    const previousIndex = event.previousIndex;
+    const currentIndex = event.currentIndex;
+
+    // Verificar que los índices son válidos
+    if (previousIndex < 0 || currentIndex < 0) {
+      console.warn('Índices no válidos');
+      return;
+    }
+
+    // Mover visualmente primero
+    transferArrayItem(previo, actual, previousIndex, currentIndex);
+
+    const movido = actual[currentIndex];
+    
+    // Verificar que la tarjeta movida existe
+    if (!movido || !movido.id) {
+      console.error('Tarjeta movida no válida');
+      // Revertir
+      transferArrayItem(actual, previo, currentIndex, previousIndex);
+      return;
+    }
+
+    const nuevaColumnaId = this.column.id;
+    const nuevaPosicion = currentIndex + 1;
+
+    // Llamar al endpoint individual de move
+    this.taskSvc.moveCard(movido.id, nuevaColumnaId, nuevaPosicion).subscribe({
+      next: () => {
+        // Después de mover exitosamente, reordenar ambas columnas
+        
+        // 1. Reordenar la columna destino
+        const actualItems = actual.map((c, i) => ({ id: c.id, position: i + 1 }));
+        this.taskSvc.reorderCard(nuevaColumnaId, actualItems).subscribe({
+          error: (e) => console.error('Error al reordenar columna destino:', e)
+        });
+
+        // 2. Reordenar la columna origen (si tiene tarjetas)
+        if (previo.length > 0) {
+          const prevItems = previo.map((c, i) => ({ id: c.id, position: i + 1 }));
+          const prevColId = this.getColumnIdFromContainer(event.previousContainer);
+          
+          this.taskSvc.reorderCard(prevColId, prevItems).subscribe({
+            error: (e) => console.error('Error al reordenar columna origen:', e)
+          });
+        }
+
+        this.cardsChanged.emit();
+      },
+      error: (e) => {
+        console.error('No se pudo mover la tarjeta:', e);
+        // Revertir el cambio visual
+        transferArrayItem(actual, previo, currentIndex, previousIndex);
+        alert('Error al mover la tarjeta. Por favor, intenta de nuevo.');
+      },
+    });
+  }
+}
+
+// Método auxiliar para obtener el ID de columna del contenedor
+private getColumnIdFromContainer(container: any): number {
+  // Intenta obtener el ID del atributo del contenedor
+  const idStr = (container.id || '').replace('col-', '');
+  const id = Number(idStr);
+  return isNaN(id) ? this.column.id : id;
+}
 
   trackById = (_: number, card: Card) => card.id;
 
@@ -271,7 +331,7 @@ export class ColumnComponent {
         
         const cardForDisplay = {
           ...newCard,
-          title: newCard.titulo,
+          title: newCard.title,
           asignado_a: assignee,
           fecha_vencimiento: fecha,
           images: [...this.previewUrls] // Mostrar previews
@@ -296,6 +356,69 @@ export class ColumnComponent {
         
         alert(`Error: ${errorMsg}`);
         this.creating = false;
+      }
+    });
+  }
+  // Abrir modal de detalle
+  openCardDetail(card: Card) {
+    this.selectedCard = { ...card };
+    this.showCardDetail = true;
+  }
+
+  // Cerrar modal de detalle
+  closeCardDetail() {
+    this.showCardDetail = false;
+    this.selectedCard = null;
+  }
+  onCardUpdated(updatedCard: Card) {
+    console.log('Tarjeta actualizada:', updatedCard);
+    
+    // Actualizar en el backend
+    this.taskSvc.updateCard(updatedCard).subscribe({
+      next: () => {
+        // Actualizar en la lista local
+        const index = this.column.cards.findIndex(c => c.id === updatedCard.id);
+        if (index !== -1) {
+          this.column.cards[index] = { ...updatedCard };
+        }
+        this.cardsChanged.emit();
+      },
+      error: (e) => {
+        console.error('Error al actualizar tarjeta:', e);
+        alert('No se pudo actualizar la tarjeta');
+      }
+    });
+  }
+  onCardDeleted(cardId: number) {
+    this.taskSvc.deleteCard(cardId).subscribe({
+      next: () => {
+        const index = this.column.cards.findIndex(c => c.id === cardId);
+        if (index !== -1) {
+          this.column.cards.splice(index, 1);
+        }
+        this.cardsChanged.emit();
+        this.closeCardDetail();
+      },
+      error: (e) => {
+        console.error('Error al eliminar tarjeta:', e);
+        alert('No se pudo eliminar la tarjeta');
+      }
+    });
+  }
+
+  // Eliminar tarjeta desde el botón en la card
+  deleteCardFromColumn(card: Card) {
+    this.taskSvc.deleteCard(card.id).subscribe({
+      next: () => {
+        const index = this.column.cards.findIndex(c => c.id === card.id);
+        if (index !== -1) {
+          this.column.cards.splice(index, 1);
+        }
+        this.cardsChanged.emit();
+      },
+      error: (e) => {
+        console.error('Error al eliminar:', e);
+        alert('No se pudo eliminar la tarjeta');
       }
     });
   }

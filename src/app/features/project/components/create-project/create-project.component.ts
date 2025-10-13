@@ -697,7 +697,7 @@ mat-dialog-actions {
 }
 
 .password-item {
-  border-color: #86efac;
+  border-color: #8493e0ff;
   background: #f0fdf4;
 }
 
@@ -730,8 +730,8 @@ mat-dialog-actions {
 
 .password-item .credential-value code {
   background: white;
-  border-color: #86efac;
-  color: #15803d;
+  border-color: #bebebeff;
+  color: #a1aba5ff;
   font-weight: 600;
 }
 
@@ -764,7 +764,7 @@ mat-dialog-actions {
 
 .credentials-actions button {
   padding: 0.75rem 2rem;
-  background: #3b82f6 !important;
+  background: #6be0d6ff !important;
 }
 
 /* Scrollbars simples */
@@ -1006,7 +1006,6 @@ export class CreateProjectDialogComponent implements OnInit {
     
     this.isCreating = true;
 
-    // Preparar miembros con sus roles (sin incluir al creador)
     const miembrosConRoles = this.selectedMembers.map(memberData => ({
       id_usuario: memberData.user.id_usuario,
       rol: memberData.rol

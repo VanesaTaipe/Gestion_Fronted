@@ -5,6 +5,7 @@ import { UserService } from './core/auth/services/use.service';
 import { BoardComponent } from './features/board/components/board/board.component';
 import { WorkspaceDashboardComponent } from './features/workspace/components/work-dashboard/works-dashboard.component';
 import { WorkspaceDetailComponent } from './features/workspace/components/workspace-detail.component/workspace-detail.component';
+import { WorkspaceSettingsComponent } from './features/workspace/components/workspace-settings.component';
 
 export const routes: Routes = [
   // ====================
@@ -127,6 +128,10 @@ export const routes: Routes = [
   {
     path: '**',
     redirectTo: 'workspace'
+  },
+    {
+    path: 'workspace-settings/:id',
+    component: WorkspaceSettingsComponent
   }
 ];
 

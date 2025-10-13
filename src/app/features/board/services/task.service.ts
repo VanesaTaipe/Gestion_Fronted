@@ -4,7 +4,7 @@ import { forkJoin, map, Observable, of, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { environment } from '../../../../environments/environment';
 import { UserService as AuthService } from '../../../core/auth/services/use.service';
-
+import { Card} from '../models/board.model';
 export interface TaskCreateDTO {
   id_proyecto: number | string;
   id_columna: number | string;
@@ -17,21 +17,6 @@ export interface TaskCreateDTO {
   prioridad: string;
   images?: File[]; 
   imageUrls?: string[];
-}
-
-export interface Card {
-  id: number;
-  id_columna: number;
-  titulo: string;
-  title?: string;
-  descripcion: string;
-  id_asignado?: number;
-  asignado_a?: string;
-  fecha_vencimiento?: string;
-  tag?: string;
-  prioridad: 'baja' | 'media' | 'alta' | 'No asignada';
-  images?: string[];
-  comentarios?: any[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -75,7 +60,7 @@ export class TaskService {
       
       return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
     } catch (error) {
-      console.error('❌ Error formateando fecha:', error);
+      console.error('Error formateando fecha:', error);
       return undefined;
     }
   }
@@ -117,7 +102,6 @@ export class TaskService {
         const card: Card = {
           id: t.id_tarea ?? t.id,
           id_columna: t.id_columna ?? Number(p.id_columna),
-          titulo: t.titulo ?? p.titulo,
           title: t.titulo ?? p.titulo,
           descripcion: t.descripcion ?? body.descripcion,
           id_asignado: t.id_asignado ?? p.id_asignado,
@@ -154,7 +138,7 @@ export class TaskService {
       return this.uploadFile(taskId, file, index + 1);
     });
     
-    console.log(`📤 Subiendo ${files.length} archivos para tarea ${taskId}`);
+    console.log(`Subiendo ${files.length} archivos para tarea ${taskId}`);
     return forkJoin(uploadRequests);
   }
 
@@ -185,17 +169,44 @@ export class TaskService {
     );
   }
 
-  moveCard(taskId: number | string, toColumnId: number | string, toIndex1Based: number): Observable<any> {
-    return this.http.patch(`${this.api}/tareas/${taskId}/move`, {
-      id_columna: Number(toColumnId),
-      position: Number(toIndex1Based),
-    });
-  }
 
-  reorderCard(columnId: number | string, items: { id: number | string; position: number }[]): Observable<any> {
-    return this.http.post(`${this.api}/tareas/bulk/reorder`, {
-      id_columna: Number(columnId),
-      items: items.map(i => ({ id: Number(i.id), position: Number(i.position) })),
-    });
-  }
+moveCard(taskId: number | string, toColumnId: number | string, toIndex1Based: number): Observable<any> {
+  return this.http.put(`${this.api}/tareas/${taskId}`, {
+    id_columna: Number(toColumnId),
+    position: Number(toIndex1Based),
+  });
+}
+
+
+reorderCard(columnId: number | string, items: { id: number | string; position: number }[]): Observable<any> {
+  return this.http.post(`${this.api}/tareas/bulk/reorder`, {
+    id_columna: Number(columnId),
+    items: items.map(i => ({ id: Number(i.id), position: Number(i.position) })),
+  });
+}
+
+updateCard(card: Card): Observable<any> {
+  const body = {
+    titulo: card.title,
+    descripcion: card.descripcion,
+    prioridad: card.prioridad,
+    fecha_vencimiento: card.fecha_vencimiento,
+    asignado_a: card.asignado_a,
+    id_asignado: card.id_asignado
+  };
+
+  return this.http.put(`${this.api}/tareas/${card.id}`, body);
+}
+
+deleteCard(id: number): Observable<any> {
+  return this.http.delete(`${this.api}/tareas/${id}`);
+}
+
+addComment(taskId: number, texto: string, usuario: string): Observable<any> {
+  return this.http.post(`${this.api}/comentarios`, {
+    id_tarea: taskId,
+    texto: texto,
+    usuario: usuario
+  });
+}
 }

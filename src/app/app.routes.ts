@@ -5,8 +5,8 @@ import { UserService } from './core/auth/services/use.service';
 import { BoardComponent } from './features/board/components/board/board.component';
 import { WorkspaceDashboardComponent } from './features/workspace/components/work-dashboard/works-dashboard.component';
 import { WorkspaceDetailComponent } from './features/workspace/components/workspace-detail.component/workspace-detail.component';
-import { WorkspaceSettingsComponent } from './features/workspace/components/workspace-settings.component';
-
+import { WorkspaceSettingsComponent } from '../app/features/workspace/components/workspace-settings.component';
+import { workspaceSettingsGuard } from './features/workspace/components/workspace-settings.guard';
 export const routes: Routes = [
   // ====================
   // RUTA PRINCIPAL
@@ -30,7 +30,12 @@ export const routes: Routes = [
       () => inject(UserService).isAuthenticated.pipe(map(isAuth => !isAuth))
     ],
   },
-
+  {
+  path: 'forgot-password',
+  loadComponent: () => import('./core/password.component')
+    .then(m => m.ForgotPasswordComponent)
+}
+,
 
   // ====================
   // WORKSPACES (ESPACIOS)
@@ -41,6 +46,12 @@ export const routes: Routes = [
     path: 'workspace',
     component: WorkspaceDashboardComponent,
     title: 'Espacios de Trabajo'
+
+  },
+    {
+    path: 'workspace-settings/:id',
+    component: WorkspaceSettingsComponent,
+     canActivate: [workspaceSettingsGuard]
   },
 
   // Detalle de un workspace específico
@@ -128,10 +139,6 @@ export const routes: Routes = [
   {
     path: '**',
     redirectTo: 'workspace'
-  },
-    {
-    path: 'workspace-settings/:id',
-    component: WorkspaceSettingsComponent
   }
 ];
 

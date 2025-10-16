@@ -26,31 +26,35 @@ import { WorkspaceService } from '../services/workspace.service';
   ],
   template: `
     <div class="settings-container">
-      <!-- Header -->
+      <!-- Header con botón de volver -->
       <div class="settings-header">
+        <button 
+          (click)="goBack()"
+          class="back-button">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+          Volver
+        </button>
+        
         <div class="header-content">
-          <div class="logo-container">
-            <img src="assets/kanban-logo.png" alt="Logo" class="logo">
-          </div>
           <div class="header-title">
             <svg class="settings-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
             </svg>
-            <h1>Configuración</h1>
+            <h1>Configuración del Espacio</h1>
           </div>
         </div>
       </div>
 
       <!-- Loading State -->
       <div *ngIf="isLoading" class="loading-container">
+        <div class="spinner"></div>
         <p>Cargando configuración...</p>
       </div>
 
       <!-- Form Section -->
       <div class="form-section" *ngIf="!isLoading && workspace && workspaceForm">
-        <h2 class="section-title">Espacio</h2>
+        <h2 class="section-title">Información del Espacio</h2>
 
         <form [formGroup]="workspaceForm" class="workspace-form">
           <div class="form-group">
@@ -76,7 +80,7 @@ import { WorkspaceService } from '../services/workspace.service';
               class="form-input form-textarea"
               formControlName="descripcion"
               placeholder="Ingresa la descripción del espacio"
-              rows="3"></textarea>
+              rows="4"></textarea>
             <div class="error-message" 
               *ngIf="workspaceForm.get('descripcion')?.hasError('required') && workspaceForm.get('descripcion')?.touched">
               La descripción es requerida
@@ -88,18 +92,32 @@ import { WorkspaceService } from '../services/workspace.service';
             class="edit-button"
             (click)="updateWorkspace()"
             [disabled]="!workspaceForm.valid || isUpdating">
-            {{ isUpdating ? 'Actualizando...' : 'Editar ✓' }}
+            <svg *ngIf="!isUpdating" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            {{ isUpdating ? 'Actualizando...' : 'Guardar Cambios' }}
           </button>
         </form>
       </div>
 
       <!-- Danger Zone -->
       <div class="danger-zone" *ngIf="!isLoading">
-        <h3 class="danger-title">Zona del peligro</h3>
+        <h3 class="danger-title">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+          Zona de peligro
+        </h3>
+        <p class="danger-description">
+          Eliminar este espacio es permanente. Se eliminarán todos los proyectos, columnas y tareas asociadas.
+        </p>
         <button 
           class="delete-button"
           (click)="confirmDelete()"
           [disabled]="isDeleting">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+          </svg>
           {{ isDeleting ? 'Eliminando...' : 'Eliminar espacio' }}
         </button>
       </div>
@@ -108,76 +126,106 @@ import { WorkspaceService } from '../services/workspace.service';
   styles: [`
     .settings-container {
       min-height: 100vh;
-      background: white;
+      background: #f9fafb;
       padding: 2rem;
-      max-width: 800px;
+      max-width: 900px;
       margin: 0 auto;
     }
 
-    .loading-container {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 300px;
-      font-size: 1.1rem;
-      color: #666;
+    .settings-header {
+      margin-bottom: 2rem;
     }
 
-    .settings-header {
-      margin-bottom: 3rem;
-      text-align: center;
+    .back-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      color: #6b7280;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 1.5rem;
+    }
+
+    .back-button:hover {
+      background: #f9fafb;
+      border-color: #d1d5db;
+      color: #374151;
     }
 
     .header-content {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1.5rem;
-    }
-
-    .logo-container {
-      display: flex;
-      justify-content: center;
-    }
-
-    .logo {
-      width: 80px;
-      height: 80px;
+      text-align: center;
     }
 
     .header-title {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 0.8rem;
-      justify-content: center;
+      padding: 1rem 2rem;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .settings-icon {
       width: 28px;
       height: 28px;
-      color: #333;
+      color: #40E0D0;
     }
 
     .header-title h1 {
-      font-size: 1.8rem;
+      font-size: 1.5rem;
       font-weight: 600;
-      color: #333;
+      color: #111827;
       margin: 0;
+    }
+
+    .loading-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+      gap: 1rem;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #e5e7eb;
+      border-top-color: #40E0D0;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-container p {
+      font-size: 1rem;
+      color: #6b7280;
     }
 
     .form-section {
       background: white;
       padding: 2rem;
       border-radius: 12px;
-      margin-bottom: 3rem;
-      border: 1px solid #e0e0e0;
+      margin-bottom: 2rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .section-title {
-      font-size: 1.5rem;
+      font-size: 1.25rem;
       font-weight: 600;
-      color: #333;
-      margin-bottom: 2rem;
+      color: #111827;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid #f3f4f6;
     }
 
     .workspace-form {
@@ -193,25 +241,26 @@ import { WorkspaceService } from '../services/workspace.service';
     }
 
     .form-label {
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       font-weight: 500;
-      color: #333;
+      color: #374151;
     }
 
     .form-input {
       width: 100%;
-      padding: 0.8rem 1rem;
-      border: 1.5px solid #e0e0e0;
+      padding: 0.75rem 1rem;
+      border: 1.5px solid #d1d5db;
       border-radius: 8px;
       font-size: 0.95rem;
       outline: none;
-      transition: all 0.3s ease;
+      transition: all 0.2s;
       font-family: inherit;
+      background: white;
     }
 
     .form-textarea {
       resize: vertical;
-      min-height: 80px;
+      min-height: 100px;
     }
 
     .form-input:focus {
@@ -221,13 +270,16 @@ import { WorkspaceService } from '../services/workspace.service';
 
     .error-message {
       font-size: 0.85rem;
-      color: #e53e3e;
+      color: #ef4444;
       margin-top: 0.25rem;
     }
 
     .edit-button {
       align-self: flex-start;
-      padding: 0.8rem 2.5rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 2rem;
       background: #40E0D0;
       color: white;
       border: none;
@@ -235,55 +287,72 @@ import { WorkspaceService } from '../services/workspace.service';
       font-size: 0.95rem;
       font-weight: 500;
       cursor: pointer;
-      transition: all 0.3s ease;
-      margin-top: 1rem;
+      transition: all 0.2s;
+      margin-top: 0.5rem;
     }
 
     .edit-button:hover:not([disabled]) {
       background: #38c9b8;
       transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(64, 224, 208, 0.3);
     }
 
     .edit-button[disabled] {
-      background: #ccc;
+      background: #9ca3af;
       cursor: not-allowed;
+      opacity: 0.6;
     }
 
     .danger-zone {
       background: white;
-      border: 2px solid #fee;
+      border: 2px solid #fecaca;
       border-radius: 12px;
       padding: 2rem;
-      margin-top: 3rem;
+      box-shadow: 0 1px 3px rgba(239, 68, 68, 0.1);
     }
 
     .danger-title {
-      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.1rem;
       font-weight: 600;
-      color: #e53e3e;
-      margin-bottom: 1rem;
+      color: #dc2626;
+      margin-bottom: 0.75rem;
+    }
+
+    .danger-description {
+      font-size: 0.9rem;
+      color: #6b7280;
+      margin-bottom: 1.25rem;
+      line-height: 1.5;
     }
 
     .delete-button {
-      background: #e53e3e;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #dc2626;
       color: white;
       border: none;
       border-radius: 8px;
-      padding: 0.8rem 2rem;
-      font-size: 0.95rem;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.9rem;
       font-weight: 500;
       cursor: pointer;
-      transition: all 0.3s ease;
+      transition: all 0.2s;
     }
 
     .delete-button:hover:not([disabled]) {
-      background: #c53030;
+      background: #b91c1c;
       transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
     }
 
     .delete-button[disabled] {
-      background: #ccc;
+      background: #9ca3af;
       cursor: not-allowed;
+      opacity: 0.6;
     }
 
     @media (max-width: 768px) {
@@ -291,12 +360,22 @@ import { WorkspaceService } from '../services/workspace.service';
         padding: 1rem;
       }
 
+      .header-title {
+        padding: 0.75rem 1.5rem;
+      }
+
       .header-title h1 {
-        font-size: 1.5rem;
+        font-size: 1.25rem;
       }
 
       .form-section {
         padding: 1.5rem;
+      }
+
+      .edit-button,
+      .delete-button {
+        width: 100%;
+        justify-content: center;
       }
     }
   `]
@@ -318,15 +397,14 @@ export class WorkspaceSettingsComponent implements OnInit {
   ngOnInit(): void {
     this.initForm();
     
-    // Obtener el ID del workspace desde la URL
     this.route.params.subscribe(params => {
       this.workspaceId = +params['id'];
-      console.log('🆔 Workspace ID desde URL:', this.workspaceId);
+      console.log('Workspace ID desde URL:', this.workspaceId);
       
       if (this.workspaceId && this.workspaceId > 0) {
         this.loadWorkspace();
       } else {
-        console.error('❌ ID de workspace inválido');
+        console.error('ID de workspace inválido');
         alert('Error: ID de workspace inválido');
         this.goBack();
       }
@@ -341,16 +419,15 @@ export class WorkspaceSettingsComponent implements OnInit {
   }
 
   loadWorkspace(): void {
-    console.log('📡 Cargando información del espacio ID:', this.workspaceId);
+    console.log('Cargando información del espacio ID:', this.workspaceId);
     this.isLoading = true;
     
     this.workspaceService.getWorkspaceById(this.workspaceId).subscribe({
       next: (workspace) => {
-        console.log('✅ Datos del espacio recibidos:', workspace);
+        console.log('Datos del espacio recibidos:', workspace);
         
         this.workspace = workspace;
         
-        // Cargar datos en el formulario
         this.workspaceForm.patchValue({
           nombre: workspace.nombre || '',
           descripcion: workspace.descripcion || ''
@@ -359,7 +436,7 @@ export class WorkspaceSettingsComponent implements OnInit {
         this.isLoading = false;
       },
       error: (error) => {
-        console.error('❌ Error al cargar el espacio:', error);
+        console.error('Error al cargar el espacio:', error);
         this.isLoading = false;
         alert('Error al cargar la configuración del espacio');
         this.goBack();
@@ -376,17 +453,40 @@ export class WorkspaceSettingsComponent implements OnInit {
         description: this.workspaceForm.value.descripcion.trim()
       };
 
+      console.log('Enviando actualización:', updateData);
+      console.log('Workspace ID:', this.workspaceId);
+
       this.workspaceService.updateWorkspace(this.workspaceId, updateData).subscribe({
         next: (updatedWorkspace) => {
-          console.log('✅ Espacio actualizado exitosamente:', updatedWorkspace);
+          console.log('Espacio actualizado exitosamente:', updatedWorkspace);
           this.workspace = updatedWorkspace;
           this.isUpdating = false;
-          alert('✅ Espacio actualizado exitosamente');
+          alert('Espacio actualizado exitosamente');
+          
+          setTimeout(() => {
+            this.goBack();
+          }, 1500);
         },
         error: (error) => {
-          console.error('❌ Error al actualizar el espacio:', error);
+          console.error('Error al actualizar el espacio:', error);
+          console.error('Status:', error.status);
+          console.error('Response:', error.error);
+          
           this.isUpdating = false;
-          alert('❌ Error al actualizar el espacio. Por favor, intenta nuevamente.');
+          
+          let errorMessage = 'Error al actualizar el espacio.';
+          
+          if (error.status === 500) {
+            errorMessage = 'Error interno del servidor. Verifica los logs del backend.';
+          } else if (error.status === 400) {
+            errorMessage = error.error?.error || 'Datos inválidos.';
+          } else if (error.status === 404) {
+            errorMessage = 'Espacio no encontrado.';
+          } else if (error.error?.error) {
+            errorMessage = error.error.error;
+          }
+          
+          alert(`${errorMessage}`);
         }
       });
     } else {
@@ -417,14 +517,14 @@ export class WorkspaceSettingsComponent implements OnInit {
     
     this.workspaceService.deleteWorkspace(this.workspaceId).subscribe({
       next: () => {
-        console.log('✅ Espacio eliminado exitosamente');
-        alert('✅ Espacio eliminado exitosamente');
+        console.log('Espacio eliminado exitosamente');
+        alert('Espacio eliminado exitosamente');
         this.router.navigate(['/workspace']);
       },
       error: (error) => {
-        console.error('❌ Error al eliminar el espacio:', error);
+        console.error('Error al eliminar el espacio:', error);
         this.isDeleting = false;
-        alert('❌ Error al eliminar el espacio. Por favor, intenta nuevamente.');
+        alert('Error al eliminar el espacio. Por favor, intenta nuevamente.');
       }
     });
   }

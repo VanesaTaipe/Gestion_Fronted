@@ -69,6 +69,7 @@ export class UserService {
           console.log('Token recibido:', user.token ? 'Sí' : 'No');
           this.setAuth(user);
         }),
+        
         catchError((error) => {
           console.error('Error en login:', error);
           console.error('Status:', error.status);
@@ -76,6 +77,7 @@ export class UserService {
           return throwError(() => error);
         })
       );
+    
   }
 
   /**
@@ -131,7 +133,7 @@ export class UserService {
    * LOGOUT
    */
   logout(): void {
-    console.log('🚪 Cerrando sesión...');
+    console.log('Cerrando sesión...');
     this.purgeAuth();
     void this.router.navigate(["/login"]);
   }

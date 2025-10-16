@@ -36,6 +36,8 @@
 
       <!-- Formulario -->
       <form [formGroup]="authForm" (ngSubmit)="submitForm()" class="space-y-6">
+        
+        <!-- Nombre completo - Solo en registro -->
         @if (authType === "register") {
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -46,9 +48,15 @@
               placeholder="Ingresa tu nombre"
               class="w-full px-4 py-3 border-2 border-gray-300 rounded-full focus:border-[#40E0D0] focus:outline-none"
               type="text" />
+            <div 
+              *ngIf="authForm.get('nombre')?.touched && authForm.get('nombre')?.invalid"
+              class="text-red-500 text-sm mt-1 ml-4">
+              El nombre debe tener al menos 3 caracteres
+            </div>
           </div>
         }
 
+        <!-- Correo electrónico -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">
             Correo electrónico
@@ -57,9 +65,15 @@
             formControlName="correo"
             placeholder="Ingresa tu correo electrónico"
             class="w-full px-4 py-3 border-2 border-gray-300 rounded-full focus:border-[#40E0D0] focus:outline-none"
-            type="correo" />
+            type="email" />
+          <div 
+            *ngIf="authForm.get('correo')?.touched && authForm.get('correo')?.invalid"
+            class="text-red-500 text-sm mt-1 ml-4">
+            Ingresa un correo válido
+          </div>
         </div>
 
+        <!-- Contraseña -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">
             Contraseña
@@ -73,12 +87,18 @@
             <button
               type="button"
               (click)="togglePassword()"
-              class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">
-              👁️
+              class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+              <mat-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
             </button>
+          </div>
+          <div 
+            *ngIf="authForm.get('password')?.touched && authForm.get('password')?.invalid"
+            class="text-red-500 text-sm mt-1 ml-4">
+            La contraseña debe tener al menos 6 caracteres
           </div>
         </div>
 
+        <!-- Confirmar contraseña - Solo en registro -->
         @if (authType === "register") {
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -93,27 +113,37 @@
               <button
                 type="button"
                 (click)="toggleConfirmPassword()"
-                class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">
-                👁️
+                class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                <mat-icon>{{ showConfirmPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
               </button>
+            </div>
+            <div 
+              *ngIf="authForm.hasError('passwordMismatch') && authForm.get('confirmPassword')?.touched"
+              class="text-red-500 text-sm mt-1 ml-4">
+              Las contraseñas no coinciden
             </div>
           </div>
         }
 
+        <!-- Recordarme y olvidé contraseña - Solo en login -->
         @if (authType === "login") {
           <div class="flex items-center justify-between">
             <label class="flex items-center">
               <input type="checkbox" class="rounded border-gray-300 text-[#40E0D0] focus:ring-[#40E0D0]" />
               <span class="ml-2 text-sm text-gray-600">Recuérdame</span>
             </label>
-            <a href="#" class="text-sm text-gray-600 hover:text-[#40E0D0]">
+            <a 
+              (click)="goToForgotPassword()"
+              class="text-sm text-[#40E0D0] hover:text-[#38c9b8] cursor-pointer font-medium">
               ¿Olvidaste la contraseña?
             </a>
           </div>
         }
 
+        <!-- Errores -->
         <app-list-errors [errors]="errors" />
 
+        <!-- Botón de envío -->
         <button
           type="submit"
           [disabled]="!authForm.valid || isSubmitting"

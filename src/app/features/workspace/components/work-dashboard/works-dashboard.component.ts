@@ -268,7 +268,7 @@ export class WorkspaceDashboardComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(user => {
         if (!user) {
-          console.log('❌ No hay usuario autenticado, redirigiendo al login');
+          console.log('No hay usuario autenticado, redirigiendo al login');
           this.route.navigate(['/login']);
           return;
         }
@@ -292,48 +292,32 @@ export class WorkspaceDashboardComponent implements OnInit {
    * Verificar espacios del usuario y redirigir si tiene alguno
    */
   checkUserWorkspaces(): void {
-    console.log('Verificando espacios del usuario ID:', this.currentUserId);
+    console.log(' Verificando espacios del usuario ID:', this.currentUserId);
     this.isLoading = true;
     
     this.workspaceService.getWorkspaces()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (workspaces) => {
-          console.log('Total espacios recibidos (ya filtrados):', workspaces.length);
+          console.log('Total espacios accesibles:', workspaces.length);
           
           this.workspaces = workspaces;
           this.isLoading = false;
 
           if (workspaces.length > 0) {
-            console.log('Usuario tiene', workspaces.length, 'espacio(s):');
-            workspaces.forEach((ws, index) => {
-              console.log(`  ${index + 1}. "${ws.nombre}" (ID: ${ws.id}, Usuario: ${ws.id_usuario})`);
-            });
-            
+            // Tiene workspaces, redirigir al primero
             const firstWorkspace = workspaces[0];
-            console.log(`🔀 Redirigiendo al primer espacio: "${firstWorkspace.nombre}" (ID: ${firstWorkspace.id})`);
+            console.log(`Redirigiendo a: "${firstWorkspace.nombre}"`);
             
-            this.route.navigate(['/workspace', firstWorkspace.id]).then(success => {
-              if (success) {
-                console.log('Navegación exitosa al workspace');
-              } else {
-                console.error('Error en la navegación al workspace');
-              }
-            });
+            this.route.navigate(['/workspace', firstWorkspace.id]);
           } else {
-            console.log('Usuario nuevo - No tiene espacios propios');
-            console.log('Mostrando pantalla de bienvenida');
+            // No tiene workspaces, mostrar pantalla de bienvenida
+            console.log('Usuario nuevo - Mostrando pantalla de bienvenida');
           }
         },
         error: (error) => {
           console.error('Error al verificar workspaces:', error);
-          console.error('Detalles del error:', {
-            status: error.status,
-            message: error.message,
-            error: error.error
-          });
           this.isLoading = false;
-          // En caso de error, quedarse en la pantalla de bienvenida
         }
       });
   }
@@ -422,4 +406,5 @@ export class WorkspaceDashboardComponent implements OnInit {
   getCurrentUserName(): string {
     return this.currentUserName;
   }
+  
 }

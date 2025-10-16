@@ -13,7 +13,7 @@ import { Errors } from "./model/error.interface";
 import { UserService } from "./services/use.service";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { CommonModule } from "@angular/common";
-
+import { MatIconModule } from '@angular/material/icon';
 interface AuthForm {
   correo: FormControl<string>;
   password: FormControl<string>;
@@ -24,7 +24,7 @@ interface AuthForm {
 @Component({
   selector: "app-auth-page",
   templateUrl: "./auth.component.html",
-  imports: [CommonModule, ListErrorsComponent, ReactiveFormsModule],
+  imports: [CommonModule, ListErrorsComponent, ReactiveFormsModule,MatIconModule],
   standalone: true
 })
 export default class AuthComponent implements OnInit {
@@ -139,7 +139,6 @@ export default class AuthComponent implements OnInit {
         return;
       }
 
-      // Log para debugging - eliminar en producción
       console.log('Datos de registro:', { nombre, correo, passwordLength: password.length });
     }
 
@@ -184,4 +183,8 @@ export default class AuthComponent implements OnInit {
       },
     });
   }
+  goToForgotPassword(): void {
+  console.log('Navegando a forgot-password');
+  this.router.navigate(['/forgot-password']);
+}
 }

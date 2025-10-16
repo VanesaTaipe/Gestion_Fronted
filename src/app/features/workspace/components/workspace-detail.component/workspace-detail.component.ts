@@ -25,7 +25,7 @@ import { CreateWorkspaceDialogComponent } from '../create-workspace-dialog.compo
     <!-- Workspaces List -->
     <div class="flex-1 overflow-y-auto p-4">
       <img src="assets/kanban-logo.png" alt="Logo" class="w-16 h-16 mx-auto">
-      <h2 class="text-xs font-semibold text-gray-500 uppercase mb-3 tracking-wider">
+      <h2 class="text-2xl font-semibold text-gray-500 uppercase mb-3 tracking-wider">
         MIS ESPACIOS
       </h2>
 
@@ -79,7 +79,7 @@ import { CreateWorkspaceDialogComponent } from '../create-workspace-dialog.compo
 
             <!-- Configuración -->
             <div 
-              (click)="openSettings($event)"
+              (click)="openSettings($event,workspaceId)"
               class="flex items-center gap-2 p-2 text-sm text-gray-600 hover:bg-gray-100 rounded cursor-pointer">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
@@ -93,15 +93,70 @@ import { CreateWorkspaceDialogComponent } from '../create-workspace-dialog.compo
     </div>
 
     <!-- Create Button -->
-    <div class="p-4 border-t flex-shrink-0">
-      <button
-        (click)="openCreateWorkspaceDialog()"
-        class="w-full bg-[#40E0D0] hover:bg-[#38c9b8] text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2 transition">
-        <span class="text-xl">+</span>
-        Crear espacio
-      </button>
-    </div>
+    <div class="p-4 border-t flex-shrink-0 bg-[#40E0D0]">
+    <button
+      (click)="openCreateWorkspaceDialog()"
+      class="w-full bg-[#40E0D0] hover:bg-[#38c9b8] text-black font-semibold py-3 rounded-lg flex items-center justify-center gap-3 transition-colors">
+      <div class="w-8 h-8 bg-black rounded-full flex items-center justify-center flex-shrink-0">
+        <span class="text-white text-2xl font-bold leading-none">+</span>
+      </div>
+      <span class="text-base">Crear espacio</span>
+    </button>
+  </div>
   </aside>
+    <!-- Alerta de límite de espacios -->
+    <div 
+    *ngIf="showLimitAlert"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fadeIn">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 animate-scaleIn">
+      
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-red-600 to-red-500 p-6 rounded-t-2xl">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center flex-shrink-0">
+            <svg class="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4
+                      c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+          </div>
+          <div class="flex-1">
+            <h3 class="text-xl font-bold text-white">Límite Alcanzado</h3>
+          </div>
+          <button 
+            (click)="closeLimitAlert()"
+            class="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-1 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                    d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="p-6">
+        <p class="text-gray-700 leading-relaxed mb-4">
+          Has alcanzado el límite máximo de 
+          <strong class="text-red-600">{{ MAX_WORKSPACES }} espacios de trabajo</strong>.
+        </p>
+        <p class="text-gray-600 text-sm">
+          Para crear un nuevo espacio, primero debes eliminar uno de los espacios existentes desde la configuración.
+        </p>
+      </div>
+
+      <!-- Footer -->
+      <div class="p-6 bg-gray-50 rounded-b-2xl flex justify-end gap-3">
+        <button
+          (click)="closeLimitAlert()"
+          class="px-6 py-2.5 bg-gradient-to-r from-red-600 to-red-500 
+                hover:from-red-500 hover:to-red-400 text-white font-semibold 
+                rounded-lg transition-all shadow-md hover:shadow-lg">
+          Entendido
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Main Content -->
   <main class="flex-1 flex flex-col overflow-hidden">
@@ -109,21 +164,51 @@ import { CreateWorkspaceDialogComponent } from '../create-workspace-dialog.compo
     <div class="bg-white border-b px-8 py-6 flex-shrink-0">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-3xl font-bold text-gray-800">
+          <h1 class="text-2xl font-bold text-gray-800">
             {{ workspace?.nombre || 'Espacio de trabajo' }}
           </h1>
         </div>
         
-        <div class="flex items-center gap-4">
-          <p>Nombre del usuario</p>
-  
+        <div class="flex items-center gap-4 relative">
+        <h2 class="text-xl font-semibold text-gray-800">
+          {{ currentUserName }}
+        </h2>
 
-          <button class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
-            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+        <div class="relative">
+          <!-- Botón del avatar -->
+          <button 
+            (click)="toggleUserMenu()"
+            class="w-12 h-12 rounded-full bg-gradient-to-br from-[#40E0D0] to-[#38c9b8] flex items-center justify-center hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#40E0D0] focus:ring-offset-2">
+            <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
             </svg>
           </button>
+
+          <!-- Menú Dropdown -->
+          <div 
+            *ngIf="showUserMenu"
+            class="absolute right-0 mt-3 w-56 bg-white rounded-lg shadow-2xl border border-gray-200 py-2 z-50 overflow-hidden"
+            style="animation: slideDown 0.2s ease-out;">
+
+            <!-- Opción de cerrar sesión -->
+            <button
+              (click)="logout()"
+              class="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors duration-150">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+              </svg>
+              <span class="font-medium">Cerrar Sesión</span>
+            </button>
+          </div>
         </div>
+      </div>
+
+      <!-- Overlay transparente para cerrar el menú -->
+      <div 
+        *ngIf="showUserMenu"
+        (click)="closeUserMenu()"
+        class="fixed inset-0 z-40">
+      </div>
       </div>
     </div>
 
@@ -267,6 +352,44 @@ import { CreateWorkspaceDialogComponent } from '../create-workspace-dialog.compo
     .rotate-180 {
       transform: rotate(180deg);
     }
+    /* Animación para el menú dropdown */
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .animate-scaleIn {
+    animation: scaleIn 0.3s ease-out;
+  }
   `]
 })
 export class WorkspaceDetailComponent implements OnInit {
@@ -283,8 +406,19 @@ export class WorkspaceDetailComponent implements OnInit {
   workspaceProjects: Proyecto[] = [];
   allWorkspaces: Espacio[] = []; 
   expandedWorkspaces = new Set<number>();
+  currentUserId: number = 0;
+  currentUserName: string = '';
+  showUserMenu: boolean = false;
+   showLimitAlert: boolean = false;
+  readonly MAX_WORKSPACES = 3;
 
   ngOnInit() {
+    this.authUserService.currentUser.subscribe(user => {
+      if (user && user.id_usuario) {
+        this.currentUserId = user.id_usuario;
+        this.currentUserName = user.username || 'Usuario';
+      }
+    });
     this.route.params.subscribe(params => {
       this.workspaceId = +params['id'];
       this.loadWorkspace();
@@ -293,7 +427,10 @@ export class WorkspaceDetailComponent implements OnInit {
       this.expandedWorkspaces.add(this.workspaceId);
     });
   }
-
+  isWorkspaceCreator(workspaceIdToCheck: number): boolean {
+    const workspace = this.allWorkspaces.find(w => w.id === workspaceIdToCheck);
+    return workspace ? workspace.id_usuario === this.currentUserId : false;
+  }
   loadAllWorkspaces() {
     this.workspaceService.getWorkspaces().subscribe({
       next: (workspaces) => {
@@ -351,12 +488,26 @@ getProjectId(proyecto: Proyecto): number {
       this.expandedWorkspaces.add(workspaceId);
     }
   }
-  openSettings(event: Event): void {
+  openSettings(event: Event, workspaceId: number): void {
   event.stopPropagation();
   event.preventDefault();
-    this.router.navigate(['/workspace-settings', 1]);
+  if (!this.isWorkspaceCreator(workspaceId)) {
+      alert('Solo el creador del espacio puede acceder a la configuración');
+      return;
+    }
+  this.router.navigate(['/workspace-settings', workspaceId]); 
 }
   openCreateWorkspaceDialog(): void {
+    if (this.allWorkspaces.length >= this.MAX_WORKSPACES) {
+      console.log('Límite de espacios alcanzado');
+      this.showLimitAlert = true;
+      
+      setTimeout(() => {
+        this.showLimitAlert = false;
+      }, 5000);
+      
+      return;
+    }
     const dialogRef = this.dialog.open(CreateWorkspaceDialogComponent, {
       width: '500px',
       disableClose: true
@@ -446,6 +597,28 @@ getProjectId(proyecto: Proyecto): number {
     } catch {
       return 'nunca';
     }
+  }
+   toggleUserMenu(): void {
+    this.showUserMenu = !this.showUserMenu;
+  }
+
+  closeUserMenu(): void {
+    this.showUserMenu = false;
+  }
+
+  logout(): void {
+    if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+      this.authUserService.logout(); 
+      this.router.navigate(['/login']);
+    }
+  }
+  closeLimitAlert(): void {
+    this.showLimitAlert = false;
+  }
+
+  goToProfile(): void {
+    this.closeUserMenu();
+    this.router.navigate(['/profile']);
   }
   
 }

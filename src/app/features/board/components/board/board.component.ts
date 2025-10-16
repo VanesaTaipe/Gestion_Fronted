@@ -1,12 +1,20 @@
-import { CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
+import { 
+  CdkDragDrop, 
+  moveItemInArray,
+  DragDropModule 
+} from '@angular/cdk/drag-drop';
 import { CommonModule, Location } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { from, of } from 'rxjs';
 import { catchError, concatMap, map } from 'rxjs/operators';
+import { environment } from '../../../../../environments/environment';
 import { Board, Card, Column } from '../../models/board.model';
 import { BoardService } from '../../services/board.service';
+import { ProjectPermissionService } from '../../services/project-permission.service';
+import { UserService as AuthService } from '../../../../core/auth/services/use.service';
 import { ColumnComponent } from '../column/column.component';
 import { HeaderComponent } from '../header/header.component';
 import { CardDetailModalComponent } from '../card/card-detail.component';
@@ -19,7 +27,8 @@ import { CardDetailModalComponent } from '../card/card-detail.component';
     ColumnComponent, 
     HeaderComponent,  
     ReactiveFormsModule,
-    CardDetailModalComponent
+    CardDetailModalComponent,
+    DragDropModule
   ],
   templateUrl: './board.component.html',
   styleUrls: ['./board.component.css'],
@@ -27,6 +36,7 @@ import { CardDetailModalComponent } from '../card/card-detail.component';
 export class BoardComponent {
   board?: Board;
   columns: Column[] = []; 
+  allColumns: Column[] = []; // ✅ Todas las columnas (incluidas eliminadas)
   columnIds: string[] = []; 
   proyectoId: number = 0;
   
@@ -39,9 +49,21 @@ export class BoardComponent {
   editingColumn?: Column;
   colForm!: FormGroup;
   colorPalette = [
-    'bg-teal-200','bg-blue-200','bg-amber-200','bg-lime-200','bg-rose-200',
-    'bg-cyan-200','bg-purple-200','bg-orange-200','bg-emerald-200','bg-pink-200'
+    '#F58686', '#72DED3', '#FFC27C', '#FB89D9', '#7BFAAA',
+    '#F6EC7D', '#CF8AD5', '#48B2FF', '#A4A4A4', '#AAAAFF'
   ];
+
+  // ✅ Permisos
+  isLeader = false;
+  isMember = false;
+  userRole: 'lider' | 'miembro' | null = null;
+
+  // ✅ Vista activa
+  activeView: 'board' | 'dashboard' | 'settings' = 'board';
+
+  // ✅ Datos del proyecto
+  projectDescription: string = '';
+  projectMembers: any[] = [];
 
   private location = inject(Location);
   private route = inject(ActivatedRoute);
@@ -51,7 +73,10 @@ export class BoardComponent {
     private boardService: BoardService, 
     private fb: FormBuilder,
     private cdr: ChangeDetectorRef,
-    private router: Router
+    private router: Router,
+    private http: HttpClient,
+    private permissionService: ProjectPermissionService,
+    private authService: AuthService
   ) {
     this.colForm = this.fb.group({
       nombre: ['', [Validators.required, Validators.maxLength(120)]],
@@ -65,10 +90,40 @@ export class BoardComponent {
       this.workspaceId = +params['workspaceId'];
       
       console.log('Cargando tablero para proyecto:', this.proyectoId);
-      this.loadBoard();
+      this.loadUserPermissions();
     });
   }
 
+  // ✅ Cargar permisos del usuario
+  private loadUserPermissions() {
+    const currentUserId = this.authService.getCurrentUserId();
+    
+    if (!currentUserId) {
+      console.error('Usuario no autenticado');
+      this.router.navigate(['/login']);
+      return;
+    }
+
+    this.permissionService.getUserRoleInProject(this.proyectoId, currentUserId).subscribe({
+      next: (role) => {
+        this.userRole = role;
+        this.isLeader = this.permissionService.isLeader();
+        this.isMember = this.permissionService.isMember();
+        
+        console.log('Permisos cargados:', { role, isLeader: this.isLeader, isMember: this.isMember });
+        
+        // Después de cargar permisos, cargar el board
+        this.loadBoard();
+      },
+      error: (e) => {
+        console.error('Error cargando permisos:', e);
+        alert('No tienes acceso a este proyecto');
+        this.router.navigate(['/workspace', this.workspaceId]);
+      }
+    });
+  }
+
+  // ✅ Cargar board y todas las columnas
   private loadBoard() {
     if (!this.proyectoId) {
       console.error('No hay projectId');
@@ -77,6 +132,32 @@ export class BoardComponent {
 
     console.log('Intentando cargar board para proyecto:', this.proyectoId);
 
+    // Primero cargar TODAS las columnas (para validación de duplicados)
+    this.http.get<any>(`${environment.apiBase}/proyectos/${this.proyectoId}/columnas`).subscribe({
+      next: (resColumnas) => {
+        const todasLasColumnas = resColumnas?.columnas || resColumnas?.data || [];
+        this.allColumns = todasLasColumnas.map((c: any) => ({
+          id: c.id_columna ?? c.id,
+          nombre: c.nombre,
+          color: c.color,
+          status: c.status,
+          posicion: c.posicion,
+          cards: []
+        }));
+        
+        console.log('✅ Todas las columnas cargadas:', this.allColumns);
+        
+        // Ahora cargar el board con las columnas activas
+        this.loadBoardData();
+      },
+      error: (e) => {
+        console.error('Error cargando columnas:', e);
+        this.loadBoardData();
+      }
+    });
+  }
+
+  private loadBoardData() {
     this.boardService.getBoard(this.proyectoId).subscribe({
       next: (data) => {
         console.log('Datos recibidos del board:', data);
@@ -86,57 +167,51 @@ export class BoardComponent {
           console.log('Sin columnas, creando por defecto...');
           this.createDefaultColumns();
         } else {
-          console.log('Board tiene columnas:', this.board.columns.length);
+          const columnasActivas = this.board.columns.filter(col => {
+            const status = String(col.status);
+            return status === '0';
+          });
           
-          this.board.columns.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-          this.columns = [...this.board.columns]; 
-          this.columnIds = this.columns.map(c => 'col-' + c.id); 
+          columnasActivas.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+          this.columns = [...columnasActivas]; 
+          this.columnIds = this.columns.map(c => 'col-' + c.id);
+          this.board.columns = columnasActivas;
         }
       },
       error: (e) => {
         console.error('Error completo:', e);
         if (e.status === 404) {
-          console.log('Proyecto no existe, inicializando...');
           this.board = this.defaultBoard();
           this.createDefaultColumns();
         } else {
-          alert('Error al cargar el tablero. Por favor, recarga la página.');
+          alert('Error al cargar el tablero');
         }
       }
     });
   }
 
   private createDefaultColumns() {
-    if (!this.board || !this.proyectoId) {
-      console.error('No hay board o projectId');
-      return;
-    }
-
-    console.log('Intentando crear columnas para proyecto:', this.proyectoId);
+    if (!this.board || !this.proyectoId) return;
     
     if (!this.board.columns) {
       this.board.columns = [];
     }
 
     const defaultColumns = [
-      { title: 'Backlog', color: 'bg-teal-200', position: 1 },
-      { title: 'Por Hacer', color: 'bg-blue-200', position: 2 },
-      { title: 'En Desarrollo', color: 'bg-amber-200', position: 3 },
-      { title: 'Hecho', color: 'bg-lime-200', position: 4 }
+      { title: 'Backlog', color: '#72DED3', position: 1 },
+      { title: 'Por Hacer', color: '#48B2FF', position: 2 },
+      { title: 'En Desarrollo', color: '#FFC27C', position: 3 },
+      { title: 'Hecho', color: '#F6EC7D', position: 4 }
     ];
 
     from(defaultColumns).pipe(
       concatMap((col) => 
-        this.boardService.createColumn(this.proyectoId!, col.title, col.position).pipe(
+        this.boardService.createColumn(this.proyectoId!, col.title, col.position, col.color).pipe(
           map(newCol => {
             newCol.color = col.color;
-            this.boardService.saveColumnColor(newCol.id, col.color);
             return newCol;
           }),
-          catchError(error => {
-            console.warn(`Columna "${col.title}" no se creó:`, error);
-            return of(null);
-          })
+          catchError(() => of(null))
         )
       )
     ).subscribe({
@@ -146,7 +221,7 @@ export class BoardComponent {
             next: (boardData) => {
               if (boardData.columns && boardData.columns.length > 0) {
                 this.board!.columns = boardData.columns;
-                this.columns = [...boardData.columns]; // ← Actualizar array local
+                this.columns = [...boardData.columns];
                 this.columnIds = this.columns.map(x => 'col-' + x.id);
                 this.cdr.detectChanges();
               }
@@ -166,43 +241,31 @@ export class BoardComponent {
     };
   }
 
-  // Mover COLUMNAS
   dropColumn(event: CdkDragDrop<Column[]>) {
-    if (event.previousIndex === event.currentIndex) {
-      return;
-    }
-
+    if (event.previousIndex === event.currentIndex) return;
     moveItemInArray(this.columns, event.previousIndex, event.currentIndex);
-    
-    // Actualizar el board también
-    if (this.board) {
-      this.board.columns = [...this.columns];
-    }
-    
+    if (this.board) this.board.columns = [...this.columns];
     this.updateColumnPositions();
   }
 
-updateColumnPositions() {
-  const positions = this.columns.map((col, index) => ({
-    id: col.id,
-    position: index + 1
-  }));
-  
-  this.boardService.updateColumnPositions(this.proyectoId!, positions).subscribe({
-    next: () => console.log('Posiciones de columnas actualizadas'),
-    error: (e) => console.error('Error actualizando posiciones de columnas:', e)
-  });
-}
+  updateColumnPositions() {
+    const positions = this.columns.map((col, index) => ({
+      id: col.id,
+      position: index + 1
+    }));
+    
+    this.boardService.updateColumnPositions(this.proyectoId!, positions).subscribe({
+      next: () => console.log('Posiciones actualizadas'),
+      error: (e) => console.error('Error actualizando posiciones:', e)
+    });
+  }
 
-  // TrackBy para columnas
   trackByColumnId = (_: number, column: Column) => column.id;
 
-  // Cuando las tarjetas cambian
   onCardsChanged() {
     console.log('Tarjetas actualizadas');
   }
 
-  // Modal de detalle de tarjeta
   closeCardDetail() {
     this.showCardDetail = false;
     this.selectedCard = null;
@@ -211,7 +274,6 @@ updateColumnPositions() {
 
   onCardUpdated(updatedCard: Card) {
     if (!this.columns) return;
-    
     for (const col of this.columns) {
       const cardIndex = col.cards.findIndex(c => c.id === updatedCard.id);
       if (cardIndex !== -1) {
@@ -223,7 +285,6 @@ updateColumnPositions() {
 
   onCardDeleted(cardId: number) {
     if (!this.columns) return;
-    
     for (const col of this.columns) {
       const cardIndex = col.cards.findIndex(c => c.id === cardId);
       if (cardIndex !== -1) {
@@ -231,86 +292,124 @@ updateColumnPositions() {
         break;
       }
     }
-    
     this.closeCardDetail();
   }
-
-  // Gestión de columnas
+  
   openAddColumn() {
+    if (!this.isLeader) {
+      alert('❌ Solo el líder puede crear columnas');
+      return;
+    }
     this.editMode = false;
     this.editingColumn = undefined;
-    this.colForm.reset({ 
-      nombre: '', 
-      color: this.colorPalette[0] 
-    });
+    this.colForm.reset({ nombre: '', color: this.colorPalette[0] });
     this.colModalOpen = true;
   }
 
-  submitAddColumn() {
-    if (!this.board) return;
-    if (this.colForm.invalid) { 
-      this.colForm.markAllAsTouched(); 
-      return; 
-    }
-
-    const nombre = (this.colForm.value.nombre as string).trim();
-    const color = this.colForm.value.color as string;
-
-    if (this.editMode && this.editingColumn) {
-      // Modo edición
-      this.boardService.updateColumn(this.editingColumn.id, { nombre })
-        .subscribe({
-          next: () => {
-            this.editingColumn!.nombre = nombre;
-            this.editingColumn!.color = color;
-            this.boardService.saveColumnColor(this.editingColumn!.id, color);
-            this.closeAddColumn();
-          },
-          error: (e) => {
-            alert(e?.error?.error ?? 'No se pudo actualizar la columna');
-          }
-        });
-    } else {
-      // Modo creación
-      const nextPos = (this.columns?.length ?? 0) + 1;
-
-      this.boardService.createColumn(this.board.id, nombre, nextPos)
-        .subscribe({
-          next: (newCol) => {
-            newCol.color = color;
-            this.boardService.saveColumnColor(newCol.id, color);
-            
-            this.columns.push(newCol);
-            this.board!.columns = [...this.columns];
-            this.columnIds = this.columns.map(x => 'col-' + x.id);
-            this.closeAddColumn();
-          },
-          error: (e) => {
-            alert(e?.error?.error ?? 'No se pudo crear la columna');
-          }
-        });
-    }
+ submitAddColumn() {
+  if (!this.board || this.colForm.invalid) {
+    this.colForm.markAllAsTouched();
+    return;
   }
 
+  const nombre = (this.colForm.value.nombre as string).trim();
+  const color = this.colForm.value.color as string;
+  
+  if (this.editMode && this.editingColumn) {
+    // ========== MODO EDICIÓN ==========
+    this.boardService.updateColumn(this.editingColumn.id, { nombre, color }).subscribe({
+      next: () => {
+        this.editingColumn!.nombre = nombre;
+        this.editingColumn!.color = color;
+        
+        const colIndex = this.allColumns.findIndex(c => c.id === this.editingColumn!.id);
+        if (colIndex !== -1) {
+          this.allColumns[colIndex].nombre = nombre;
+          this.allColumns[colIndex].color = color;
+        }
+        
+        this.closeAddColumn();
+      },
+      error: (e) => {
+        console.error('Error actualizando columna:', e);
+        alert(e?.error?.error ?? 'No se pudo actualizar la columna');
+      }
+    });
+  } else {
+    // ========== MODO CREACIÓN ==========
+    
+    // ✅ Calcular la posición correctamente
+    let nextPos = 1;
+    
+    if (this.columns && this.columns.length > 0) {
+      // Obtener la posición máxima de las columnas activas
+      const posiciones = this.columns.map(col => col.posicion || col.order || 0);
+      const maxPos = Math.max(...posiciones);
+      nextPos = maxPos + 1;
+    }
+    
+    console.log('📊 Creando columna en posición:', nextPos);
+    console.log('📋 Posiciones actuales:', this.columns.map(c => c.posicion || c.order));
+    
+    this.boardService.createColumn(this.board.id, nombre, nextPos, color).subscribe({
+      next: (newCol) => {
+        console.log('✅ Columna creada:', newCol);
+        
+        newCol.color = color;
+        this.columns.push(newCol);
+        this.board!.columns = [...this.columns];
+        this.columnIds = this.columns.map(x => 'col-' + x.id);
+        
+        // Actualizar allColumns también
+        this.allColumns.push({
+          id: newCol.id,
+          nombre: newCol.nombre,
+          color: newCol.color,
+          status: '0',
+          posicion: newCol.posicion,
+          cards: []
+        });
+        
+        this.closeAddColumn();
+      },
+      error: (e) => {
+        console.error('❌ Error creando columna:', e);
+        console.error('📋 Detalles:', e.error);
+        
+        // Mostrar el error específico del backend
+        const errorMsg = e?.error?.error || 'No se pudo crear la columna';
+        alert(errorMsg);
+      }
+    });
+  }
+}
+
   onEditColumn(column: Column) {
+    if (!this.isLeader) {
+      alert('❌ Solo el líder puede editar columnas');
+      return;
+    }
     this.editMode = true;
     this.editingColumn = column;
-    this.colForm.reset({
-      nombre: column.nombre,
-      color: column.color || this.colorPalette[0]
-    });
+    this.colForm.reset({ nombre: column.nombre, color: column.color || this.colorPalette[0] });
     this.colModalOpen = true;
   }
 
   onDeleteColumn(col: Column) {
     if (!this.board) return;
-   
-    if (this.columns.length <= 1) {
-      alert('No se puede eliminar la última columna del tablero');
+    if (!this.isLeader) {
+      alert('❌ Solo el líder puede eliminar columnas');
       return;
     }
-    
-    if (!confirm(`¿Eliminar la columna "${col.nombre}"?`)) return;
+    if (this.columns.length <= 1) {
+      alert('❌ No se puede eliminar la última columna');
+      return;
+    }
+    if (col.cards && col.cards.length > 0) {
+      alert(`❌ La columna tiene ${col.cards.length} tarjeta(s). Muévelas primero.`);
+      return;
+    }
+    if (!confirm(`¿Eliminar "${col.nombre}"?`)) return;
 
     this.boardService.deleteColumn(col.id).subscribe({
       next: () => {
@@ -318,7 +417,7 @@ updateColumnPositions() {
         this.board!.columns = [...this.columns];
         this.columnIds = this.columns.map(x => 'col-' + x.id);
       },
-      error: (e) => alert(e?.error?.error ?? 'No se pudo eliminar la columna')
+      error: (e) => alert(e?.error?.error ?? 'No se pudo eliminar')
     });
   }
 
@@ -326,6 +425,84 @@ updateColumnPositions() {
     this.colModalOpen = false;
     this.editMode = false;
     this.editingColumn = undefined;
+  }
+
+  isDuplicateColumnName(nombre: string): boolean {
+    if (!nombre || typeof nombre !== 'string') return false;
+    const nombreNormalizado = nombre.trim().toLowerCase();
+    if (!nombreNormalizado) return false;
+    const columnasParaValidar = this.allColumns.length > 0 ? this.allColumns : this.columns;
+
+    if (this.editMode && this.editingColumn) {
+      return columnasParaValidar.some(col => {
+        const status = String(col.status ?? '0');
+        return status === '0' && col.id !== this.editingColumn!.id && col.nombre?.toLowerCase() === nombreNormalizado;
+      });
+    }
+
+    return columnasParaValidar.some(col => {
+      const status = String(col.status ?? '0');
+      return status === '0' && col.nombre?.toLowerCase() === nombreNormalizado;
+    });
+  }
+
+  // ✅ Cambiar vista
+  setActiveView(view: 'board' | 'dashboard' | 'settings') {
+    this.activeView = view;
+    if (view === 'settings' && this.isLeader) {
+      this.loadProjectMembers();
+    }
+  }
+
+  // ✅ Cargar miembros
+  private loadProjectMembers() {
+    if (!this.proyectoId) return;
+    this.http.get<any>(`${environment.apiBase}/proyectos/${this.proyectoId}/miembros`).subscribe({
+      next: (res) => {
+        this.projectMembers = res?.miembros || res?.data || [];
+        console.log('Miembros cargados:', this.projectMembers);
+      },
+      error: (e) => {
+        console.error('Error cargando miembros:', e);
+        this.projectMembers = [];
+      }
+    });
+  }
+
+  // ✅ Eliminar proyecto
+  deleteProject() {
+    if (!this.isLeader) {
+      alert('❌ Solo el líder puede eliminar el proyecto');
+      return;
+    }
+
+    const confirmation = confirm(
+      `⚠️ ¿ELIMINAR "${this.board?.nombre}"?\n\n` +
+      `Se eliminará:\n` +
+      `• ${this.columns.length} columnas\n` +
+      `• Todas las tarjetas\n` +
+      `• Todos los comentarios\n\n` +
+      `Escribe "ELIMINAR" para confirmar.`
+    );
+
+    if (!confirmation) return;
+
+    const confirmText = prompt('Escribe "ELIMINAR":');
+    if (confirmText !== 'ELIMINAR') {
+      alert('❌ Cancelado');
+      return;
+    }
+
+    this.http.delete(`${environment.apiBase}/proyectos/${this.proyectoId}`).subscribe({
+      next: () => {
+        alert('✅ Proyecto eliminado');
+        this.router.navigate(['/workspace', this.workspaceId]);
+      },
+      error: (e) => {
+        console.error('Error:', e);
+        alert('❌ Error al eliminar');
+      }
+    });
   }
 
   goBackToWorkspace(): void {

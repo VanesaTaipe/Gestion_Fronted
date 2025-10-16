@@ -6,7 +6,6 @@ import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { title } from 'process';
 
 @Component({
   selector: 'app-create-workspace-dialog',
@@ -66,6 +65,7 @@ import { title } from 'process';
 
         </form>
       </mat-dialog-content>
+      <div style="margin-top: 20px;"></div>
 
       <!-- Action buttons -->
       <mat-dialog-actions class="dialog-actions">
@@ -299,7 +299,6 @@ export class CreateWorkspaceDialogComponent {
         this.isLoading = false;
       }, 1000);
     } else {
-      // Marcar todos los campos como touched para mostrar errores
       this.workspaceForm.markAllAsTouched();
     }
   }

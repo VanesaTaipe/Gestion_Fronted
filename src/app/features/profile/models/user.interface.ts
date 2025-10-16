@@ -7,6 +7,7 @@ export interface User {
   image?: string;
   es_temporal?: boolean;
   correo?: string;
+  contraseña?:String;
 }
 export interface UserResponse {
   user: User;

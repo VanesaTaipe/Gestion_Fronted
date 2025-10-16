@@ -16,13 +16,18 @@ export interface Card {
 
 export interface Comentario {
   id?: number;
-  id_comentario?: number;        // ✅ Alias para backend
-  usuario?: string;              // ✅ Opcional - Nombre del usuario que comentó
-  texto: string;                 // Contenido del comentario
+  id_comentario?: number;        // ✅ ID del comentario
+  id_usuario?: number;           // ✅ ID del usuario (para backend)
+  usuario?: string;              // ✅ Nombre del usuario (para UI)
+  nombre_usuario?: string;       // ✅ Alias del nombre (del backend)
+  texto?: string;                // ✅ Para UI
+  contenido?: string;            // ✅ Para backend
   fecha?: string;                // Fecha del comentario (ISO string)
-  created_at?: string;           // ✅ Alias para backend
+  created_at?: string;           // ✅ Del backend
   avatar?: string;               // URL del avatar del usuario
+  minutos_desde_creacion?: number; // ✅ Del backend
 }
+
 
 export interface Column {
   id: number;
@@ -40,4 +45,24 @@ export interface Board {
   name?: string;                 // ✅ Alias para frontend
   nombre?: string;               // ✅ Para backend
   columns: Column[];
+}
+export interface ComentarioCreateDTO {
+  id_tarea: number;
+  id_usuario: number;
+  contenido: string;
+}
+export interface TareaResumen {
+  id_tarea: number;
+  titulo: string;
+  prioridad: CartaPrioridad;
+  color: string | null;
+  comentarios_count: number;
+  ultima_actualizacion: string;
+  position: number;
+}
+
+export interface ColumnaResumen {
+  id_columna: number;
+  columna: string;
+  tareas: TareaResumen[];
 }

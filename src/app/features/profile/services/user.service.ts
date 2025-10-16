@@ -182,28 +182,39 @@ export class UserService {
     );
   }
 
-  /**
-   * Actualizar información de usuario
-   */
-  updateUser(userId: number, userData: Partial<User>): Observable<User> {
-    console.log('Actualizando usuario:', userId, userData);
-    
-    return this.http.put<any>(`${this.apiUrl}/${userId}`, userData).pipe(
-      map(response => {
-        if (response && response.user) {
-          return response.user;
-        }
-        if (response && response.data) {
-          return response.data;
-        }
-        return response;
-      }),
-      tap(user => {
-        console.log('Usuario actualizado:', user);
-      }),
-      catchError(this.handleError)
-    );
+
+/**
+ * Actualizar usuario por ID (nombre y/o contraseña)
+ */
+updateUser(userId: number, userData: { nombre?: string; password?: string }): Observable<any> {
+  const updateData: any = {
+    user: {}
+  };
+
+  // Solo agregar campos que se van a actualizar
+  if (userData.nombre) {
+    updateData.user.nombre = userData.nombre;
   }
+  
+  if (userData.password) {
+    updateData.user.password = userData.password;
+  }
+
+  console.log(`📝 Actualizando usuario ${userId}`);
+  console.log('📦 Datos a enviar:', JSON.stringify(updateData, null, 2));
+
+  return this.http.put(`${environment.apiUrl}/users/${userId}`, updateData).pipe(
+    tap(response => {
+      console.log('✅ Respuesta del servidor:', response);
+    }),
+    catchError(error => {
+      console.error('❌ Error completo:', error);
+      console.error('❌ Status:', error.status);
+      console.error('❌ Mensaje:', error.error);
+      return throwError(() => error);
+    })
+  );
+}
 
   /**
    * Manejo de errores HTTP
@@ -233,4 +244,5 @@ export class UserService {
       error: error.error
     }));
   }
+  
 }

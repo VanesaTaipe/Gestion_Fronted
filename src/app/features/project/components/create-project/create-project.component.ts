@@ -16,7 +16,7 @@ import { User } from '../../../profile/models/user.interface';
 import { UserService } from '../../../profile/services/user.service';
 import { ProyectoService } from '../../services/proyecto.service';
 import { InviteMemberDialogComponent } from '../invite-member-dialog/inivite-member-dialog.component';
-
+import {  forkJoin } from 'rxjs';
 interface DialogData {
   workspaceId: number;
   workspaceName: string;
@@ -25,7 +25,7 @@ interface DialogData {
 
 interface MemberWithRole {
   user: User;
-  rol: 'admin' | 'miembro';
+  rol: 'lider' | 'miembro';
 }
 
 @Component({
@@ -44,222 +44,157 @@ interface MemberWithRole {
     MatChipsModule
   ],
   template: `
-    <div class="dialog-container">
-      <div class="dialog-header">
-        <h2 mat-dialog-title>Crear Nuevo Proyecto</h2>
-        <button mat-icon-button mat-dialog-close class="close-btn">
-          <mat-icon>close</mat-icon>
-        </button>
-      </div>
+  <div class="dialog-container">
+    <div class="dialog-header">
+      <h2 mat-dialog-title>Crear Nuevo Proyecto</h2>
+      <button mat-icon-button mat-dialog-close class="close-btn">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
 
-      <mat-dialog-content>
-        <p class="dialog-subtitle">
-          Completa los detalles para crear un nuevo proyecto en tu espacio de trabajo.
-        </p>
+    <mat-dialog-content>
+      <p class="dialog-subtitle">
+        Completa los detalles para crear un nuevo proyecto en tu espacio de trabajo.
+      </p>
 
-        <form [formGroup]="projectForm" class="project-form">
-          <!-- Título del proyecto -->
-          <div class="form-group">
-            <label class="field-label">Título del proyecto</label>
+      <form [formGroup]="projectForm" class="project-form">
+        <!-- Título del proyecto -->
+        <div class="form-group">
+          <label class="field-label">Título del proyecto</label>
+          <input 
+            type="text"
+            class="custom-input"
+            formControlName="nombre"
+            placeholder="Ingresa el nombre del proyecto"
+            maxlength="100"
+            required>
+          <div class="error-message" *ngIf="projectForm.get('nombre')?.hasError('required') && projectForm.get('nombre')?.touched">
+            El título es requerido
+          </div>
+        </div>
+
+        <!-- Descripción -->
+        <div class="form-group">
+          <label class="field-label">Descripción</label>
+          <textarea 
+            class="custom-input custom-textarea"
+            formControlName="descripcion"
+            placeholder="Describe brevemente el proyecto"
+            rows="3"
+            maxlength="500">
+          </textarea>
+          <div class="hint-text">Opcional</div>
+        </div>
+
+        <!-- Añadir miembros -->
+        <div class="members-section">
+          <div class="section-header">
+            <label class="section-label">Añadir miembros</label>
+            <button 
+              type="button"
+              mat-button 
+              color="primary"
+              (click)="openInviteMemberDialog()"
+              class="invite-temp-btn">
+              <mat-icon>person_add</mat-icon>
+              Invitar nuevo miembro
+            </button>
+          </div>
+          
+          <div class="autocomplete-wrapper">
             <input 
               type="text"
               class="custom-input"
-              formControlName="nombre"
-              placeholder="Ingresa el nombre del proyecto"
-              maxlength="100"
-              required>
-            <div class="error-message" *ngIf="projectForm.get('nombre')?.hasError('required') && projectForm.get('nombre')?.touched">
-              El título es requerido
-            </div>
+              formControlName="searchUser"
+              placeholder="Buscar por email o nombre de usuario"
+              [matAutocomplete]="auto">
+            <mat-icon class="search-icon">search</mat-icon>
           </div>
-
-          <!-- Descripción -->
-          <div class="form-group">
-            <label class="field-label">Descripción</label>
-            <textarea 
-              class="custom-input custom-textarea"
-              formControlName="descripcion"
-              placeholder="Describe brevemente el proyecto"
-              rows="3"
-              maxlength="500">
-            </textarea>
-            <div class="hint-text">Opcional</div>
-          </div>
-
-          <!-- Añadir miembros -->
-          <div class="members-section">
-            <div class="section-header">
-              <label class="section-label">Añadir miembros</label>
-              <button 
-                type="button"
-                mat-button 
-                color="primary"
-                (click)="openInviteMemberDialog()"
-                class="invite-temp-btn">
-                <mat-icon>person_add</mat-icon>
-                Invitar nuevo miembro
-              </button>
-            </div>
-            
-            <div class="autocomplete-wrapper">
-              <input 
-                type="text"
-                class="custom-input"
-                formControlName="searchUser"
-                placeholder="Buscar por email o nombre de usuario"
-                [matAutocomplete]="auto">
-              <mat-icon class="search-icon">search</mat-icon>
-            </div>
-            
-            <mat-autocomplete 
-              #auto="matAutocomplete"
-              (optionSelected)="addMember($event.option.value)"
-              [displayWith]="displayUser">
-              <mat-option 
-                *ngFor="let user of filteredUsers$ | async" 
-                [value]="user">
-                <div class="user-option">
-                  <div class="user-avatar">
-                    {{ getUserInitials(user) }}
-                  </div>
-                  <div class="user-info">
-                    <div class="user-name">{{ user.username }}</div>
-                    <div class="user-email">{{ user.email }}</div>
-                  </div>
+          
+          <mat-autocomplete 
+            #auto="matAutocomplete"
+            (optionSelected)="addMember($event.option.value)"
+            [displayWith]="displayUser">
+            <mat-option 
+              *ngFor="let user of filteredUsers$ | async" 
+              [value]="user">
+              <div class="user-option">
+                <div class="user-avatar">
+                  {{ getUserInitials(user) }}
                 </div>
-              </mat-option>
-              
-              <mat-option *ngIf="(filteredUsers$ | async)?.length === 0 && !isSearchingUsers" disabled>
-                <div class="no-results">No se encontraron usuarios</div>
-              </mat-option>
-              
-              <mat-option *ngIf="isSearchingUsers" disabled>
-                <div class="no-results">Buscando...</div>
-              </mat-option>
-            </mat-autocomplete>
-
-            <!-- Información del creador -->
-            <div class="creator-info" *ngIf="!selectedMembers.length">
-              <mat-icon>info</mat-icon>
-              <span>Serás el líder de este proyecto automáticamente</span>
-            </div>
-
-            <!-- Miembros seleccionados -->
-            <div class="selected-members" *ngIf="selectedMembers.length > 0">
-              <div class="members-list">
-                <div 
-                  *ngFor="let memberData of selectedMembers"
-                  class="member-chip"
-                  [class.admin-chip]="memberData.rol === 'admin'">
-                  <div class="chip-avatar">{{ getUserInitials(memberData.user) }}</div>
-                  <div class="chip-info">
-                    <span class="chip-name">{{ memberData.user.username || memberData.user.email }}</span>
-                    <span class="chip-email" *ngIf="memberData.user.email && memberData.user.username">{{ memberData.user.email }}</span>
-                  </div>
-                  <span class="role-badge">{{ memberData.rol === 'admin' ? 'Líder' : 'Miembro' }}</span>
-                  <button 
-                    mat-icon-button 
-                    (click)="toggleRole(memberData)"
-                    class="role-toggle"
-                    title="Cambiar rol">
-                    <mat-icon>swap_horiz</mat-icon>
-                  </button>
-                  <button 
-                    mat-icon-button
-                    (click)="removeMember(memberData)"
-                    class="remove-btn"
-                    title="Remover">
-                    <mat-icon>close</mat-icon>
-                  </button>
+                <div class="user-info">
+                  <div class="user-name">{{ user.username }}</div>
+                  <div class="user-email">{{ user.email }}</div>
                 </div>
               </div>
-            </div>
-          </div>
-        </form>
-      </mat-dialog-content>
+            </mat-option>
+            
+            <mat-option *ngIf="(filteredUsers$ | async)?.length === 0 && !isSearchingUsers" disabled>
+              <div class="no-results">No se encontraron usuarios</div>
+            </mat-option>
+            
+            <mat-option *ngIf="isSearchingUsers" disabled>
+              <div class="no-results">Buscando...</div>
+            </mat-option>
+          </mat-autocomplete>
 
-      <mat-dialog-actions>
-        <button mat-button mat-dialog-close class="cancel-btn">
-          Cancelar
-        </button>
-        <button 
-          mat-raised-button 
-          color="primary"
-          (click)="createProject()"
-          [disabled]="projectForm.invalid || isCreating"
-          class="create-btn">
-          <mat-icon *ngIf="!isCreating">check</mat-icon>
-          <mat-icon *ngIf="isCreating" class="spinning">refresh</mat-icon>
-          {{ isCreating ? 'Creando...' : 'Crear Proyecto' }}
-        </button>
-      </mat-dialog-actions>
-    </div>
-
-    <!-- Overlay para el diálogo de credenciales -->
-    <div class="credentials-overlay" *ngIf="showCredentialsDialog" (click)="closeCredentialsDialog()">
-      <div class="credentials-dialog" (click)="$event.stopPropagation()">
-        <div class="credentials-header">
-          <div class="header-icon">
-            <mat-icon>check_circle</mat-icon>
-          </div>
-          <h2>¡Usuario Temporal Creado!</h2>
-        </div>
-
-        <div class="credentials-content">
-          <div class="alert-info">
+          <!-- Información del creador -->
+          <div class="creator-info" *ngIf="!selectedMembers.length">
             <mat-icon>info</mat-icon>
-            <p>Comparte estas credenciales con el usuario de forma segura. Deberá cambiar su contraseña en el primer acceso.</p>
+            <span>Serás el líder de este proyecto automáticamente</span>
           </div>
 
-          <div class="credentials-container">
-            <div class="credential-item">
-              <label>Correo electrónico</label>
-              <div class="credential-value">
-                <code>{{ tempCredentials.email }}</code>
+          <!-- Miembros seleccionados -->
+          <div class="selected-members" *ngIf="selectedMembers.length > 0">
+            <div class="members-list">
+              <div 
+                *ngFor="let memberData of selectedMembers"
+                class="member-chip"
+                [class.admin-chip]="memberData.rol === 'lider'">
+                <div class="chip-avatar">{{ getUserInitials(memberData.user) }}</div>
+                <div class="chip-info">
+                  <span class="chip-name">{{ memberData.user.username || memberData.user.email }}</span>
+                  <span class="chip-email" *ngIf="memberData.user.email && memberData.user.username">{{ memberData.user.email }}</span>
+                </div>
+                <span class="role-badge">{{ memberData.rol === 'lider' ? 'Lider' : 'Miembro' }}</span>
                 <button 
                   mat-icon-button 
-                  (click)="copyToClipboard(tempCredentials.email, 'Correo copiado')">
-                  <mat-icon>content_copy</mat-icon>
+                  (click)="toggleRole(memberData)"
+                  class="role-toggle"
+                  title="Cambiar rol">
+                  <mat-icon>swap_horiz</mat-icon>
+                </button>
+                <button 
+                  mat-icon-button
+                  (click)="removeMember(memberData)"
+                  class="remove-btn"
+                  title="Remover">
+                  <mat-icon>close</mat-icon>
                 </button>
               </div>
             </div>
-
-            <div class="credential-item password-item">
-              <label>Contraseña temporal</label>
-              <div class="credential-value">
-                <code class="password">{{ tempCredentials.password }}</code>
-                <button 
-                  mat-icon-button 
-                  (click)="copyToClipboard(tempCredentials.password, 'Contraseña copiada')">
-                  <mat-icon>content_copy</mat-icon>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="quick-copy">
-            <button 
-              mat-stroked-button 
-              (click)="copyBothCredentials()"
-              class="copy-both-btn">
-              <mat-icon>content_copy</mat-icon>
-              Copiar ambas credenciales
-            </button>
           </div>
         </div>
+      </form>
+    </mat-dialog-content>
 
-        <div class="credentials-actions">
-          <button 
-            mat-raised-button 
-            color="primary"
-            (click)="closeCredentialsDialog()">
-            <mat-icon>check</mat-icon>
-            Entendido
-          </button>
-        </div>
-      </div>
-    </div>
-  `,
+    <mat-dialog-actions>
+      <button mat-button mat-dialog-close class="cancel-btn">
+        Cancelar
+      </button>
+      <button 
+        mat-raised-button 
+        color="primary"
+        (click)="createProject()"
+        [disabled]="projectForm.invalid || isCreating"
+        class="create-btn">
+        <mat-icon *ngIf="!isCreating">check</mat-icon>
+        <mat-icon *ngIf="isCreating" class="spinning">refresh</mat-icon>
+        {{ isCreating ? 'Creando...' : 'Crear Proyecto' }}
+      </button>
+    </mat-dialog-actions>
+  </div>
+`,
   styles: [`
     .dialog-container {
   width: 600px;
@@ -403,11 +338,21 @@ mat-dialog-content {
   pointer-events: none;
   font-size: 18px;
 }
+.mat-mdc-dialog-container,
+.mat-mdc-dialog-surface {
+  background-color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.mat-mdc-dialog-surface {
+  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.15) !important;
+  border-radius: 12px !important;
+}
 
 ::ng-deep .mat-mdc-autocomplete-panel {
   border-radius: 8px !important;
   margin-top: 4px !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 4px 6px -1px rgba(255, 255, 255, 0.1) !important;
 }
 
 ::ng-deep .mat-mdc-option {
@@ -610,7 +555,6 @@ mat-dialog-actions {
   to { transform: rotate(360deg); }
 }
 
-/* Diálogo de credenciales simplificado */
 .credentials-overlay {
   position: fixed;
   top: 0;
@@ -801,10 +745,6 @@ export class CreateProjectDialogComponent implements OnInit {
   isSearchingUsers = false;
   selectedMembers: MemberWithRole[] = [];
   filteredUsers$: Observable<User[]>;
-  
-  // Para el diálogo de credenciales
-  showCredentialsDialog = false;
-  tempCredentials = { email: '', password: '' };
 
   constructor(
     private fb: FormBuilder,
@@ -890,21 +830,21 @@ export class CreateProjectDialogComponent implements OnInit {
   }
 
   addMember(user: User): void {
-    if (user.id_usuario === this.data.currentUserId) {
-      console.warn('⚠️ No puedes agregarte a ti mismo como miembro');
-      return;
-    }
-
-    if (!this.selectedMembers.some(m => m.user.id_usuario === user.id_usuario)) {
-      this.selectedMembers.push({
-        user: user,
-        rol: 'miembro'
-      });
-      console.log('Miembro agregado:', user.username, 'con rol: miembro');
-    }
-    
-    this.projectForm.get('searchUser')?.setValue('');
+  if (user.id_usuario === this.data.currentUserId) {
+    console.warn('No puedes agregarte a ti mismo como miembro');
+    return;
   }
+
+  if (!this.selectedMembers.some(m => m.user.id_usuario === user.id_usuario)) {
+    this.selectedMembers.push({
+      user: user,
+      rol: 'miembro'  // ← Ya está correcto
+    });
+    console.log('Miembro agregado:', user.username, 'con rol: miembro');
+  }
+  
+  this.projectForm.get('searchUser')?.setValue('');
+}
 
   removeMember(memberData: MemberWithRole): void {
     const index = this.selectedMembers.findIndex(
@@ -917,100 +857,67 @@ export class CreateProjectDialogComponent implements OnInit {
   }
 
   toggleRole(memberData: MemberWithRole): void {
-    memberData.rol = memberData.rol === 'admin' ? 'miembro' : 'admin';
+    memberData.rol = memberData.rol === 'lider' ? 'miembro' : 'lider';
     console.log('Rol cambiado:', memberData.user.username, '→', memberData.rol);
   }
 
   openInviteMemberDialog(): void {
-    console.log('Abriendo diálogo de invitación para nuevo miembro');
-    
-    const inviteDialogRef = this.dialog.open(InviteMemberDialogComponent, {
-      width: '550px',
-      data: {
-        projectId: 0,
-        projectName: this.projectForm.get('nombre')?.value || 'Nuevo Proyecto'
-      },
-      disableClose: false
-    });
+  console.log('Abriendo diálogo de invitación para nuevo miembro');
+  
+  const inviteDialogRef = this.dialog.open(InviteMemberDialogComponent, {
+    width: '550px',
+    data: {
+      projectId: 0,
+      projectName: this.projectForm.get('nombre')?.value || 'Nuevo Proyecto'
+    },
+    disableClose: false
+  });
 
-    inviteDialogRef.afterClosed().subscribe(result => {
-      if (result && result.user) {
-        console.log('Usuario temporal creado:', result);
-        
-        if (result.user.id_usuario === this.data.currentUserId) {
-          console.warn('No puedes agregarte a ti mismo');
-          return;
-        }
-
-        // Asegurar que el usuario tenga un username válido
-        const user = {
-          ...result.user,
-          username: result.user.username || result.user.email?.split('@')[0] || 'Usuario',
-          email: result.user.email
-        };
-
-        const newMember: MemberWithRole = {
-          user: user,
-          rol: result.rol === 'lider' ? 'admin' : 'miembro'
-        };
-        
-        if (!this.selectedMembers.some(m => m.user.id_usuario === newMember.user.id_usuario)) {
-          this.selectedMembers.push(newMember);
-          console.log('Miembro invitado agregado:', newMember.user.username, 'con rol:', newMember.rol);
-          console.log('Email:', newMember.user.email);
-          console.log('Contraseña temporal:', result.tempPassword);
-          
-          // Mostrar diálogo con credenciales si hay contraseña
-          if (result.tempPassword) {
-            this.showCredentials(user.email, result.tempPassword);
-          }
-        } else {
-          console.warn('El usuario ya está en la lista de miembros');
-        }
+  inviteDialogRef.afterClosed().subscribe(result => {
+    if (result && result.user) {
+      console.log('Usuario temporal creado:', result);
+      
+      if (result.user.id_usuario === this.data.currentUserId) {
+        console.warn('No puedes agregarte a ti mismo');
+        return;
       }
-    });
-  }
 
-  showCredentials(email: string, password: string): void {
-    this.tempCredentials = { email, password };
-    this.showCredentialsDialog = true;
-  }
+      const user = {
+        ...result.user,
+        username: result.user.username || result.user.email?.split('@')[0] || 'Usuario',
+        email: result.user.email
+      };
 
-  closeCredentialsDialog(): void {
-    this.showCredentialsDialog = false;
-    this.tempCredentials = { email: '', password: '' };
-  }
-
-  copyToClipboard(text: string, message: string): void {
-    navigator.clipboard.writeText(text).then(() => {
-      alert(message);
-    }).catch(err => {
-      console.error('Error al copiar:', err);
-    });
-  }
-
-  copyBothCredentials(): void {
-    const credentials = `Correo: ${this.tempCredentials.email}\nContraseña temporal: ${this.tempCredentials.password}`;
-    navigator.clipboard.writeText(credentials).then(() => {
-      alert('Credenciales copiadas al portapapeles');
-    }).catch(err => {
-      console.error('Error al copiar:', err);
-    });
-  }
+      const newMember: MemberWithRole = {
+        user: user,
+        rol: result.rol === 'lider' ? 'lider' : 'miembro'  // ← CORREGIR AQUÍ
+      };
+      
+      if (!this.selectedMembers.some(m => m.user.id_usuario === newMember.user.id_usuario)) {
+        this.selectedMembers.push(newMember);
+        console.log('Miembro agregado:', newMember.user.username, 'rol:', newMember.rol);
+      } else {
+        console.warn('El usuario ya está en la lista');
+      }
+    }
+  });
+}
 
   createProject(): void {
     if (this.projectForm.invalid) {
       console.warn('Formulario inválido');
       return;
     }
+    const projectName = this.projectForm.get('nombre')?.value.trim();
+  const workspaceName = this.data.workspaceName.trim();
+
+  if (projectName.toLowerCase() === workspaceName.toLowerCase()) {
+    alert(`El nombre del proyecto no puede ser igual al nombre del espacio ("${workspaceName}").`);
+    return;
+  }
     
     this.isCreating = true;
-
-    const miembrosConRoles = this.selectedMembers.map(memberData => ({
-      id_usuario: memberData.user.id_usuario,
-      rol: memberData.rol
-    }));
-
+    
     const requestData: any = {
       proyecto: {
         nombre: this.projectForm.get('nombre')?.value,
@@ -1020,51 +927,26 @@ export class CreateProjectDialogComponent implements OnInit {
       }
     };
 
-    // Solo agregar miembros si hay alguno seleccionado
-    if (miembrosConRoles.length > 0) {
-      requestData.miembros = miembrosConRoles;
-    }
 
     console.log('Creando proyecto con datos:', requestData);
     console.log('Creador (líder automático):', this.data.currentUserId);
-    console.log('Miembros adicionales:', miembrosConRoles.length);
 
     this.proyectoService.createProyecto(requestData).subscribe({
       next: (response) => {
         console.log('Respuesta del servidor:', response);
         
         const proyectoData = response.proyecto || response;
-        console.log('Proyecto creado:', proyectoData);
-        
         const projectId = proyectoData.id_proyecto || proyectoData.id;
-        console.log('ID del proyecto:', projectId);
         
         if (!projectId) {
-          console.error(' No se pudo obtener el ID del proyecto');
+          console.error('No se pudo obtener el ID del proyecto');
           this.isCreating = false;
           alert('Error: No se pudo obtener el ID del proyecto');
           return;
         }
-        
-        this.isCreating = false;
-        this.dialogRef.close(proyectoData);
-        
-        // Navegar al tablero del proyecto
-        this.router.navigate([
-          '/workspace', 
-          this.data.workspaceId, 
-          'projects', 
-          projectId, 
-          'board'
-        ], {
-          queryParams: {
-            projectName: proyectoData.nombre
-          }
-        }).then(success => {
-          console.log('Navegación exitosa al proyecto:', success);
-        }).catch(error => {
-          console.error('Error en navegación:', error);
-        });
+
+        console.log('Proyecto creado con ID:', projectId);
+        this.registrarLiderYMiembros(projectId, proyectoData);
       },
       error: (error) => {
         console.error('Error al crear proyecto:', error);
@@ -1079,6 +961,75 @@ export class CreateProjectDialogComponent implements OnInit {
         
         alert(errorMessage);
       }
+    });
+  }
+
+  private registrarLiderYMiembros(projectId: number, proyectoData: any): void {
+  console.log('Registrando roles para el proyecto:', projectId);
+
+  const todosLosMiembros = [
+    // El creador siempre es Líder (id_rol: 1)
+    {
+      id_usuario: this.data.currentUserId,
+      id_rol: 1  // ← Líder
+    },
+    // Los miembros seleccionados
+    ...this.selectedMembers.map(memberData => ({
+      id_usuario: memberData.user.id_usuario,
+      id_rol: memberData.rol === 'lider' ? 1 : 2  // ← CORREGIR AQUÍ
+    }))
+  ];
+
+  console.log('Total de miembros a registrar:', todosLosMiembros.length);
+  console.log('Detalles de miembros:', todosLosMiembros);
+
+  const registrosFallidos: any[] = [];
+  const registrosObservables = todosLosMiembros.map(miembro => 
+    this.proyectoService.agregarMiembro(projectId, miembro).pipe(
+      catchError(error => {
+        console.error(`Error registrando usuario ${miembro.id_usuario}:`, error);
+        registrosFallidos.push({ miembro, error });
+        return of(null);
+      })
+    )
+  );
+
+  forkJoin(registrosObservables).subscribe({
+    next: (resultados) => {
+      const exitosos = resultados.filter(r => r !== null).length;
+      console.log(`${exitosos}/${todosLosMiembros.length} miembros registrados`);
+
+      if (registrosFallidos.length > 0) {
+        console.warn('Algunos registros fallaron:', registrosFallidos);
+      }
+
+      this.finalizarCreacionProyecto(projectId, proyectoData);
+    },
+    error: (error) => {
+      console.error('Error general:', error);
+      this.finalizarCreacionProyecto(projectId, proyectoData);
+    }
+  });
+}
+
+  private finalizarCreacionProyecto(projectId: number, proyectoData: any): void {
+    this.isCreating = false;
+    this.dialogRef.close(proyectoData);
+    
+    this.router.navigate([
+      '/workspace', 
+      this.data.workspaceId, 
+      'projects', 
+      projectId, 
+      'board'
+    ], {
+      queryParams: {
+        projectName: proyectoData.nombre
+      }
+    }).then(success => {
+      console.log('Navegación exitosa:', success);
+    }).catch(error => {
+      console.error('Error en navegación:', error);
     });
   }
 }

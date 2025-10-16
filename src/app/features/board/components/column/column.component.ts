@@ -1,16 +1,19 @@
 import { Component, Input, Output, EventEmitter, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, FormsModule } from '@angular/forms';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, FormsModule, FormControl } from '@angular/forms';
 import { CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { Column, Card } from '../../models/board.model';
 import { TaskService } from '../../services/task.service';
 import { CardComponent } from '../card/card.component';
 import { CardDetailModalComponent } from '../card/card-detail.component';
+import { environment } from '../../../../../environments/environment';
+import { HttpClient } from '@angular/common/http';
+import { debounceTime, distinctUntilChanged, map, Observable, startWith } from 'rxjs';
 
 @Component({
   selector: 'app-column',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, CdkDropList, CdkDrag, CardComponent],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, CdkDropList, CdkDrag, CardComponent, CardDetailModalComponent],
   templateUrl: './column.component.html',
   styleUrls: ['./column.component.css']
 })
@@ -29,26 +32,109 @@ export class ColumnComponent {
   form!: FormGroup;
    showCardDetail = false;
   selectedCard: Card | null = null;
-
-  //  Para archivos Y URLs
   selectedFiles: File[] = [];
   imageUrls: string[] = [];
   imageUrlInput = '';
   previewUrls: string[] = [];
+   projectMembers: any[] = [];
+  filteredMembers$!: Observable<any[]>;
+  searchControl = new FormControl('');
+  isSearchingUsers = false;
+  selectedMember: any = null;
+  private api = environment.apiBase;
+  totalComentarios: number = 0;
 
   constructor(
     private fb: FormBuilder,
-    private taskSvc: TaskService
+    private taskSvc: TaskService,
+    private http: HttpClient
   ) {
     this.form = this.fb.group({
       titulo: ['', [Validators.required, Validators.maxLength(200)]],
       descripcion: [''],
       assignee: [''],
+       assigneeName: [''],
       fecha_vencimiento: [''],
       prioridad: ['', Validators.required]
     });
   }
+  ngOnInit() {
+    this.loadProjectMembers();
+    this.setupMemberSearch();
+  }
+  loadProjectMembers() {
+    this.http.get(`${this.api}/proyectos/${this.proyectoId}/miembros`)
+      .subscribe({
+        next: (res: any) => {
+          console.log('Miembros del proyecto:', res);
+          this.projectMembers = res.miembros || res.data || [];
+          if (this.projectMembers.length > 0) {
+          this.searchControl.setValue(''); // Trigger para mostrar todos
+        }
+        },
+        error: (err) => {
+          console.error('Error cargando miembros:', err);
+          this.projectMembers = [];
+        }
+      });
+  }
+getUserInitial(card: Card): string {
+  const name = card.asignado_a || 'U';
+  return name.charAt(0).toUpperCase();
+}
+getPriorityLabel(priority?: string): string {
+  switch(priority) {
+    case 'alta': return 'Alta';
+    case 'media': return 'Media';
+    case 'baja': return 'Baja';
+    default: return 'N/A';
+  }
+}
+getCommentCount(card: Card): number {
+  return card.comentarios?.length || 0;
+}
+   setupMemberSearch() {
+    this.filteredMembers$ = this.searchControl.valueChanges.pipe(
+      startWith(''),
+      debounceTime(300),
+      distinctUntilChanged(),
+      map(searchTerm => {
+        if (typeof searchTerm !== 'string') {
+          return [];
+        }
+        
+        // Filtrar solo usuarios que ya pertenecen al proyecto
+        if (!searchTerm) {
+          return this.projectMembers.slice(0, 5); 
+        }
+        
+        const filtered = this.projectMembers.filter(member =>
+          member.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          member.email?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        
+        return filtered.slice(0, 5); // Limitar a 5 resultados
+      })
+    );
+  }
+    selectMember(member: any) {
+      this.selectedMember = member;
+      this.searchControl.setValue(member.nombre);
+      this.form.patchValue({
+        assignee: member.id_usuario,
+        assigneeName: member.nombre
+      });
+    }
 
+    clearMember() {
+      this.selectedMember = null;
+      this.searchControl.setValue('');
+      this.form.patchValue({
+        assignee: '',
+        assigneeName: ''
+      });
+    }
+  
   // ===== Menú de tres puntos =====
   toggleMenu(event: Event) {
     event.stopPropagation();
@@ -252,6 +338,10 @@ private getColumnIdFromContainer(container: any): number {
 
   // ===== Modal de crear tarea =====
   AbrirTarea() {
+    if (this.column.cards && this.column.cards.length >= 10) {
+    return;
+  }
+    this.closeCardDetail()
     this.form.reset({
       titulo: '',
       descripcion: '',
@@ -263,6 +353,8 @@ private getColumnIdFromContainer(container: any): number {
     this.imageUrls = [];
     this.imageUrlInput = '';
     this.previewUrls = [];
+    this.selectedMember = null; 
+    this.searchControl.setValue(''); 
     this.showModal = true;
   }
 
@@ -272,7 +364,9 @@ private getColumnIdFromContainer(container: any): number {
     this.selectedFiles = [];
     this.imageUrls = [];
     this.imageUrlInput = '';
+    this.selectedMember = null;
     this.previewUrls = [];
+    this.searchControl.setValue(''); 
   }
 
   crearTareaBD() {
@@ -285,13 +379,18 @@ private getColumnIdFromContainer(container: any): number {
       }
       return;
     }
+    if (this.column.cards && this.column.cards.length >= 10) {
+    alert('Esta columna ya tiene 10 tareas (límite máximo).');
+    return;
+  }
 
-    this.creating = true;
+     this.creating = true;
     const titulo = (this.form.value.titulo as string).trim();
     const descripcion = (this.form.value.descripcion as string)?.trim() || '';
-    const assignee = (this.form.value.assignee as string)?.trim() || '';
     const fecha = this.form.value.fecha_vencimiento || null;
     const prioridad = this.form.value.prioridad;
+    const idAsignado = this.form.value.assignee;
+    const nombreAsignado = this.form.value.assigneeName || '';
 
     if (!prioridad) {
       alert('Por favor selecciona una prioridad');
@@ -307,11 +406,6 @@ private getColumnIdFromContainer(container: any): number {
       archivos: this.selectedFiles.length,
       urls: this.imageUrls.length
     });
-
-    let idAsignado: number | undefined;
-    if (assignee && !isNaN(Number(assignee))) {
-      idAsignado = Number(assignee);
-    }
 
     this.taskSvc.createCard({
       id_proyecto: this.proyectoId,
@@ -332,9 +426,9 @@ private getColumnIdFromContainer(container: any): number {
         const cardForDisplay = {
           ...newCard,
           title: newCard.title,
-          asignado_a: assignee,
+          asignado_a:nombreAsignado,
           fecha_vencimiento: fecha,
-          images: [...this.previewUrls] // Mostrar previews
+          images: [...this.previewUrls]
         };
         
         this.column.cards.push(cardForDisplay);
@@ -361,9 +455,22 @@ private getColumnIdFromContainer(container: any): number {
   }
   // Abrir modal de detalle
   openCardDetail(card: Card) {
-    this.selectedCard = { ...card };
-    this.showCardDetail = true;
-  }
+  console.log('Abriendo modal para tarjeta:', card);
+  
+  this.showModal = false;
+
+  this.selectedCard = { 
+    ...card,
+    comentarios: card.comentarios || [],
+    asignado_a: card.asignado_a || 'Sin asignar',
+    images: card.images || []
+  };
+  
+  this.showCardDetail = true;
+  
+  console.log('Modal de detalle visible:', this.showCardDetail);
+  console.log('Modal de crear oculto:', !this.showModal);
+}
 
   // Cerrar modal de detalle
   closeCardDetail() {
@@ -422,4 +529,5 @@ private getColumnIdFromContainer(container: any): number {
       }
     });
   }
+  
 }

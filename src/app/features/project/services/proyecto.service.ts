@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, of } from 'rxjs';
+import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { environment } from '../../../../environments/environment';
 import { UserService as AuthUserService } from '../../../core/auth/services/use.service';
@@ -55,6 +55,7 @@ export class ProyectoService {
   /**
    * Obtener proyectos por workspace (filtrado en frontend)
    */
+
   getProyectosByWorkspace(workspaceId: number): Observable<Proyecto[]> {
     console.log('Obteniendo proyectos del workspace:', workspaceId);
     
@@ -80,8 +81,6 @@ export class ProyectoService {
 
   /**
    * Crear proyecto con usuario actual
-   * Endpoint: POST /api/proyectos
-   * Body: { proyecto: {...}, miembros: [{id_usuario, rol}] }
    */
   createProyecto(proyectoData: any): Observable<any> {
     // Obtener el ID del usuario desde el servicio de AUTENTICACIÓN
@@ -122,23 +121,32 @@ export class ProyectoService {
     );
   }
 
-  /**
-   * Agregar miembro a un proyecto existente
-   * Endpoint: POST /api/proyectos/{id_proyecto}/miembros
-   */
-  agregarMiembro(idProyecto: number, idUsuario: number, rol: 'admin' | 'miembro' = 'miembro'): Observable<any> {
-    const data = {
-      id_usuario: idUsuario,
-      rol: rol
-    };
 
-    console.log(`Agregando miembro al proyecto ${idProyecto}:`, data);
+  /**
+ * Agregar un miembro a un proyecto
+ */
+agregarMiembro(projectId: number, miembroData: { id_usuario: number, id_rol: number }): Observable<any> {
+    const url = `${this.apiUrl}/${projectId}/miembros`;
     
-    return this.http.post<any>(`${this.apiUrl}/${idProyecto}/miembros`, data).pipe(
-      tap(response => console.log('Miembro agregado:', response)),
+    console.log('POST:', url);
+    console.log('Body:', miembroData);
+    
+    return this.http.post<any>(url, miembroData).pipe(
+      tap(response => {
+        console.log('Respuesta:', response);
+      }),
       catchError(error => {
-        console.error('Error agregando miembro:', error);
-        throw error;
+        console.error('Error al agregar miembro:', error);
+        console.error('Status:', error.status);
+        console.error('Error body:', error.error);
+        
+        // Si el usuario ya existe (409 Conflict), no es crítico
+        if (error.status === 409) {
+          console.warn(' El usuario ya es miembro del proyecto');
+          return of({ warning: 'Usuario ya existe' });
+        }
+        
+        return throwError(() => error);
       })
     );
   }
@@ -189,4 +197,5 @@ export class ProyectoService {
   exists(id: number): Observable<boolean> {
     return this.http.get<boolean>(`${this.apiUrl}/${id}/exists`);
   }
+  
 }

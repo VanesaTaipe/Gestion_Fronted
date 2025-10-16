@@ -4,7 +4,7 @@ import { forkJoin, map, Observable, of, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { environment } from '../../../../environments/environment';
 import { UserService as AuthService } from '../../../core/auth/services/use.service';
-import { Card} from '../models/board.model';
+import { Card,ComentarioCreateDTO} from '../models/board.model';
 export interface TaskCreateDTO {
   id_proyecto: number | string;
   id_columna: number | string;
@@ -46,7 +46,7 @@ export class TaskService {
       }
       
       if (Number.isNaN(date.getTime())) {
-        console.warn('⚠️ Fecha inválida:', value);
+        console.warn('Fecha inválida:', value);
         return undefined;
       }
 
@@ -91,7 +91,7 @@ export class TaskService {
     
     if (p.id_asignado != null) body.id_asignado = Number(p.id_asignado);
 
-    console.log('📤 POST /tareas:', body);
+    console.log('POST /tareas:', body);
 
     return this.http.post(`${this.api}/tareas`, body).pipe(
       map((res: any) => {
@@ -202,11 +202,35 @@ deleteCard(id: number): Observable<any> {
   return this.http.delete(`${this.api}/tareas/${id}`);
 }
 
-addComment(taskId: number, texto: string, usuario: string): Observable<any> {
-  return this.http.post(`${this.api}/comentarios`, {
-    id_tarea: taskId,
-    texto: texto,
-    usuario: usuario
-  });
+addComment(data: ComentarioCreateDTO): Observable<any> {
+    console.log('Enviando comentario:', data);
+    
+    return this.http.post(`${this.api}/comentarios`, data).pipe(
+      map((res: any) => {
+        console.log('Comentario creado:', res);
+        return res;
+      }),
+      catchError(err => {
+        console.error('Error creando comentario:', err);
+        return throwError(() => err);
+      })
+    );
+  }
+  getComments(taskId: number): Observable<any[]> {
+    return this.http.get<any>(`${this.api}/tareas/${taskId}/comentarios`).pipe(
+      map((res: any) => {
+        console.log('📥 Comentarios recibidos:', res);
+        const comentarios = res?.comentarios?.data || res?.comentarios || res?.data || [];
+        return comentarios;
+      }),
+      catchError(err => {
+        console.error('Error obteniendo comentarios:', err);
+        return of([]);
+      })
+    );
+  }
+   getResumenTareas(projectId: number): Observable<any> {
+  return this.http.get<any>(`${this.api}/proyectos/${projectId}/tareas/resumen`);
 }
+
 }

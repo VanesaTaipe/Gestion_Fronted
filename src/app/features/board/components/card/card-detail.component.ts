@@ -1,17 +1,20 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule, Validators } from '@angular/forms';
-import { Card } from '../../models/board.model';
+import { Card, Comentario } from '../../models/board.model';
 import { BoardService } from '../../services/board.service';
-import { MarkdownModule } from 'ngx-markdown';
+import { TaskService } from '../../services/task.service';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../../../environments/environment';
+import { UserService as AuthService } from '../../../../core/auth/services/use.service';
 
 @Component({
   selector: 'app-card-detail-modal',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, MarkdownModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule],
   styleUrls: ['./card-detail.component.css'],
   template: `
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" 
+   <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" 
          (click)="onBackdropClick($event)">
       <div class="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden shadow-2xl flex relative"
            (click)="$event.stopPropagation()">
@@ -48,10 +51,11 @@ import { MarkdownModule } from 'ngx-markdown';
             
             <!-- Descripción -->
             <div>
+              <h3 class="text-base font-semibold text-gray-900 mb-3">Descripción</h3>
               <div *ngIf="!editingDescription" 
-                   class="bg-gray-50 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-colors"
+                   class="bg-gray-50 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-colors min-h-[60px]"
                    (click)="toggleDescriptionEdit()">
-                <p class="text-sm text-gray-700 leading-relaxed">
+                <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                   {{ card.descripcion || 'Haz clic para agregar descripción' }}
                 </p>
               </div>
@@ -59,9 +63,20 @@ import { MarkdownModule } from 'ngx-markdown';
               <div *ngIf="editingDescription" class="space-y-2">
                 <textarea
                   [(ngModel)]="card.descripcion"
-                  (blur)="saveDescription()"
                   class="w-full min-h-[120px] p-3 border rounded-lg text-sm resize-y focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
                   placeholder="Escribe la descripción de la tarea..."></textarea>
+                <div class="flex gap-2 justify-end">
+                  <button
+                    (click)="cancelDescriptionEdit()"
+                    class="px-3 py-1.5 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg">
+                    Cancelar
+                  </button>
+                  <button
+                    (click)="saveDescription()"
+                    class="px-3 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg">
+                    Guardar
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -92,11 +107,19 @@ import { MarkdownModule } from 'ngx-markdown';
 
               <!-- Input para agregar comentario -->
               <form [formGroup]="commentForm" (ngSubmit)="addComment()" class="mb-4">
-                <textarea
-                  formControlName="texto"
-                  class="w-full p-3 border rounded-lg resize-none text-sm focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-                  rows="2"
-                  placeholder="Escribir un comentario..."></textarea>
+                <div class="flex gap-2">
+                  <textarea
+                    formControlName="contenido"
+                    class="flex-1 p-3 border rounded-lg resize-none text-sm focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                    rows="2"
+                    placeholder="Escribir un comentario..."></textarea>
+                  <button
+                    type="submit"
+                    [disabled]="commentForm.invalid || isSubmittingComment"
+                    class="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed h-fit">
+                    {{ isSubmittingComment ? 'Enviando...' : 'Enviar' }}
+                  </button>
+                </div>
               </form>
 
               <!-- Lista de comentarios -->
@@ -104,14 +127,20 @@ import { MarkdownModule } from 'ngx-markdown';
                 <div *ngFor="let comment of card.comentarios" 
                      class="flex gap-3">
                   <div class="w-9 h-9 bg-gray-900 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                    {{ getCommentInitial(comment.usuario) }}
+                    {{ getCommentInitial(comment.usuario || comment.nombre_usuario) }}
                   </div>
                   <div class="flex-1">
                     <div class="flex items-baseline gap-2 mb-1">
-                      <p class="font-semibold text-sm text-gray-900">{{ comment.usuario || 'Usuario' }}</p>
-                      <p class="text-xs text-gray-500">{{ formatCommentTime(comment.created_at || comment.fecha) }}</p>
+                      <p class="font-semibold text-sm text-gray-900">
+                        {{ comment.usuario || comment.nombre_usuario || 'Usuario' }}
+                      </p>
+                      <p class="text-xs text-gray-500">
+                        {{ formatCommentTime(comment.created_at || comment.fecha) }}
+                      </p>
                     </div>
-                    <p class="text-sm text-gray-700">{{ comment.texto }}</p>
+                    <p class="text-sm text-gray-700">
+                      {{ comment.contenido || comment.texto }}
+                    </p>
                   </div>
                 </div>
 
@@ -125,7 +154,7 @@ import { MarkdownModule } from 'ngx-markdown';
         </div>
 
         <!-- Panel Derecho: Información y acciones -->
-        <div class="w-72 bg-gray-50 border-l flex flex-col overflow-y-auto">
+        <div class="w-80 bg-gray-50 border-l flex flex-col overflow-y-auto">
           <div class="p-5 space-y-4">
             
             <!-- Prioridad -->
@@ -134,12 +163,12 @@ import { MarkdownModule } from 'ngx-markdown';
               <select 
                 [(ngModel)]="card.prioridad"
                 (change)="saveCard()"
-                class="w-full px-3 py-2.5 border rounded-lg text-sm font-semibold cursor-pointer"
+                class="w-full px-3 py-2.5 border rounded-lg text-sm font-semibold cursor-pointer transition-colors"
                 [ngClass]="{
-                  'text-red-700 bg-red-50 border-red-300': card.prioridad === 'alta',
-                  'text-orange-700 bg-orange-50 border-orange-300': card.prioridad === 'media',
-                  'text-yellow-700 bg-yellow-50 border-yellow-300': card.prioridad === 'baja',
-                  'text-gray-700 bg-white border-gray-300': card.prioridad === 'No asignada'
+                  'text-red-700 bg-red-100 border-red-300 hover:bg-red-200': card.prioridad === 'alta',
+                  'text-orange-700 bg-orange-100 border-orange-300 hover:bg-orange-200': card.prioridad === 'media',
+                  'text-yellow-700 bg-yellow-100 border-yellow-300 hover:bg-yellow-200': card.prioridad === 'baja',
+                  'text-gray-700 bg-gray-100 border-gray-300 hover:bg-gray-200': card.prioridad === 'No asignada'
                 }">
                 <option value="No asignada">No asignada</option>
                 <option value="baja">Baja</option>
@@ -155,7 +184,7 @@ import { MarkdownModule } from 'ngx-markdown';
                 type="date"
                 [(ngModel)]="card.fecha_vencimiento"
                 (change)="saveCard()"
-                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm">
+                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500">
               <p *ngIf="card.fecha_vencimiento" class="text-xs text-gray-500 mt-1.5">
                 {{ formatFullDate(card.fecha_vencimiento) }}
               </p>
@@ -168,11 +197,9 @@ import { MarkdownModule } from 'ngx-markdown';
                 <div class="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
                   {{ getUserInitial() }}
                 </div>
-                <input 
-                  [(ngModel)]="card.asignado_a"
-                  (blur)="saveCard()"
-                  class="flex-1 text-sm outline-none bg-transparent font-medium"
-                  placeholder="Sin asignar">
+                <span class="flex-1 text-sm font-medium text-gray-700">
+                  {{ card.asignado_a || 'Sin asignar' }}
+                </span>
               </div>
             </div>
 
@@ -188,33 +215,23 @@ import { MarkdownModule } from 'ngx-markdown';
                   <span class="text-sm font-medium text-gray-700">{{ card.images?.length || 0 }}</span>
                 </div>
               </div>
+              
+              <!-- Preview de imágenes si existen -->
+              <div *ngIf="card.images && card.images.length > 0" class="mt-2 grid grid-cols-3 gap-2">
+                <div *ngFor="let img of card.images" 
+                     class="relative group cursor-pointer"
+                     (click)="openImage(img)">
+                  <img [src]="img" 
+                       alt="Adjunto" 
+                       class="w-full h-20 object-cover rounded-lg border hover:opacity-75 transition">
+                </div>
+              </div>
             </div>
           </div>
-
-          <!-- Botones de acción al final -->
-          <div class="mt-auto p-5 space-y-2.5 border-t bg-gray-50">
-            <button 
-              class="w-full px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-              </svg>
-              Duplicar
-            </button>
-            
-            <button 
-              (click)="deleteCard()"
-              class="w-full px-4 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-              </svg>
-              Eliminar
-            </button>
           </div>
         </div>
       </div>
-    </div>
+ 
   `
 })
 export class CardDetailModalComponent implements OnInit {
@@ -226,14 +243,20 @@ export class CardDetailModalComponent implements OnInit {
 
   editingTitle = false;
   editingDescription = false;
+  originalDescription = '';
   commentForm: FormGroup;
+  isSubmittingComment = false;
+  private api = environment.apiBase;
 
   constructor(
     private fb: FormBuilder,
-    private boardService: BoardService
+    private boardService: BoardService,
+    private taskService: TaskService,
+    private http: HttpClient,
+    private authService: AuthService
   ) {
     this.commentForm = this.fb.group({
-      texto: ['', Validators.required]
+      contenido: ['', Validators.required]
     });
   }
 
@@ -241,6 +264,87 @@ export class CardDetailModalComponent implements OnInit {
     if (!this.card.comentarios) {
       this.card.comentarios = [];
     }
+    this.loadComments();
+  }
+
+  loadComments() {
+    this.taskService.getComments(this.card.id).subscribe({
+      next: (comentarios: any[]) => {
+        console.log('Comentarios cargados:', comentarios);
+        
+        this.card.comentarios = comentarios.map((c: any) => ({
+          id: c.id_comentario || c.id,
+          id_comentario: c.id_comentario || c.id,
+          id_usuario: c.id_usuario,
+          usuario: c.nombre_usuario || c.usuario || 'Usuario',
+          nombre_usuario: c.nombre_usuario || c.usuario,
+          contenido: c.contenido,
+          texto: c.contenido, // Alias para compatibilidad
+          fecha: c.created_at || c.fecha,
+          created_at: c.created_at || c.fecha,
+          minutos_desde_creacion: c.minutos_desde_creacion
+        }));
+      },
+      error: (e) => {
+        console.error('❌ Error cargando comentarios:', e);
+        this.card.comentarios = [];
+      }
+    });
+  }
+
+  addComment() {
+    if (this.commentForm.invalid || this.isSubmittingComment) {
+      return;
+    }
+
+    // Obtener el ID del usuario actual
+    const currentUserId = this.authService.getCurrentUserId();
+    
+    if (!currentUserId) {
+      alert('Error: Usuario no autenticado');
+      return;
+    }
+
+    this.isSubmittingComment = true;
+    const contenido = this.commentForm.value.contenido.trim();
+    
+    const comentarioData = {
+      id_tarea: this.card.id,
+      id_usuario: currentUserId,
+      contenido: contenido
+    };
+    
+    console.log('Enviando comentario:', comentarioData);
+
+    this.taskService.addComment(comentarioData).subscribe({
+      next: (res) => {
+        console.log('Comentario agregado:', res);
+        
+        // Recargar los comentarios para obtener el comentario completo con el nombre del usuario
+        this.loadComments();
+        
+        // Limpiar el formulario
+        this.commentForm.reset();
+        this.isSubmittingComment = false;
+      },
+      error: (e) => {
+        console.error('Error agregando comentario:', e);
+        console.error('Detalles del error:', e.error);
+        
+        let errorMsg = 'No se pudo agregar el comentario';
+        
+        if (e.error?.error) {
+          errorMsg = e.error.error;
+        } else if (e.status === 400) {
+          errorMsg = 'Datos inválidos. Verifica el contenido del comentario.';
+        } else if (e.status === 401) {
+          errorMsg = 'No estás autenticado. Por favor, inicia sesión nuevamente.';
+        }
+        
+        alert(errorMsg);
+        this.isSubmittingComment = false;
+      }
+    });
   }
 
   close() {
@@ -254,7 +358,13 @@ export class CardDetailModalComponent implements OnInit {
   }
 
   toggleDescriptionEdit() {
-    this.editingDescription = !this.editingDescription;
+    this.originalDescription = this.card.descripcion || '';
+    this.editingDescription = true;
+  }
+
+  cancelDescriptionEdit() {
+    this.card.descripcion = this.originalDescription;
+    this.editingDescription = false;
   }
 
   saveTitle() {
@@ -296,7 +406,6 @@ export class CardDetailModalComponent implements OnInit {
     const items = this.getChecklistItems();
     items[index].checked = !items[index].checked;
     
-    // Reconstruir descripción
     let newDescription = '';
     const lines = this.card.descripcion!.split('\n');
     let checklistIndex = 0;
@@ -313,22 +422,6 @@ export class CardDetailModalComponent implements OnInit {
     
     this.card.descripcion = newDescription.trim();
     this.saveCard();
-  }
-
-  addComment() {
-    if (this.commentForm.valid) {
-      const newComment: any = {
-        id: Date.now(),
-        texto: this.commentForm.value.texto,
-        usuario: this.card.asignado_a || 'Usuario Actual',
-        created_at: new Date().toISOString(),
-        fecha: new Date().toISOString()
-      };
-      
-      this.card.comentarios = [...(this.card.comentarios || []), newComment];
-      this.commentForm.reset();
-      this.saveCard();
-    }
   }
 
   deleteCard() {

@@ -12,16 +12,12 @@ export class BoardService {
   constructor(private http: HttpClient) {}
 
   private palette = [
-    'bg-teal-200','bg-blue-200','bg-amber-200','bg-lime-200','bg-rose-200',
-    'bg-cyan-200','bg-purple-200','bg-orange-200','bg-emerald-200','bg-pink-200'
+    '#F58686', '#72DED3', '#FFC27C', '#FB89D9', '#7BFAAA',
+    '#F6EC7D', '#CF8AD5', '#48B2FF', '#A4A4A4', '#AAAAFF'
   ];
 
-  private getSavedColumnColor(colId: number | string): string | null {
-    try { return localStorage.getItem(`col_color_${colId}`); } catch { return null; }
-  }
-
   private defaultColorByIndex(idx: number): string {
-    return this.palette[idx % this.palette.length] || 'bg-gray-200';
+    return this.palette[idx % this.palette.length] || '#A4A4A4';
   }
 
   private unwrapArray(res: any, key?: string): any[] {
@@ -30,22 +26,6 @@ export class BoardService {
     if (Array.isArray(source?.data)) return source.data;
     if (key && Array.isArray(res?.[key]?.data)) return res[key].data;
     return [];
-  }
-
-  private mapColumnFromBackend(c: any, idx: number): Column {
-    const id = c.id_columna ?? c.id;
-    const saved = this.getSavedColumnColor(id);
-    
-    return {
-      id: id,
-      title: c.nombre ?? c.title ?? '',
-      nombre: c.nombre ?? c.title ?? '',
-      color: saved || this.defaultColorByIndex(idx),
-      cards: [],
-      order: c.posicion ?? 0,
-      posicion: c.posicion ?? 0,
-      status: c.status ?? 0
-    } as Column;
   }
 
   createBoard(projectId: number, name: string): Observable<Board> {
@@ -81,12 +61,48 @@ export class BoardService {
           catchError(() => of([]))
         );
 
-        return forkJoin([columnas$, tareas$]).pipe(
-          switchMap(([cols, tasks]) => {
+        const miembros$ = this.http.get<any>(`${this.api}/proyectos/${projectId}/miembros`).pipe(
+          map(res => res?.miembros || res?.data || []),
+          catchError(() => of([]))
+        );
+
+        return forkJoin([columnas$, tareas$, miembros$]).pipe(
+          switchMap(([cols, tasks, miembros]) => {
+            const usuariosMap = new Map<number, string>();
+            (miembros as any[]).forEach((m: any) => {
+              usuariosMap.set(m.id_usuario, m.nombre);
+            });
+
             const columns: Column[] = (cols || [])
-              .filter((c: any) => {const status = String(c.status);return status === '0';})
+              .filter((c: any) => {
+                const status = String(c.status);
+                return status === '0';
+              })
               .sort((a: any, b: any) => (a.posicion ?? 0) - (b.posicion ?? 0))
-              .map((c: any, idx: number) => this.mapColumnFromBackend(c, idx));
+              .map((c: any, idx: number) => {
+                const id = c.id_columna ?? c.id;
+                
+                // ✅ CORRECCIÓN: Usar el color del backend, o asignar uno por defecto
+                let color = c.color;
+                
+                // Si el color no existe o es una clase de Tailwind, usar color hex por defecto
+                if (!color || color.startsWith('bg-')) {
+                  color = this.defaultColorByIndex(idx);
+                }
+                
+                console.log(`Columna ${c.nombre}: color asignado = ${color}`);
+                
+                return {
+                  id: id,
+                  title: c.nombre ?? c.title ?? '',
+                  nombre: c.nombre ?? c.title ?? '',
+                  color: color,
+                  cards: [],
+                  order: c.posicion ?? 0,
+                  posicion: c.posicion ?? 0,
+                  status: c.status ?? 0
+                } as Column;
+              });
 
             console.log('Columnas mapeadas:', columns);
 
@@ -107,11 +123,11 @@ export class BoardService {
 
             return taskFilesRequests.length > 0 
               ? forkJoin(taskFilesRequests).pipe(
-                  map(taskFiles => ({ cols, tasks, columns, taskFiles }))
+                  map(taskFiles => ({ cols, tasks, columns, taskFiles, usuariosMap }))
                 )
-              : of({ cols, tasks, columns, taskFiles: [] });
+              : of({ cols, tasks, columns, taskFiles: [], usuariosMap });
           }),
-          map(({ cols, tasks, columns, taskFiles }) => {
+          map(({ cols, tasks, columns, taskFiles, usuariosMap }) => {
             const imagesByTask = new Map();
             taskFiles.forEach(({ taskId, images }) => {
               imagesByTask.set(taskId, images);
@@ -120,13 +136,16 @@ export class BoardService {
             const colById = new Map<number, Column>(columns.map(c => [Number(c.id), c]));
             (tasks as any[]).forEach(t => {
               const taskId = t.id_tarea ?? t.id;
+              const nombreAsignado = t.id_asignado ? usuariosMap.get(t.id_asignado) || 'Sin asignar' : 'Sin asignar';
+
               const card: Card = {
                 id: taskId,
                 id_columna: Number(t.id_columna),
                 title: t.titulo ?? t.title ?? '',
                 descripcion: t.descripcion ?? '',
                 prioridad: t.prioridad ?? 'media',
-                asignado_a: t.asignado_a ?? '',
+                asignado_a: nombreAsignado,
+                id_asignado: t.id_asignado,
                 fecha_vencimiento: t.due_at ?? t.fecha_vencimiento,
                 images: imagesByTask.get(taskId) || [],
                 comentarios: t.comentarios ?? []
@@ -165,14 +184,13 @@ export class BoardService {
     });
   }
 
-
-  createColumn(projectId: number | string, nombre: string, posicion: number): Observable<Column> {
+  createColumn(projectId: number | string, nombre: string, posicion: number, color: string): Observable<Column> {
     const body = { 
       columna: { 
         id_proyecto: Number(projectId), 
         nombre, 
         posicion: Number(posicion), 
-        status: '0' 
+        color: color
       } 
     };
     
@@ -187,18 +205,18 @@ export class BoardService {
         const column: Column = {
           id: c.id_columna ?? c.id,
           nombre: c.nombre ?? nombre,
-          color: 'bg-gray-200',
+          color: c.color ?? color, 
           cards: [],
           order: c.posicion ?? posicion,
           posicion: c.posicion ?? posicion,
           status: 0
         };
         
-        console.log('Columna mapeada:', column);
+        console.log('Columna mapeada con color:', column);
         return column;
       }),
       catchError(error => {
-        console.error(' Error crear columna:', error);
+        console.error('Error crear columna:', error);
         if (error.error?.error?.includes('ya existe')) {
           throw new Error(`Ya existe una columna con el nombre "${nombre}"`);
         }
@@ -207,8 +225,13 @@ export class BoardService {
     );
   }
 
-  updateColumn(columnId: number | string, data: { nombre: string }) {
-    const body = { columna: { nombre: data.nombre } };
+  updateColumn(columnId: number | string, data: { nombre: string; color?: string }) {
+    const body: any = { columna: { nombre: data.nombre } };
+    
+    if (data.color) {
+      body.columna.color = data.color;
+    }
+    
     return this.http.put(`${this.api}/columnas/${columnId}`, body, {
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
     });
@@ -219,13 +242,12 @@ export class BoardService {
       headers: { Accept: 'application/json' } 
     });
   }
-updateColumnPositions(projectId: number, positions: { id: number; position: number }[]): Observable<any> {
-  return this.http.post(`${this.api}/proyectos/${projectId}/columnas/reorder`, {
-    positions: positions
-  });
-}
 
-  saveColumnColor(colId: number | string, color: string) {
-    try { localStorage.setItem(`col_color_${colId}`, color); } catch {}
+  updateColumnPositions(projectId: number, positions: { id: number; position: number }[]): Observable<any> {
+    return this.http.post(`${this.api}/proyectos/${projectId}/columnas/reorder`, {
+      positions: positions
+    });
   }
+ 
+ 
 }

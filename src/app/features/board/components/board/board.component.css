@@ -1,0 +1,68 @@
+/* Evitar scroll global */
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* El contenedor global (mantiene todo fijo) */
+.flex {
+  overflow: hidden;
+}
+
+/* board-wrapper mantiene el área visible */
+.board-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 80px);
+  overflow: hidden;
+}
+
+/* ✅ Ahora el scroll horizontal está en este div */
+.board-columns {
+  display: flex;
+  flex-direction: row;
+  overflow-x: auto;  /* ← Scroll horizontal real */
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  height: 100%;
+  width: 100%;
+  padding-bottom: 0.5rem;
+}
+
+/* ✅ Scrollbar personalizada */
+.board-columns::-webkit-scrollbar {
+  height: 8px;
+}
+.board-columns::-webkit-scrollbar-thumb {
+  background-color: #cbd5e0;
+  border-radius: 10px;
+}
+.board-columns::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+/* ✅ Columnas no se encogen */
+.board-columns > div {
+  flex-shrink: 0;
+}
+
+
+/* Cuando hay más de 4 columnas → scroll activado */
+.board-wrapper.scroll-enabled .board-columns {
+  overflow-x: auto !important;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* Asegura que las columnas usen todo el ancho disponible */
+.board-columns > div {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Evita espacios vacíos al inicio y final del scroll */
+.board-columns::before,
+.board-columns::after {
+  content: '';
+  flex: 0 0 0;
+}

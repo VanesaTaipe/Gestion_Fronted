@@ -40,3 +40,35 @@
 .max-h-60::-webkit-scrollbar-thumb:hover {
   background: #a0aec0;
 }
+
+
+
+.cards-container {
+  overflow-y: auto;
+  flex-grow: 1;
+  padding-right: 4px; /* espacio para el scroll */
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f1f1f1;
+  max-height: 65vh; /* Ajusta según lo que quieras visible */
+}
+
+/* Scrollbar para navegadores WebKit */
+.cards-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cards-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.cards-container::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 10px;
+}
+
+.cards-container::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+

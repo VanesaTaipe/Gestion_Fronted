@@ -431,7 +431,7 @@ private getColumnIdFromContainer(container: any): number {
           images: [...this.previewUrls]
         };
         
-        this.column.cards.push(cardForDisplay);
+        this.column.cards.push(cardForDisplay); 
         this.cardsChanged.emit();
         this.cerrarTarea();
       },

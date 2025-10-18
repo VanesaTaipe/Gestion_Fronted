@@ -60,7 +60,9 @@
         [id]="'col-' + column.id"
         [cdkDropListData]="column.cards"
         [cdkDropListConnectedTo]="connectedDropLists"
+        [cdkDropListDisabled]="column.cards && column.cards.length >= 20"
         (cdkDropListDropped)="drop($event)"
+        [attr.title]="(column.cards && column.cards.length >= 20) ? 'Columna llena (20 tareas) - no se permiten más tareas' : null"
         class="flex-1 space-y-2 min-h-[100px] cards-container">
         
         <!-- Cada tarjeta -->

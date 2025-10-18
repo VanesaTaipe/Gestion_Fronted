@@ -267,13 +267,20 @@ getCommentCount(card: Card): number {
       return;
     }
 
-    // Guardar estado anterior por si necesitamos revertir
+  // Guardar estado anterior por si necesitamos revertir
     const previousIndex = event.previousIndex;
     const currentIndex = event.currentIndex;
 
     // Verificar que los índices son válidos
     if (previousIndex < 0 || currentIndex < 0) {
       console.warn('Índices no válidos');
+      return;
+    }
+
+    // Antes de mover, bloquear si la columna destino ya tiene 20 tareas
+    if (actual && actual.length >= 20) {
+      // Mostrar aviso y no permitir el drop
+      alert('No se puede mover: la columna destino ya tiene el límite de 20 tareas.');
       return;
     }
 

@@ -47,14 +47,14 @@
             class="flex gap-4 h-full"
             [ngStyle]="{ 'min-width': columns.length > 4 ? (columns.length * 320) + 'px' : '100%' }">
 
-            <!-- ✅ Cada columna CON cdkDrag para poder moverla -->
+            <!-- Cada columna CON cdkDrag para poder moverla -->
             <div
               *ngFor="let col of columns; trackBy: trackByColumnId"
               cdkDrag
               [cdkDragData]="col"
               class="flex-shrink-0">
 
-              <!-- ✅ Preview mientras se arrastra la columna -->
+              <!-- Preview mientras se arrastra la columna -->
               <div 
                 *cdkDragPreview 
                 class="w-[300px] bg-white rounded-lg shadow-2xl opacity-90">

@@ -74,12 +74,10 @@ export default class AuthComponent implements OnInit {
         }),
       );
       
-      // Agregar validador de coincidencia de contraseñas
       this.authForm.addValidators(this.passwordMatchValidator());
     }
   }
 
-  // Validador personalizado para verificar que las contraseñas coincidan
   passwordMatchValidator() {
     return (control: AbstractControl): ValidationErrors | null => {
       const password = control.get('password')?.value;
@@ -112,7 +110,6 @@ export default class AuthComponent implements OnInit {
     this.isSubmitting = true;
     this.errors = { errors: {} };
 
-    // Validar que las contraseñas coincidan antes de enviar
     if (this.authType === "register") {
       if (this.authForm.errors?.['passwordMismatch']) {
         this.errors = { 
@@ -124,7 +121,6 @@ export default class AuthComponent implements OnInit {
         return;
       }
 
-      // Validar campos requeridos
       const nombre = this.authForm.value.nombre?.trim();
       const correo = this.authForm.value.correo?.trim();
       const password = this.authForm.value.password;

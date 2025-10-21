@@ -1,102 +1,137 @@
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Card,TareaResumen,ColumnaResumen } from '../../models/board.model';
-import { Subscription } from 'rxjs';
+import { Card, CartaPrioridad, Comentario } from '../../models/board.model';
 import { TaskService } from '../../services/task.service';
-import { Column } from '../../models/board.model';
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angular/core';
-import { ColumnComponent } from '../column/column.component';
 @Component({
   selector: 'app-card',
   standalone: true,
   imports: [CommonModule],
-  templateUrl: `./card.component.html`,
-  styles: [`
-    .line-clamp-1 {
-      display: -webkit-box;
-      -webkit-line-clamp: 1;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-  `]
+  templateUrl: './card.component.html',
+  styleUrls: ['./card.component.css']
 })
-export class CardComponent {
+export class CardComponent implements OnInit, OnChanges {
   @Input() card!: Card;
-   @Input() proyectoId!: number; 
-  totalComentarios:number=0;
-
-  private subscription?: Subscription;
+  @Input() proyectoId!: number;
   @Output() cardClicked = new EventEmitter<Card>();
   @Output() deleteCard = new EventEmitter<Card>();
-  constructor(private taskSvc: TaskService) {}
-  formatDateShort(dateStr: string): string {
-    try {
-      const date = new Date(dateStr);
-      const day = date.getDate();
-      const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-      const monthShort = months[date.getMonth()];
-      return `${day} ${monthShort}`;
-    } catch {
-      return dateStr;
+  
+
+  constructor(private taskService: TaskService) {}
+
+  ngOnInit() {
+    if (this.card?.id) {
+      this.loadComments();
     }
   }
-  ngOnInit() {
-    this.loadTotalComentarios();
-  }
-  ngOnDestroy() {
-    this.subscription?.unsubscribe();
-  }
 
-
-  getUserInitial(): string {
-    const name = this.card.asignado_a || 'U';
-    return name.charAt(0).toUpperCase();
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['card'] && !changes['card'].firstChange) {
+      this.loadComments();
+    }
   }
 
-  getDescriptionPreview(): string {
-    if (!this.card.descripcion) return '';
-    const plainText = this.card.descripcion
-      .replace(/[#*_\[\]]/g, '')
-      .replace(/- \[[ x]\]/g, '')
-      .split('\n')
-      .filter(line => line.trim().length > 0)[0] || '';
-    
-    return plainText.length > 60 ? plainText.substring(0, 60) + '...' : plainText;
+  loadComments() {
+    if (!this.card?.id) return;
+
+    this.taskService.getComments(this.card.id).subscribe({
+      next: (comentarios: any[]) => {
+        console.log(`Comentarios cargados para tarjeta ${this.card.id}:`, comentarios);
+                this.card.comentarios = comentarios.map((c: any) => ({
+          id: c.id_comentario || c.id,
+          id_comentario: c.id_comentario || c.id,
+          id_usuario: c.id_usuario,
+          usuario: c.nombre_usuario || c.usuario || 'Usuario',
+          nombre_usuario: c.nombre_usuario || c.usuario,
+          contenido: c.contenido,
+          texto: c.contenido,
+          fecha: c.created_at || c.fecha,
+          created_at: c.created_at || c.fecha,
+          minutos_desde_creacion: c.minutos_desde_creacion,
+          status: c.status || '0'
+        }));
+
+        this.card.comentarios_count = this.getActiveComments().length;
+        
+        console.log(`Total comentarios activos: ${this.card.comentarios_count}`);
+      },
+      error: (e) => {
+        console.error(`Error cargando comentarios para tarjeta ${this.card.id}:`, e);
+        this.card.comentarios = [];
+        this.card.comentarios_count = 0;
+      }
+    });
+  }
+
+  getActiveComments(): Comentario[] {
+    return (this.card.comentarios || []).filter(c => c.status !== '1');
   }
   getCommentCount(): number {
-    return this.card.comentarios?.length || 0;
+    return this.getActiveComments().length;
   }
-  onCardClick(event: Event) {
+
+  onCardClick(event: Event): void {
     event.stopPropagation();
     this.cardClicked.emit(this.card);
   }
-  onDelete(event: Event) {
+
+  onDelete(event: Event): void {
     event.stopPropagation();
     if (confirm(`¿Eliminar la tarjeta "${this.card.title}"?`)) {
       this.deleteCard.emit(this.card);
     }
   }
-loadTotalComentarios() {
-  if (!this.proyectoId) {
-    console.warn('No se ha definido proyectoId para cargar comentarios');
-    return;
+  formatDateShort(dateStr: string): string {    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr);
+      const day = date.getDate();
+      const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      return `${day} ${months[date.getMonth()]}`;
+    } catch {
+      return dateStr;
+    }
   }
 
-  this.taskSvc.getResumenTareas(this.proyectoId).subscribe(
-    (resumen: ColumnaResumen[]) => {
-      let total = 0;
-      resumen.forEach((columna) => {
-        columna.tareas.forEach((tarea) => {
-          total += tarea.comentarios_count;
-        });
-      });
-      this.totalComentarios = total;
-    },
-    error => {
-      console.error('Error cargando resumen de tareas:', error);
+  getUserInitial(): string {
+    const name = this.card.asignado_a || 'U';
+    return name.charAt(0).toUpperCase();
+  }
+  
+
+  hasDescription(): boolean {
+    return !!this.card.descripcion?.trim();
+  }
+
+  hasAttachments(): boolean {
+    return !!(this.card.archivos?.length);
+  }
+
+  hasActiveComments(): boolean {
+    return this.getCommentCount() > 0;
+  }
+
+  isNearCommentLimit(): boolean {
+    return this.getCommentCount() >= 8;
+  }
+
+  isAtCommentLimit(): boolean {
+    return this.getCommentCount() >= 10;
+  }
+
+  getPriorityClass(): string {
+    const priorities: Record<CartaPrioridad, string> = {
+      'alta': 'bg-red-500 text-white',
+      'media': 'bg-orange-400 text-white',
+      'baja': 'bg-yellow-400 text-gray-800',
+      'No asignada': 'bg-gray-400 text-white'
+    };
+    return priorities[this.card.prioridad || 'No asignada'];
+  }
+
+  getPriorityLabel(): string {
+    if (!this.card.prioridad || this.card.prioridad === 'No asignada') {
+      return 'No asignada';
     }
-  );
-}
-
-
-
+    return this.card.prioridad.charAt(0).toUpperCase() + this.card.prioridad.slice(1);
+  }
+  
 }

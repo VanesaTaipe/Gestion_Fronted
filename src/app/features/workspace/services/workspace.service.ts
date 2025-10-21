@@ -38,7 +38,6 @@ export class WorkspaceService {
 
   /**
    * Obtener espacios del usuario
-   * El backend ya filtra los espacios accesibles
    */
   getWorkspaces(): Observable<Espacio[]> {
     return this.getCurrentUserId().pipe(
@@ -64,7 +63,6 @@ export class WorkspaceService {
 
             console.log(`${espacios.length} espacios recibidos del backend`);
             
-            // Mapear a la estructura correcta
             const espaciosMapeados = espacios.map(e => ({
               id: e.id,
               nombre: e.nombre,
@@ -242,4 +240,27 @@ getProjectsByWorkspaceId(workspaceId: number): Observable<any[]> {
   getCurrentUser(): Observable<number> {
     return this.getCurrentUserId();
   }
+editWorkspace(id: number, title: string, descripcion: string): Observable<any> {
+  const updateData = {
+    espacio: {
+      nombre: title,
+      descripcion: descripcion
+    }
+  };
+  console.log('URL:', `${this.apiUrl}/${id}`);
+  console.log('Datos enviados:', JSON.stringify(updateData, null, 2));
+  
+  return this.http.put<any>(`${this.apiUrl}/${id}`, updateData, {
+    headers: this.getHeaders()
+  }).pipe(
+    tap(response => console.log('Respuesta del backend:', response)),
+    catchError(error => {
+      console.error('Error completo:', error);
+      console.error(' Status:', error.status);
+      console.error('Mensaje:', error.error);
+      throw error;
+    })
+  );
+}
+  
 }

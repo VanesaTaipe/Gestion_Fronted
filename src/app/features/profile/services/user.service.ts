@@ -13,9 +13,6 @@ export class UserService {
 
   constructor(private http: HttpClient) {}
 
-  /**
-   * Obtener todos los usuarios
-   */
   getUsers(): Observable<User[]> {
     console.log('Obteniendo todos los usuarios desde:', this.apiUrl);
     
@@ -25,7 +22,7 @@ export class UserService {
         console.log('Formato:', typeof response, Array.isArray(response) ? 'Array' : 'Objeto');
       }),
       map(response => {
-        // Manejar diferentes formatos de respuesta
+ 
         if (response && response.users && Array.isArray(response.users.data)) {
           console.log('Formato: { users: { data: [...] } }');
           return response.users.data;
@@ -52,18 +49,13 @@ export class UserService {
     );
   }
 
-  /**
-   * Buscar usuarios por término (nombre o correo)
-   * Endpoint: GET /api/usuarios/buscar?query=termino
-   */
   searchUsers(searchTerm: string): Observable<User[]> {
     if (!searchTerm || searchTerm.trim().length === 0) {
       return this.getUsers();
     }
 
     console.log('Buscando usuarios con término:', searchTerm);
-    
-    // Buscar
+
     const params = new HttpParams().set('query', searchTerm.trim());
     
     return this.http.get<any>(`${this.apiUrl}/buscar`, { params }).pipe(
@@ -71,22 +63,19 @@ export class UserService {
         console.log('Respuesta de búsqueda:', response);
       }),
       map(response => {
-        // Manejar el formato de respuesta del backend: { users: [...] }
         if (response && response.users && Array.isArray(response.users)) {
           console.log('Usuarios encontrados en formato { users: [...] }');
           
-          // Mapear el formato del backend al formato esperado por el frontend
           return response.users.map((user: any) => ({
-            id_usuario: user.id,              // Mapear 'id' a 'id_usuario'
-            username: user.nombre,            // Mapear 'nombre' a 'username'
-            email: user.correo,               // Mapear 'correo' a 'email'
+            id_usuario: user.id,              
+            username: user.nombre,           
+            email: user.correo,     
             bio: user.bio,
             image: user.image,
             es_temporal: user.es_temporal
           }));
         }
         
-        // Si ya viene en el formato correcto
         if (response && Array.isArray(response.users)) {
           return response.users;
         }
@@ -104,7 +93,6 @@ export class UserService {
       catchError(error => {
         console.error('Error en búsqueda de usuarios:', error);
         
-        // Si hay error en la búsqueda, intentar filtrar localmente como fallback
         console.log('Intentando búsqueda local como fallback...');
         return this.getUsers().pipe(
           map(allUsers => {
@@ -122,11 +110,6 @@ export class UserService {
     );
   }
 
-  /**
-   * Crear usuario temporal con solo el correo
-   * Endpoint: POST /api/usuarios/temporal
-   * Body: { "correo": "usuario@ejemplo.com" }
-   */
   createTemporalUser(data: TemporalUserRequest): Observable<TemporalUserResponse> {
     const url = `${this.apiUrl}/temporal`;
     
@@ -159,9 +142,6 @@ export class UserService {
     );
   }
 
-  /**
-   * Obtener información de un usuario específico
-   */
   getUserById(userId: number): Observable<User> {
     console.log('Obteniendo usuario con ID:', userId);
     
@@ -183,15 +163,11 @@ export class UserService {
   }
 
 
-/**
- * Actualizar usuario por ID (nombre y/o contraseña)
- */
 updateUser(userId: number, userData: { nombre?: string; password?: string }): Observable<any> {
   const updateData: any = {
     user: {}
   };
 
-  // Solo agregar campos que se van a actualizar
   if (userData.nombre) {
     updateData.user.nombre = userData.nombre;
   }
@@ -200,34 +176,29 @@ updateUser(userId: number, userData: { nombre?: string; password?: string }): Ob
     updateData.user.password = userData.password;
   }
 
-  console.log(`📝 Actualizando usuario ${userId}`);
-  console.log('📦 Datos a enviar:', JSON.stringify(updateData, null, 2));
+  console.log(`Actualizando usuario ${userId}`);
+  console.log('Datos a enviar:', JSON.stringify(updateData, null, 2));
 
   return this.http.put(`${environment.apiUrl}/users/${userId}`, updateData).pipe(
     tap(response => {
-      console.log('✅ Respuesta del servidor:', response);
+      console.log('Respuesta del servidor:', response);
     }),
     catchError(error => {
-      console.error('❌ Error completo:', error);
-      console.error('❌ Status:', error.status);
-      console.error('❌ Mensaje:', error.error);
+      console.error('Error completo:', error);
+      console.error('Status:', error.status);
+      console.error('Mensaje:', error.error);
       return throwError(() => error);
     })
   );
 }
 
-  /**
-   * Manejo de errores HTTP
-   */
   private handleError(error: HttpErrorResponse): Observable<never> {
     let errorMessage = 'Ocurrió un error desconocido';
     
     if (error.error instanceof ErrorEvent) {
-      // Error del lado del cliente
       errorMessage = `Error: ${error.error.message}`;
       console.error('Error del cliente:', errorMessage);
     } else {
-      // Error del lado del servidor
       errorMessage = error.error?.message || 
                      error.error?.error || 
                      `Error ${error.status}: ${error.statusText}`;

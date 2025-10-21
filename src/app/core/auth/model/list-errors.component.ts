@@ -8,16 +8,16 @@ import { Errors } from "./error.interface";
   standalone: true,
   imports: [CommonModule, MatIconModule],
   template: `
-    <div 
-      *ngIf="errorList.length > 0" 
-      class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start gap-2">
-      <mat-icon class="text-red-500 mt-0.5">error</mat-icon>
-      <div class="flex-1">
-        <p *ngFor="let error of errorList" class="text-sm">
-          {{ error }}
-        </p>
+      <div 
+        *ngIf="errorList.length > 0" 
+        class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start gap-2">
+        <mat-icon class="text-red-500 mt-0.5">error</mat-icon>
+        <div class="flex-1">
+          <p *ngFor="let error of errorList" class="text-sm">
+            {{ error }}
+          </p>
+        </div>
       </div>
-    </div>
   `,
   styles: []
 })

@@ -634,11 +634,8 @@ export class InviteMemberDialogComponent implements OnInit {
       console.log('Usuario creado:', userData);
       console.log('Contraseña temporal:', this.tempPasswordGenerated);
       console.log('Datos guardados:', this.createdUserData);
-      
-      // Terminar el loading
       this.isInviting = false;
-      
-      // Mostrar notificación opcional
+    
       this.snackBar.open(
         '✓ Usuario temporal creado exitosamente', 
         'OK', 

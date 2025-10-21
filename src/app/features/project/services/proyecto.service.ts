@@ -83,7 +83,6 @@ export class ProyectoService {
    * Crear proyecto con usuario actual
    */
   createProyecto(proyectoData: any): Observable<any> {
-    // Obtener el ID del usuario desde el servicio de AUTENTICACIÓN
     const userId = this.authUserService.getCurrentUserId();
     
     if (!userId) {
@@ -91,7 +90,6 @@ export class ProyectoService {
       throw new Error('Usuario no autenticado. Por favor, inicia sesión.');
     }
 
-    // Asegurar que el proyecto tenga el id_usuario_creador
     const data = {
       ...proyectoData,
       proyecto: {

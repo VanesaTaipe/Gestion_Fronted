@@ -8,16 +8,21 @@ import { Board, Card, Column } from '../models/board.model';
 @Injectable({ providedIn: 'root' })
 export class BoardService {
   private api = environment.apiBase;
-
-  constructor(private http: HttpClient) {}
+  private columnColors=new Map<number,string>();
 
   private palette = [
-    '#F58686', '#72DED3', '#FFC27C', '#FB89D9', '#7BFAAA',
-    '#F6EC7D', '#CF8AD5', '#48B2FF', '#A4A4A4', '#AAAAFF'
+    '#72DED3', '#48B2FF', '#FFC27C','#F6EC7D', '#FB89D9',
+      '#7BFAAA', '#CF8AD5', '#F58686', '#A4A4A4', '#AAAAFF'
   ];
-
+ constructor(private http: HttpClient) {}
   private defaultColorByIndex(idx: number): string {
-    return this.palette[idx % this.palette.length] || '#A4A4A4';
+    return this.palette[idx % this.palette.length];
+  }
+  getColumnColor(columnId: number): string {
+    return this.columnColors.get(columnId) || this.palette[0];
+  }
+  setColumnColor(columnId: number, color: string): void {
+    this.columnColors.set(columnId, color);
   }
 
   private unwrapArray(res: any, key?: string): any[] {
@@ -81,30 +86,20 @@ export class BoardService {
               .sort((a: any, b: any) => (a.posicion ?? 0) - (b.posicion ?? 0))
               .map((c: any, idx: number) => {
                 const id = c.id_columna ?? c.id;
-                
-                // ✅ CORRECCIÓN: Usar el color del backend, o asignar uno por defecto
-                let color = c.color;
-                
-                // Si el color no existe o es una clase de Tailwind, usar color hex por defecto
-                if (!color || color.startsWith('bg-')) {
-                  color = this.defaultColorByIndex(idx);
-                }
-                
-                console.log(`Columna ${c.nombre}: color asignado = ${color}`);
-                
+                const colorFinal = this.defaultColorByIndex(idx);
+                this.setColumnColor(id, colorFinal);
+                console.log(`[BoardService] Columna ${c.nombre}: color_frontend=${colorFinal}`);                
                 return {
                   id: id,
                   title: c.nombre ?? c.title ?? '',
                   nombre: c.nombre ?? c.title ?? '',
-                  color: color,
+                  color: colorFinal,
                   cards: [],
                   order: c.posicion ?? 0,
                   posicion: c.posicion ?? 0,
                   status: c.status ?? 0
                 } as Column;
               });
-
-            console.log('Columnas mapeadas:', columns);
 
             const taskFilesRequests = (tasks as any[]).map(task => 
               this.http.get<any>(`${this.api}/tareas/${task.id_tarea ?? task.id}/archivos`).pipe(
@@ -147,7 +142,7 @@ export class BoardService {
                 asignado_a: nombreAsignado,
                 id_asignado: t.id_asignado,
                 fecha_vencimiento: t.due_at ?? t.fecha_vencimiento,
-                images: imagesByTask.get(taskId) || [],
+                archivos: imagesByTask.get(taskId) || [],
                 comentarios: t.comentarios ?? []
               };
               const col = colById.get(card.id_columna);
@@ -183,59 +178,52 @@ export class BoardService {
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
     });
   }
+createColumn(projectId: number | string, nombre: string, posicion: number, color: string): Observable<Column> {
+  const body = { 
+    columna: { 
+      id_proyecto: Number(projectId), 
+      nombre, 
+      posicion: Number(posicion), 
+      color: color
+    } 
+  };
+  
+  
+  return this.http.post<any>(`${this.api}/columnas`, body).pipe(
+    map((res: any) => {
+      const c = res?.columna?.data ?? res?.columna ?? res?.data ?? res;
+      const colorFinal = c.color || color;
+      const columnId = c.id_columna ?? c.id;
+      this.setColumnColor(columnId, colorFinal);
+      
+      const column: Column = {
+        id: c.id_columna ?? c.id,
+        nombre: c.nombre || nombre,
+        color: colorFinal, 
+        cards: [],
+        order: c.posicion ?? posicion,
+        posicion: c.posicion ?? posicion,
+        status: 0
+      };
+      
+      return column;
+    })
+  );
+}
 
-  createColumn(projectId: number | string, nombre: string, posicion: number, color: string): Observable<Column> {
-    const body = { 
-      columna: { 
-        id_proyecto: Number(projectId), 
-        nombre, 
-        posicion: Number(posicion), 
-        color: color
-      } 
-    };
-    
-    console.log('Enviando columna:', body);
-    
-    return this.http.post<any>(`${this.api}/columnas`, body).pipe(
-      map((res: any) => {
-        console.log('Respuesta crear columna:', res);
-        
-        const c = res?.columna?.data ?? res?.columna ?? res?.data ?? res;
-        
-        const column: Column = {
-          id: c.id_columna ?? c.id,
-          nombre: c.nombre ?? nombre,
-          color: c.color ?? color, 
-          cards: [],
-          order: c.posicion ?? posicion,
-          posicion: c.posicion ?? posicion,
-          status: 0
-        };
-        
-        console.log('Columna mapeada con color:', column);
-        return column;
-      }),
-      catchError(error => {
-        console.error('Error crear columna:', error);
-        if (error.error?.error?.includes('ya existe')) {
-          throw new Error(`Ya existe una columna con el nombre "${nombre}"`);
-        }
-        throw error;
-      })
-    );
-  }
+ updateColumn(columnId: number | string, data: { nombre?: string; color?: string }) {
+  const body: any = { columna: {} };
+  
+  if (data.nombre !== undefined) body.columna.nombre = data.nombre;
+  if (data.color !== undefined) body.columna.color = data.color;
+  
+  return this.http.put(`${this.api}/columnas/${columnId}`, body, {
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
+  });
+}
 
-  updateColumn(columnId: number | string, data: { nombre: string; color?: string }) {
-    const body: any = { columna: { nombre: data.nombre } };
-    
-    if (data.color) {
-      body.columna.color = data.color;
-    }
-    
-    return this.http.put(`${this.api}/columnas/${columnId}`, body, {
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
-    });
-  }
+
+
 
   deleteColumn(columnId: number | string) {
     return this.http.delete(`${this.api}/columnas/${columnId}`, { 
@@ -248,6 +236,4 @@ export class BoardService {
       positions: positions
     });
   }
- 
- 
 }

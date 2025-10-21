@@ -400,9 +400,6 @@ export class WorkspaceDashboardComponent implements OnInit {
     });
   }
 
-  /**
-   * Obtener nombre del usuario actual
-   */
   getCurrentUserName(): string {
     return this.currentUserName;
   }

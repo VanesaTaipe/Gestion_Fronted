@@ -46,14 +46,14 @@ import { WorkspaceService } from '../services/workspace.service';
         </div>
       </div>
 
-      <!-- Loading State -->
-      <div *ngIf="isLoading" class="loading-container">
-        <div class="spinner"></div>
-        <p>Cargando configuración...</p>
-      </div>
+        <!-- Loading State -->
+        <div *ngIf="isLoading" class="loading-container">
+          <div class="spinner"></div>
+          <p>Cargando configuración...</p>
+        </div>
 
-      <!-- Form Section -->
-      <div class="form-section" *ngIf="!isLoading && workspace && workspaceForm">
+        <!-- Form Section -->
+        <div class="form-section" *ngIf="!isLoading && workspace && workspaceForm">
         <h2 class="section-title">Información del Espacio</h2>
 
         <form [formGroup]="workspaceForm" class="workspace-form">
@@ -444,55 +444,7 @@ export class WorkspaceSettingsComponent implements OnInit {
     });
   }
 
-  updateWorkspace(): void {
-    if (this.workspaceForm.valid && !this.isUpdating) {
-      this.isUpdating = true;
-      
-      const updateData = {
-        title: this.workspaceForm.value.nombre.trim(),
-        description: this.workspaceForm.value.descripcion.trim()
-      };
-
-      console.log('Enviando actualización:', updateData);
-      console.log('Workspace ID:', this.workspaceId);
-
-      this.workspaceService.updateWorkspace(this.workspaceId, updateData).subscribe({
-        next: (updatedWorkspace) => {
-          console.log('Espacio actualizado exitosamente:', updatedWorkspace);
-          this.workspace = updatedWorkspace;
-          this.isUpdating = false;
-          alert('Espacio actualizado exitosamente');
-          
-          setTimeout(() => {
-            this.goBack();
-          }, 1500);
-        },
-        error: (error) => {
-          console.error('Error al actualizar el espacio:', error);
-          console.error('Status:', error.status);
-          console.error('Response:', error.error);
-          
-          this.isUpdating = false;
-          
-          let errorMessage = 'Error al actualizar el espacio.';
-          
-          if (error.status === 500) {
-            errorMessage = 'Error interno del servidor. Verifica los logs del backend.';
-          } else if (error.status === 400) {
-            errorMessage = error.error?.error || 'Datos inválidos.';
-          } else if (error.status === 404) {
-            errorMessage = 'Espacio no encontrado.';
-          } else if (error.error?.error) {
-            errorMessage = error.error.error;
-          }
-          
-          alert(`${errorMessage}`);
-        }
-      });
-    } else {
-      this.workspaceForm.markAllAsTouched();
-    }
-  }
+  
 
   confirmDelete(): void {
     const workspaceName = this.workspace?.nombre || 'este espacio';
@@ -511,7 +463,41 @@ export class WorkspaceSettingsComponent implements OnInit {
       this.deleteWorkspace();
     }
   }
+updateWorkspace(): void {
+  if (this.workspaceForm.invalid) {
+    console.log('Formulario inválido');
+    return;
+  }
 
+  this.isUpdating = true;
+  const formValue = this.workspaceForm.value;
+
+  console.log('ID del workspace:', this.workspaceId);
+  console.log('Valores del formulario:', formValue);
+
+  this.workspaceService.editWorkspace(
+    this.workspaceId, 
+    formValue.nombre, 
+    formValue.descripcion
+  ).subscribe({
+    next: (response) => {
+      console.log('Respuesta exitosa:', response);
+      const updatedWorkspace = response.espacio || response.data || response;
+      this.workspace = updatedWorkspace;
+      this.isUpdating = false;
+      alert('Espacio actualizado exitosamente');
+    },
+    error: (error) => {
+      console.error('Error completo del backend:', error);
+      console.error('Status code:', error.status);
+      console.error('Error message:', error.error);
+      console.error('URL intentada:', error.url);
+      this.isUpdating = false;
+      const errorMsg = error.error?.message || error.message || 'Error desconocido';
+      alert(`Error al actualizar: ${errorMsg}`);
+    }
+  });
+}
   deleteWorkspace(): void {
     this.isDeleting = true;
     

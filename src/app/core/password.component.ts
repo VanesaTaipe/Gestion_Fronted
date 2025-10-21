@@ -312,13 +312,11 @@ export class ForgotPasswordComponent {
         console.log('Nombre trimmed:', this.foundUserName.trim());
         console.log('¿Es "Temporal"?:', this.foundUserName.trim() === 'Temporal');
         
-        // Detectar si es usuario temporal
         this.isTemporalUser = this.foundUserName.trim() === 'Temporal';
         
         console.log('isTemporalUser =', this.isTemporalUser);
        
         
-        // Configurar validaciones dinámicas
         const nombreControl = this.updateForm.get('nombre');
         
         if (this.isTemporalUser) {

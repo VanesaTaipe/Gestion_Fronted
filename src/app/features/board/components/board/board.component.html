@@ -8,34 +8,60 @@
     </div>
     
     <nav class="flex-1 p-4 flex flex-col gap-2">
-      <a class="px-4 py-2 rounded hover:bg-blue-100 flex items-center text-gray-700" href="#">
-        <img src="assets/tablero.png" alt="" class="w-4 h-4 mr-2">
-        Tablero
-      </a>
-      <a class="px-4 py-2 rounded hover:bg-blue-100 flex items-center text-gray-700" href="#">
-        <img src="assets/dashboard.png" alt="" class="w-4 h-4 mr-2">
-        Dashboard
-      </a>
-      <a class="px-4 py-2 rounded hover:bg-blue-100 flex items-center text-gray-700" href="#">
-        <img src="assets/settings.png" alt="" class="w-4 h-4 mr-2">
-        Configuración
-      </a>
+        <a 
+          class="px-4 py-2 rounded flex items-center text-gray-700 cursor-pointer"
+          [class.bg-cyan-100]="activeView === 'board'"
+          [class.text-cyan-700]="activeView === 'board'"
+          [class.hover:bg-blue-100]="activeView !== 'board'"
+          (click)="setActiveView('board')">
+          <img src="assets/tablero.png" alt="" class="w-4 h-4 mr-2">
+          Tablero
+        </a>
+        <a 
+          *ngIf="isLeader"
+          class="px-4 py-2 rounded flex items-center text-gray-700 cursor-pointer"
+          [class.bg-cyan-100]="activeView === 'dashboard'"
+          [class.text-cyan-700]="activeView === 'dashboard'"
+          [class.hover:bg-blue-100]="activeView !== 'dashboard'"
+          (click)="setActiveView('dashboard')">
+          <img src="assets/dashboard.png" alt="" class="w-4 h-4 mr-2">
+          Dashboard
+        </a>
+        <a 
+            *ngIf="isLeader"
+            class="px-4 py-2 rounded flex items-center text-gray-700 cursor-pointer"
+            [class.bg-cyan-100]="activeView === 'settings'"
+            [class.text-cyan-700]="activeView === 'settings'"
+            [class.hover:bg-blue-100]="activeView !== 'settings'"
+            (click)="setActiveView('settings')">
+            <img src="assets/settings.png" alt="" class="w-4 h-4 mr-2">
+            Configuración
+        </a> 
     </nav>
+     <div class="p-3 border-t bg-gray-50">
+      <div class="bg-gray-50 rounded-lg p-3 space-y-2">
+       <p class="text-sm font-semibold text-gray-900 truncate">
+          {{ currentUserName }}
+        </p>
+        <p class="text-xs text-gray-500">
+          {{ userRole }}
+        </p>
+      </div>
+    </div>
   </aside>
 
   <!-- Contenido principal -->
   <div class="flex-1 flex flex-col">
     <!-- Header -->
     <app-header 
-      [title]="board?.nombre ?? 'Tablero'"
+      [title]="proyectoNombre || board?.nombre || 'Tablero'"
       (newColumn)="openAddColumn()">
     </app-header>
 
-    <!-- Área de columnas -->
-    <div class="flex-1 overflow-x-auto overflow-y-hidden bg-gray-100 p-6">
-      <ng-container *ngIf="columns && columns.length > 0; else loading">
-        
-        <!-- ✅ DROP LIST para mover COLUMNAS horizontalmente -->
+    <!-- Vista: TABLERO -->
+      <div *ngIf="activeView === 'board'" class="flex-1 overflow-x-auto overflow-y-hidden bg-gray-100 p-6">
+        <ng-container *ngIf="columns && columns.length > 0; else loading">
+          
         <div 
           cdkDropList
           cdkDropListOrientation="horizontal"
@@ -43,14 +69,12 @@
           (cdkDropListDropped)="dropColumn($event)"
           class="flex gap-4 h-full">
           
-          <!-- ✅ Cada columna CON cdkDrag para poder moverla -->
           <div
             *ngFor="let col of columns; trackBy: trackByColumnId"
             cdkDrag
             [cdkDragData]='col'
             class="flex-shrink-0">
             
-            <!-- ✅ Preview mientras se arrastra la columna -->
             <div *cdkDragPreview class="w-[300px] bg-white rounded-lg shadow-2xl opacity-90">
               <div 
                 class="text-sm font-medium text-center text-gray-800 py-3 rounded-t-lg"
@@ -62,14 +86,14 @@
               </div>
             </div>
 
-            <!-- ✅ Placeholder cuando se está arrastrando -->
             <div *cdkDragPlaceholder class="w-[300px] h-full bg-gray-200 border-2 border-dashed border-gray-400 rounded-lg"></div>
 
-            <!-- Componente de columna -->
             <app-column
               [column]="col"
               [proyectoId]="proyectoId"
               [connectedDropLists]="columnIds"
+              [isLeader]="isLeader"
+              [isMember]="isMember"
               (cardsChanged)="onCardsChanged()"
               (editColumn)="onEditColumn($event)"
               (deleteColumn)="onDeleteColumn($event)">
@@ -84,7 +108,26 @@
         </div>
       </ng-template>
     </div>
-  </div>
+
+          <!-- Vista: DASHBOARD(solo el lider) -->
+        <div *ngIf="activeView === 'dashboard'  && isLeader" class="flex-1 overflow-auto bg-gray-100 p-6">
+          <app-board-dashboard 
+              [proyectoId]="proyectoId"
+              [columns]="columns">
+            </app-board-dashboard>
+        </div>
+
+      <!-- Vista: CONFIGURACIÓN (solo líder) -->
+      <div *ngIf="activeView === 'settings' && isLeader" class="flex-1 overflow-auto bg-gray-100 p-6">
+        <app-board-settings 
+          [proyectoId]="proyectoId"
+          [projectName]="board?.nombre ?? 'Proyecto'"
+          [workspaceId]="workspaceId"
+          (projectDeleted)="onProjectDeleted()">
+        </app-board-settings>
+      </div>
+       
+    </div>
 
   <!-- Modal crear/editar columna -->
   <div *ngIf="colModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -107,7 +150,6 @@
             El nombre es obligatorio.
           </div>
           
-          <!-- ✅ Validación de nombre duplicado en tiempo real -->
           <div *ngIf="colForm.controls['nombre']?.value && isDuplicateColumnName(colForm.controls['nombre']?.value)"
                class="text-xs text-red-600 mt-1 flex items-center gap-1">
             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -130,21 +172,11 @@
           </div>
         </div>
 
-        <!-- ✅ Información sobre reglas de columnas -->
         <div *ngIf="!editMode" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <div class="flex gap-2">
             <svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
             </svg>
-            <div class="text-xs text-blue-800">
-              <p class="font-semibold mb-1">💡 Reglas de columnas:</p>
-              <ul class="list-disc list-inside space-y-1">
-                <li>No puede haber nombres duplicados entre columnas activas</li>
-                <li>Puedes reutilizar nombres de columnas eliminadas</li>
-                <li>Solo puedes eliminar columnas vacías (sin tarjetas)</li>
-                <li>Debe haber al menos 1 columna en el tablero</li>
-              </ul>
-            </div>
           </div>
         </div>
 
@@ -171,6 +203,8 @@
     *ngIf="showCardDetail && selectedCard"
     [card]="selectedCard"
     [columnName]="selectedColumnName"
+    [isLeader]="isLeader"
+    [currentUserId]="currentUserId"
     (closeModal)="closeCardDetail()"
     (cardUpdated)="onCardUpdated($event)"
     (cardDeleted)="onCardDeleted($event)">

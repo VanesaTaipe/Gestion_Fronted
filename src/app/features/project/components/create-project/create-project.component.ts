@@ -693,8 +693,8 @@ mat-dialog-actions {
 .copy-both-btn {
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid #3b82f6;
-  color: #3b82f6;
+  border: 1px solid #93fffbff;
+  color: #95fceeff;
   background: white;
 }
 
@@ -838,7 +838,7 @@ export class CreateProjectDialogComponent implements OnInit {
   if (!this.selectedMembers.some(m => m.user.id_usuario === user.id_usuario)) {
     this.selectedMembers.push({
       user: user,
-      rol: 'miembro'  // ← Ya está correcto
+      rol: 'miembro'  
     });
     console.log('Miembro agregado:', user.username, 'con rol: miembro');
   }
@@ -890,7 +890,7 @@ export class CreateProjectDialogComponent implements OnInit {
 
       const newMember: MemberWithRole = {
         user: user,
-        rol: result.rol === 'lider' ? 'lider' : 'miembro'  // ← CORREGIR AQUÍ
+        rol: result.rol === 'lider' ? 'lider' : 'miembro'  
       };
       
       if (!this.selectedMembers.some(m => m.user.id_usuario === newMember.user.id_usuario)) {
@@ -968,15 +968,13 @@ export class CreateProjectDialogComponent implements OnInit {
   console.log('Registrando roles para el proyecto:', projectId);
 
   const todosLosMiembros = [
-    // El creador siempre es Líder (id_rol: 1)
     {
       id_usuario: this.data.currentUserId,
-      id_rol: 1  // ← Líder
+      id_rol: 1  
     },
-    // Los miembros seleccionados
     ...this.selectedMembers.map(memberData => ({
       id_usuario: memberData.user.id_usuario,
-      id_rol: memberData.rol === 'lider' ? 1 : 2  // ← CORREGIR AQUÍ
+      id_rol: memberData.rol === 'lider' ? 1 : 2 
     }))
   ];
 
@@ -1011,25 +1009,31 @@ export class CreateProjectDialogComponent implements OnInit {
     }
   });
 }
+private finalizarCreacionProyecto(projectId: number, proyectoData: any): void {
+  this.isCreating = false;
+  
+  const nombreProyecto = proyectoData?.nombre || proyectoData?.name || `Proyecto ${projectId}`;
+  
+  console.log('Nombre a pasar en navegación:', nombreProyecto);
+  console.log('Datos completos del proyecto:', proyectoData);
+  
+  this.dialogRef.close(proyectoData);
+  
+  this.router.navigate([
+    '/workspace', 
+    this.data.workspaceId, 
+    'projects', 
+    projectId, 
+    'board'
+  ], {
+    queryParams: {
+      projectName: nombreProyecto 
+    }
+  }).then(success => {
+    console.log('Navegación exitosa:', success);
+  }).catch(error => {
+    console.error('Error en navegación:', error);
+  });
+}
 
-  private finalizarCreacionProyecto(projectId: number, proyectoData: any): void {
-    this.isCreating = false;
-    this.dialogRef.close(proyectoData);
-    
-    this.router.navigate([
-      '/workspace', 
-      this.data.workspaceId, 
-      'projects', 
-      projectId, 
-      'board'
-    ], {
-      queryParams: {
-        projectName: proyectoData.nombre
-      }
-    }).then(success => {
-      console.log('Navegación exitosa:', success);
-    }).catch(error => {
-      console.error('Error en navegación:', error);
-    });
-  }
 }

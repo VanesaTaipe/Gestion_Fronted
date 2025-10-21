@@ -1,0 +1,347 @@
+<!-- Contenedor de la columna -->
+<div class="w-[280px] min-w-[280px] flex-shrink-0 bg-gray-50 rounded-lg shadow h-[80vh] flex flex-col">
+  
+  <!-- Encabezado con menú de opciones (FIJO) -->
+  <div class="relative flex-shrink-0">
+        <div class="column-header px-4 py-3 rounded-t-xl flex items-center justify-between relative"
+        [style.background-color]="column.color">
+      
+      <!-- Título centrado -->
+      <span class="absolute left-1/2 transform -translate-x-1/2 text-center font-semibold">
+        {{ column.nombre }}
+      </span>
+
+  <!-- Botón menú de tres puntos -->
+  <button
+    type="button"
+    class="ml-auto text-white-600 hover:text-gray-800 p-1 rounded hover:bg-white/50"
+    (click)="toggleMenu($event)">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2">
+      <circle cx="12" cy="5" r="1" />
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="12" cy="19" r="1" />
+    </svg>
+  </button>
+</div>
+
+
+    <!-- Menú desplegable -->
+      <div
+        *ngIf="menuOpen"
+        class="absolute right-2 top-10 bg-white rounded-lg shadow-lg border z-10 w-40">
+        <button
+          type="button"
+          class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 rounded-t-lg"
+          (click)="editColumnAction()">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+          Editar
+        </button>
+        <button
+          type="button"
+          *ngIf="isLeader"
+          class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 rounded-b-lg"
+          (click)="deleteColumnAction()">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
+          Eliminar
+        </button>
+      </div>
+  </div>
+  <div
+    cdkDropList
+    [id]="'col-' + column.id"
+    [cdkDropListData]="column.cards"
+    [cdkDropListConnectedTo]="connectedDropLists"
+    (cdkDropListDropped)="drop($event)"
+    class="flex flex-col gap-3 flex-1 min-h-[100px] p-2 overflow-y-auto scrollbar-custom"
+    [class.has-scroll]="(column.cards.length || 0) >= 4">
+    
+    <!-- Cada tarjeta -->
+    <app-card 
+      *ngFor="let card of column.cards; trackBy: trackById"
+      [card]="card"
+      [proyectoId]="proyectoId"
+      (cardClicked)="openCardDetail($event)"
+      (deleteCard)="deleteCardFromColumn($event)"
+      cdkDrag>
+      
+    </app-card>
+    </div>
+          <button
+      type="button"
+      [disabled]="column.cards && column.cards.length >= 20"
+      [class.disabled]="column.cards && column.cards.length >= 20"
+      [class.opacity-50]="column.cards && column.cards.length >= 20"
+      [class.cursor-not-allowed]="column.cards && column.cards.length >= 20"
+      class="w-full text-sm text-white-600 flex items-center justify-center border-t py-3 hover:bg-white-100 transition-colors flex-shrink-0"
+      style="background-color: #f2f1f1;"
+      (click)="AbrirTarea()">
+      <img src="assets/add.png" alt="" class="w-4 h-4 mr-1" />
+      <span>
+        {{ column.cards && column.cards.length >= 20 ? '¡Límite alcanzado (20/20)!' : 'Añade una tarjeta' }}
+      </span>
+    </button>
+  </div>
+
+
+    <!-- ===== Modal Crear Tarea ===== -->
+    <div *ngIf="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div class="bg-white w-[600px] max-w-[95vw] max-h-[90vh] overflow-y-auto rounded-2xl shadow-xl p-6">
+        <h3 class="text-lg font-semibold mb-4">Crear tarea</h3>
+
+        <form [formGroup]="form" (ngSubmit)="crearTareaBD()" class="space-y-4">
+          <!-- Título -->
+          <div>
+            <label class="block text-sm mb-1">Título*</label>
+            <input
+              type="text"
+              formControlName="titulo"
+              class="w-full rounded-xl border px-3 py-2 outline-none focus:ring"
+              placeholder="Escribe el título"
+            />
+            <div
+              *ngIf="form.controls['titulo']?.touched && form.controls['titulo']?.invalid"
+              class="text-xs text-red-600 mt-1"
+            >
+              El título es obligatorio.
+            </div>
+          </div>
+
+          <!-- Descripción -->
+          <div>
+            <label class="block text-sm mb-1">Descripción</label>
+            <textarea
+              rows="3"
+              formControlName="descripcion"
+              class="w-full rounded-xl border px-3 py-2 outline-none focus:ring"
+              placeholder="Descripción (opcional)"
+            ></textarea>
+          </div>
+
+
+          <!-- Asignar a -->
+          <div>
+            <label class="block text-sm mb-1">Asignar a</label>
+
+            <!-- Contenedor general -->
+            <div class="relative border rounded-xl overflow-hidden shadow-sm bg-white">
+              
+              <!-- Input y botones -->
+              <div class="flex items-center gap-2 px-2 py-2 border-b">
+                <input
+                  type="text"
+                  [formControl]="searchControl"
+                  class="flex-1 outline-none text-sm px-2"
+                  placeholder="Buscar miembro del proyecto..."
+                  [readonly]="selectedMember"
+                  (focus)="selectedMember && clearMember()">
+
+                <!-- Botón limpiar -->
+                <button
+                  *ngIf="selectedMember"
+                  type="button"
+                  (click)="clearMember()"
+                  class="p-1 text-gray-400 hover:text-gray-600">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+
+                <!-- Botón desplegar -->
+                <button
+                  type="button"
+                  (click)="toggleDropdown()"
+                  class="p-1 text-gray-400 hover:text-gray-600">
+                  <svg class="w-4 h-4 transition-transform duration-200"
+                      [class.rotate-180]="dropdownOpen"
+                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Dropdown DENTRO del rectángulo -->
+              <div *ngIf="dropdownOpen"
+                  class="max-h-48 overflow-auto bg-white">
+                
+                <!-- Loading -->
+                <div *ngIf="isSearchingUsers" class="p-3 text-center text-gray-500">
+                  <svg class="animate-spin h-5 w-5 mx-auto" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10"
+                            stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                  </svg>
+                  <span class="text-xs">Buscando...</span>
+                </div>
+
+                <!-- Lista -->
+                <button
+                  *ngFor="let member of (filteredMembers$ | async)"
+                  type="button"
+                  (click)="selectMember(member)"
+                  class="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-3 border-t">
+                  
+                  <div class="w-8 h-8 bg-gray-900 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                    {{ member.nombre?.charAt(0)?.toUpperCase() || 'U' }}
+                  </div>
+                  
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-900 truncate">{{ member.nombre }}</p>
+                    <p class="text-xs text-gray-500 truncate">
+                      {{ member.email }}
+                      <span *ngIf="member.rol" class="ml-1">• {{ member.rol }}</span>
+                    </p>
+                  </div>
+                </button>
+
+                <!-- Sin resultados -->
+                <div *ngIf="!isSearchingUsers && (filteredMembers$ | async)?.length === 0 && searchControl.value"
+                    class="p-3 text-center text-gray-500 text-sm border-t">
+                  No se encontraron miembros
+                </div>
+              </div>
+            </div>
+
+            <!-- Miembro seleccionado -->
+            <div *ngIf="selectedMember" class="mt-2 p-2 bg-cyan-50 rounded-lg flex items-center gap-2">
+              <svg class="w-4 h-4 text-cyan-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clip-rule="evenodd"/>
+              </svg>
+              <span class="text-sm text-cyan-700">
+                Asignado a: <strong>{{ selectedMember.nombre }}</strong>
+              </span>
+            </div>
+          </div>
+          <!-- Fecha de vencimiento y Prioridad -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm mb-1">Fecha de vencimiento</label>
+              <input
+                type="date"
+                formControlName="fecha_vencimiento"
+                class="w-full rounded-xl border px-3 py-2 outline-none focus:ring"
+              />
+            </div>
+            
+            <div>
+              <label class="block text-sm mb-1">Prioridad*</label>
+              <select
+                formControlName="prioridad"
+                class="w-full rounded-xl border px-3 py-2 outline-none focus:ring appearance-none bg-white"
+                style="background-image: url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e'); background-repeat: no-repeat; background-position: right 0.5rem center; background-size: 1.5em 1.5em; padding-right: 2.5rem;"
+              >
+              <option style="background: #f2efef; color: white;">Elige la prioridad de la tarea</option>
+              <option style="background: #ffff00; color: #ffffff;">Baja</option>
+              <option style="background: #ffb366; color: #ffffff;">Media</option>
+              <option style="background: #ff6b6b; color: white;">Alta</option>
+              <option style="background: #c6c6c6; color: #f8f8f8;">No asignada</option>
+              </select>
+              <div
+                *ngIf="form.controls['prioridad']?.touched && form.controls['prioridad']?.invalid"
+                class="text-xs text-red-600 mt-1"
+              >
+                La prioridad es obligatoria.
+              </div>
+            </div>
+          </div>
+
+          <!-- Adjuntar imágenes (Archivos) -->
+          <div>
+            <label class="block text-sm mb-1">Adjuntar imágenes (máximo 3)</label> 
+              <!-- Input de archivo oculto -->
+              <input
+                #fileInput
+                type="file"
+                accept="image/*"
+                multiple
+                class="hidden"
+                (change)="onFileSelected($event)"
+              />
+              
+              <!-- Botón para seleccionar archivos desde el dispositivo -->
+              <button
+                type="button"
+                (click)="fileInput.click()"
+                [disabled]="getTotalImages() >= 3"
+                class="w-full py-3 px-4 border-2 border-dashed rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+  
+                <span class="text-sm text-gray-600">
+                  {{ getTotalImages() >= 3 ? 'Máximo 3 imágenes alcanzado' : 'Seleccionar desde dispositivo' }}
+                </span>
+              </button>
+
+              <!-- Preview de imágenes (archivos + URLs) -->
+                  <div *ngIf="previewUrls.length > 0" class="flex gap-2 flex-wrap pt-2">
+                    <div *ngFor="let url of previewUrls; let i = index" class="relative group">
+                      <img [src]="url" alt="Preview" class="w-20 h-20 object-cover rounded-lg border shadow-sm">
+                      <button
+                        type="button"
+                        (click)="removeImage(i)"
+                        class="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        ×
+                      </button>
+                      <!-- Etiqueta de tipo de imagen -->
+                      <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-xs px-1.5 py-1 rounded-b-lg">
+                        <div class="flex items-center gap-1">
+                            <svg *ngIf="i < selectedFiles.length" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+                              <polyline points="13 2 13 9 20 9" />
+                            </svg>
+                            <svg *ngIf="i >= selectedFiles.length" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                            </svg>
+                            <span class="truncate">
+                              {{ i < selectedFiles.length ? selectedFiles[i].name : 'URL' }}
+                            </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+            </div>
+
+          <!-- Botones -->
+          <div class="flex justify-end gap-3 pt-3">
+            <button
+              type="button"
+              class="px-6 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 font-medium"
+              (click)="cerrarTarea()"
+              [disabled]="creating"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              class="px-6 py-2 rounded-xl text-white font-medium"
+              [class.bg-cyan-500]="!creating"
+              [class.hover\:bg-cyan-600]="!creating"
+              [class.bg-cyan-300]="creating"
+              [disabled]="creating || form.invalid"
+            >
+              {{ creating ? 'Creando…' : 'Crear' }}
+            </button>
+          </div>
+        </form> 
+      </div>
+    </div>
+  <app-card-detail-modal
+    *ngIf="showCardDetail && selectedCard"
+    [card]="selectedCard"
+    [columnName]="column.nombre || column.title || ''"
+    (closeModal)="closeCardDetail()"
+    (cardUpdated)="onCardUpdated($event)"
+    (cardDeleted)="onCardDeleted($event)">
+  </app-card-detail-modal>
+  

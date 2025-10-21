@@ -4,29 +4,36 @@ import {
   FormGroup,
   FormControl,
   ReactiveFormsModule,
+  AbstractControl,
+  ValidationErrors,
 } from "@angular/forms";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
-import { ListErrorsComponent } from "../../shared/components/list-errors.component";
-import { Errors } from "../models/errors.model";
-import { UserService } from "./services/user.service";
+import { ListErrorsComponent } from "./model/list-errors.component";
+import { Errors } from "./model/error.interface";
+import { UserService } from "./services/use.service";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-
+import { CommonModule } from "@angular/common";
+import { MatIconModule } from '@angular/material/icon';
 interface AuthForm {
-  email: FormControl<string>;
+  correo: FormControl<string>;
   password: FormControl<string>;
-  username?: FormControl<string>;
+  nombre?: FormControl<string>;
+  confirmPassword?: FormControl<string>;
 }
 
 @Component({
   selector: "app-auth-page",
   templateUrl: "./auth.component.html",
-  imports: [RouterLink, ListErrorsComponent, ReactiveFormsModule],
+  imports: [CommonModule, ListErrorsComponent, ReactiveFormsModule,MatIconModule],
+  standalone: true
 })
 export default class AuthComponent implements OnInit {
   authType = "";
   title = "";
   errors: Errors = { errors: {} };
   isSubmitting = false;
+  showPassword = false;
+  showConfirmPassword = false;
   authForm: FormGroup<AuthForm>;
   destroyRef = inject(DestroyRef);
 
@@ -36,12 +43,12 @@ export default class AuthComponent implements OnInit {
     private readonly userService: UserService,
   ) {
     this.authForm = new FormGroup<AuthForm>({
-      email: new FormControl("", {
-        validators: [Validators.required],
+      correo: new FormControl("", {
+        validators: [Validators.required, Validators.email],
         nonNullable: true,
       }),
       password: new FormControl("", {
-        validators: [Validators.required],
+        validators: [Validators.required, Validators.minLength(6)],
         nonNullable: true,
       }),
     });
@@ -49,41 +56,131 @@ export default class AuthComponent implements OnInit {
 
   ngOnInit(): void {
     this.authType = this.route.snapshot.url.at(-1)!.path;
-    this.title = this.authType === "login" ? "Sign in" : "Sign up";
+    this.title = this.authType === "login" ? "Iniciar Sesión" : "Regístrate";
+    
     if (this.authType === "register") {
       this.authForm.addControl(
-        "username",
+        "nombre",
         new FormControl("", {
-          validators: [Validators.required],
+          validators: [Validators.required, Validators.minLength(3)],
           nonNullable: true,
         }),
       );
+      this.authForm.addControl(
+        "confirmPassword",
+        new FormControl("", {
+          validators: [Validators.required, Validators.minLength(6)],
+          nonNullable: true,
+        }),
+      );
+      
+      this.authForm.addValidators(this.passwordMatchValidator());
     }
+  }
+
+  passwordMatchValidator() {
+    return (control: AbstractControl): ValidationErrors | null => {
+      const password = control.get('password')?.value;
+      const confirmPassword = control.get('confirmPassword')?.value;
+      
+      if (password && confirmPassword && password !== confirmPassword) {
+        return { passwordMismatch: true };
+      }
+      return null;
+    };
+  }
+
+  switchToLogin(): void {
+    this.router.navigate(['/login']);
+  }
+
+  switchToRegister(): void {
+    this.router.navigate(['/register']);
+  }
+
+  togglePassword(): void {
+    this.showPassword = !this.showPassword;
+  }
+
+  toggleConfirmPassword(): void {
+    this.showConfirmPassword = !this.showConfirmPassword;
   }
 
   submitForm(): void {
     this.isSubmitting = true;
     this.errors = { errors: {} };
 
+    if (this.authType === "register") {
+      if (this.authForm.errors?.['passwordMismatch']) {
+        this.errors = { 
+          errors: { 
+            'Contraseñas': 'Las contraseñas no coinciden' 
+          } 
+        };
+        this.isSubmitting = false;
+        return;
+      }
+
+      const nombre = this.authForm.value.nombre?.trim();
+      const correo = this.authForm.value.correo?.trim();
+      const password = this.authForm.value.password;
+
+      if (!nombre || !correo || !password) {
+        this.errors = { 
+          errors: { 
+            'Campos': 'Todos los campos son obligatorios' 
+          } 
+        };
+        this.isSubmitting = false;
+        return;
+      }
+
+      console.log('Datos de registro:', { nombre, correo, passwordLength: password.length });
+    }
+
     let observable =
       this.authType === "login"
-        ? this.userService.login(
-            this.authForm.value as { email: string; password: string },
-          )
-        : this.userService.register(
-            this.authForm.value as {
-              email: string;
-              password: string;
-              username: string;
-            },
-          );
+        ? this.userService.login({
+            correo: this.authForm.value.correo!.trim(),
+            password: this.authForm.value.password!,
+          })
+        : this.userService.register({
+            nombre: this.authForm.value.nombre!.trim(),
+            correo: this.authForm.value.correo!.trim(),
+            password: this.authForm.value.password!,
+          });
 
     observable.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => void this.router.navigate(["/"]),
+      next: () => {
+        console.log('Autenticación exitosa');
+        void this.router.navigate(["/workspace"]);
+      },
       error: (err) => {
-        this.errors = err;
+        console.error('Error de autenticación:', err);
+        
+        // Procesar errores 
+        if (err.error && err.error.errors) {
+          this.errors = err.error;
+        } else if (err.error && err.error.message) {
+          this.errors = { 
+            errors: { 
+              'Error': err.error.message 
+            } 
+          };
+        } else {
+          this.errors = { 
+            errors: { 
+              'Error': 'Ocurrió un error. Por favor intenta nuevamente.' 
+            } 
+          };
+        }
+        
         this.isSubmitting = false;
       },
     });
   }
+  goToForgotPassword(): void {
+  console.log('Navegando a forgot-password');
+  this.router.navigate(['/forgot-password']);
+}
 }

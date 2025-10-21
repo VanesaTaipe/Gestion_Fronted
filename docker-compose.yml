@@ -1,11 +1,12 @@
 services:
-  angular-app:
+  frontend:
     build: .
     ports:
-      # Mapear el puerto 4200 de tu máquina al 4200 del contenedor
       - "4200:4200"
     volumes:
-      # Sincronizar tu código local con el del contenedor para recarga automática
-      # Excluimos node_modules para usar los que se instalan dentro del contenedor
       - .:/app
       - /app/node_modules
+    command: npm start
+    extra_hosts:
+      - "host.docker.internal:host-gateway" 
+

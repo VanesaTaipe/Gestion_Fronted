@@ -1,0 +1,212 @@
+<div class="h-screen flex">
+  <!-- Sidebar izquierdo -->
+  <aside class="w-64 bg-white shadow-md flex flex-col">
+    <div class="p-4 flex justify-center border-b">
+      <button (click)="goBackToWorkspace()">
+        <img src="assets/kanban-logo.png" alt="Logo" class="w-24 h-24">
+      </button>
+    </div>
+    
+    <nav class="flex-1 p-4 flex flex-col gap-2">
+        <a 
+          class="px-4 py-2 rounded flex items-center text-gray-700 cursor-pointer"
+          [class.bg-cyan-100]="activeView === 'board'"
+          [class.text-cyan-700]="activeView === 'board'"
+          [class.hover:bg-blue-100]="activeView !== 'board'"
+          (click)="setActiveView('board')">
+          <img src="assets/tablero.png" alt="" class="w-4 h-4 mr-2">
+          Tablero
+        </a>
+        <a 
+          *ngIf="isLeader"
+          class="px-4 py-2 rounded flex items-center text-gray-700 cursor-pointer"
+          [class.bg-cyan-100]="activeView === 'dashboard'"
+          [class.text-cyan-700]="activeView === 'dashboard'"
+          [class.hover:bg-blue-100]="activeView !== 'dashboard'"
+          (click)="setActiveView('dashboard')">
+          <img src="assets/dashboard.png" alt="" class="w-4 h-4 mr-2">
+          Dashboard
+        </a>
+        <a 
+            *ngIf="isLeader"
+            class="px-4 py-2 rounded flex items-center text-gray-700 cursor-pointer"
+            [class.bg-cyan-100]="activeView === 'settings'"
+            [class.text-cyan-700]="activeView === 'settings'"
+            [class.hover:bg-blue-100]="activeView !== 'settings'"
+            (click)="setActiveView('settings')">
+            <img src="assets/settings.png" alt="" class="w-4 h-4 mr-2">
+            Configuración
+        </a> 
+    </nav>
+     <div class="p-3 border-t bg-gray-50">
+      <div class="bg-gray-50 rounded-lg p-3 space-y-2">
+       <p class="text-sm font-semibold text-gray-900 truncate">
+          {{ currentUserName }}
+        </p>
+        <p class="text-xs text-gray-500">
+          {{ userRole }}
+        </p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Contenido principal -->
+  <div class="flex-1 flex flex-col">
+    <!-- Header -->
+    <app-header 
+      [title]="proyectoNombre || board?.nombre || 'Tablero'"
+      (newColumn)="openAddColumn()">
+    </app-header>
+
+    <!-- Vista: TABLERO -->
+      <div *ngIf="activeView === 'board'" class="flex-1 overflow-x-auto overflow-y-hidden bg-gray-100 p-6">
+        <ng-container *ngIf="columns && columns.length > 0; else loading">
+          
+        <div 
+          cdkDropList
+          cdkDropListOrientation="horizontal"
+          [cdkDropListData]="columns"
+          (cdkDropListDropped)="dropColumn($event)"
+          class="flex gap-4 h-full">
+          
+          <div
+            *ngFor="let col of columns; trackBy: trackByColumnId"
+            cdkDrag
+            [cdkDragData]='col'
+            class="flex-shrink-0">
+            
+            <div *cdkDragPreview class="w-[300px] bg-white rounded-lg shadow-2xl opacity-90">
+              <div 
+                class="text-sm font-medium text-center text-gray-800 py-3 rounded-t-lg"
+                [style.background-color]="col.color">
+                {{ col.nombre }}
+              </div>
+              <div class="p-4 text-center text-gray-400">
+                <p>Arrastrando columna...</p>
+              </div>
+            </div>
+
+            <div *cdkDragPlaceholder class="w-[300px] h-full bg-gray-200 border-2 border-dashed border-gray-400 rounded-lg"></div>
+
+            <app-column
+              [column]="col"
+              [proyectoId]="proyectoId"
+              [connectedDropLists]="columnIds"
+              [isLeader]="isLeader"
+              [isMember]="isMember"
+              (cardsChanged)="onCardsChanged()"
+              (editColumn)="onEditColumn($event)"
+              (deleteColumn)="onDeleteColumn($event)">
+            </app-column>
+          </div>
+        </div>
+      </ng-container>
+
+      <ng-template #loading>
+        <div class="h-full flex items-center justify-center">
+          <p class="text-gray-500">Cargando columnas...</p>
+        </div>
+      </ng-template>
+    </div>
+
+          <!-- Vista: DASHBOARD(solo el lider) -->
+        <div *ngIf="activeView === 'dashboard'  && isLeader" class="flex-1 overflow-auto bg-gray-100 p-6">
+          <app-board-dashboard 
+              [proyectoId]="proyectoId"
+              [columns]="columns">
+            </app-board-dashboard>
+        </div>
+
+      <!-- Vista: CONFIGURACIÓN (solo líder) -->
+      <div *ngIf="activeView === 'settings' && isLeader" class="flex-1 overflow-auto bg-gray-100 p-6">
+        <app-board-settings 
+          [proyectoId]="proyectoId"
+          [projectName]="board?.nombre ?? 'Proyecto'"
+          [workspaceId]="workspaceId"
+          (projectDeleted)="onProjectDeleted()">
+        </app-board-settings>
+      </div>
+       
+    </div>
+
+  <!-- Modal crear/editar columna -->
+  <div *ngIf="colModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div class="bg-white w-[520px] max-w-[95vw] rounded-2xl shadow-xl p-6">
+      <h3 class="text-lg font-semibold mb-4">
+        {{ editMode ? 'Editar columna' : 'Nueva columna' }}
+      </h3>
+
+      <form [formGroup]="colForm" (ngSubmit)="submitAddColumn()" class="space-y-4">
+        <div>
+          <label class="block text-sm mb-1">Nombre</label>
+          <input
+            type="text"
+            formControlName="nombre"
+            class="w-full rounded-xl border px-3 py-2 outline-none focus:ring"
+            placeholder="Ej. Backlog" />
+          <div
+            *ngIf="colForm.controls['nombre']?.touched && colForm.controls['nombre']?.invalid"
+            class="text-xs text-red-600 mt-1">
+            El nombre es obligatorio.
+          </div>
+          
+          <div *ngIf="colForm.controls['nombre']?.value && isDuplicateColumnName(colForm.controls['nombre']?.value)"
+               class="text-xs text-red-600 mt-1 flex items-center gap-1">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+            </svg>
+            <span>Ya existe una columna activa con este nombre</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm mb-2">Color</label>
+          <div class="grid grid-cols-5 gap-2">
+            <label *ngFor="let c of colorPalette" class="cursor-pointer">
+              <input type="radio" formControlName="color" [value]="c" class="sr-only peer" />
+              <div
+                class="h-8 w-8 rounded-lg border shadow-sm peer-checked:ring-2 peer-checked:ring-cyan-500"
+                [style.background-color]="c">
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div *ngIf="!editMode" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div class="flex gap-2">
+            <svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-3">
+          <button
+            type="button"
+            class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
+            (click)="closeAddColumn()">
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            class="px-4 py-2 rounded-xl text-white bg-cyan-500 hover:bg-cyan-600"
+            [disabled]="colForm.invalid || isDuplicateColumnName(colForm.controls['nombre'].value)">
+            {{ editMode ? 'Actualizar' : 'Crear' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal de detalle de tarjeta -->
+  <app-card-detail-modal
+    *ngIf="showCardDetail && selectedCard"
+    [card]="selectedCard"
+    [columnName]="selectedColumnName"
+    [isLeader]="isLeader"
+    [currentUserId]="currentUserId"
+    (closeModal)="closeCardDetail()"
+    (cardUpdated)="onCardUpdated($event)"
+    (cardDeleted)="onCardDeleted($event)">
+  </app-card-detail-modal>
+</div>

@@ -7,7 +7,8 @@ export interface Card {
   descripcion?: string;          
   asignado_a?: string;           
   id_asignado?: number;         
-  fecha_vencimiento?: string;   
+  fecha_vencimiento?: string; 
+  due_at?: string;  
   prioridad?: CartaPrioridad;   
   tag?: string;
   archivos?: ArchivoAdjunto[];           
@@ -62,6 +63,7 @@ export interface TareaResumen {
   color: string | null;
   comentarios_count: number;
   ultima_actualizacion: string;
+  due_at: string;
   position: number;
 }
 

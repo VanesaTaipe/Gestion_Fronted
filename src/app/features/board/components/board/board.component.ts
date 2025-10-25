@@ -22,6 +22,8 @@ import { CardDetailModalComponent } from '../card/card-detail.component';
 import { BoardSettingsComponent } from '../board/settings/board-settings.component';
 import { BoardDashboardComponent } from '../board/dashboard/dashboard.component';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { TaskService } from '../../services/task.service';
+
 @Component({
   selector: 'app-board',
   standalone: true,
@@ -82,6 +84,7 @@ currentUserName = '';
     private router: Router,
     private http: HttpClient,
     private permissionService: ProjectPermissionService,
+    private taskService: TaskService,
   ) {
     this.colForm = this.fb.group({
       nombre: ['', [Validators.required, Validators.maxLength(120)]],
@@ -349,6 +352,25 @@ private createDefaultColumns() {
   onCardsChanged() {
     console.log('Tarjetas actualizadas');
   }
+
+  openCardDetail(card: Card) {
+  if (!card?.id) return;
+
+  // 🔹 Llama al backend para traer todos los datos (incluido due_at)
+  this.taskService.getTaskById(card.id).subscribe({
+    next: (tareaCompleta: any) => {
+      // Combina datos antiguos con los nuevos del backend
+      this.selectedCard = {
+        ...card,
+        ...tareaCompleta,
+        due_at: tareaCompleta.due_at || card.due_at || null
+      };
+      this.selectedColumnName = this.columns.find(c => c.id === card.id_columna)?.nombre || '';
+      this.showCardDetail = true;
+      console.log('Tarea completa cargada:', this.selectedCard);
+    },
+  });
+}
 
   closeCardDetail() {
     this.showCardDetail = false;

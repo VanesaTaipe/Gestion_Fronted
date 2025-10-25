@@ -110,7 +110,7 @@ export class TaskService {
           descripcion: t.descripcion ?? body.descripcion,
           id_asignado: t.id_asignado ?? p.id_asignado,
           asignado_a: '',
-          fecha_vencimiento: t.due_at ?? dueMySQL,
+          due_at: t.due_at ?? dueMySQL,
           prioridad: this.normalizePriority(t.prioridad ?? p.prioridad),
           archivos: [],
           comentarios_count: 0,
@@ -243,7 +243,7 @@ export class TaskService {
       titulo: card.title,
       descripcion: card.descripcion,
       prioridad: card.prioridad,
-      fecha_vencimiento: card.fecha_vencimiento,
+      due_at: card.due_at,
       asignado_a: card.asignado_a,
       id_asignado: card.id_asignado
     };
@@ -377,7 +377,7 @@ export class TaskService {
           prioridad: this.normalizePriority(tarea.prioridad),
           comentarios_count: tarea.comentarios_count,
           position: tarea.position,
-          fecha_vencimiento: tarea.ultima_actualizacion,
+          due_at: tarea.due_at ?? null,
           comentarios: [],
           archivos: []
         });
@@ -405,6 +405,27 @@ export class TaskService {
         }
         
         throw new Error(err.error?.error || 'Error al eliminar archivo');
+      })
+    );
+  }
+
+
+  getTaskById(id: number): Observable<Card> {
+  return this.http.get<any>(`${this.api}/tareas/${id}`).pipe(
+    map((res: any) => {
+      const t = res?.tarea?.data ?? res?.tarea ?? res;
+      return {
+        id: t.id,
+        id_columna: t.columna || t.id_columna,
+        title: t.titulo,
+        descripcion: t.descripcion,
+        prioridad: t.prioridad,
+        due_at: t.due_at,
+        id_asignado: t.id_asignado,
+        asignado_a: t.asignado?.nombre || 'Sin asignar',
+        comentarios: t.comentarios || [],
+        archivos: [],
+        } as Card;
       })
     );
   }

@@ -203,15 +203,16 @@ import { User } from '../../../profile/models/user.interface';
 
             <!-- Fecha límite -->
             <div>
-              <label class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2 block">Fecha límite</label>
-              <input 
+              <label class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1 block">
+                        Fecha límite
+              </label>
+
+              <input
                 type="date"
-                [(ngModel)]="card.fecha_vencimiento"
-                (change)="saveCard()"
-                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500">
-              <p *ngIf="card.fecha_vencimiento" class="text-xs text-gray-500 mt-1.5">
-                {{ formatFullDate(card.fecha_vencimiento) }}
-              </p>
+                [value]="card.due_at ? (card.due_at | date:'yyyy-MM-dd') : ''"
+                (change)="card.due_at = $any($event.target).value; saveCard()"
+                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500"
+              />
             </div>
 
             <!-- Asignado -->

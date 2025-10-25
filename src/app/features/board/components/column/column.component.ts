@@ -54,7 +54,8 @@ export class ColumnComponent {
   ) {
     this.form = this.fb.group({
       titulo: ['', [Validators.required, Validators.maxLength(200)]],
-      prioridad: ['', Validators.required]
+      prioridad: ['', Validators.required],
+      fecha_vencimiento: [''] 
     });
   }
   ngOnInit() {

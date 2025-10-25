@@ -66,7 +66,7 @@ interface MemberWithRole {
             class="custom-input"
             formControlName="nombre"
             placeholder="Ingresa el nombre del proyecto"
-            maxlength="100"
+            maxlength="60"
             required>
           <div class="error-message" *ngIf="projectForm.get('nombre')?.hasError('required') && projectForm.get('nombre')?.touched">
             El título es requerido
@@ -81,7 +81,7 @@ interface MemberWithRole {
             formControlName="descripcion"
             placeholder="Describe brevemente el proyecto"
             rows="3"
-            maxlength="500">
+            maxlength="300">
           </textarea>
           <div class="hint-text">Opcional</div>
         </div>
@@ -756,8 +756,8 @@ export class CreateProjectDialogComponent implements OnInit {
     private dialog: MatDialog
   ) {
     this.projectForm = this.fb.group({
-      nombre: ['', [Validators.required, Validators.maxLength(100)]],
-      descripcion: ['', Validators.maxLength(500)],
+      nombre: ['', [Validators.required, Validators.maxLength(60)]],
+      descripcion: ['', Validators.maxLength(300)],
       searchUser: ['']
     });
 

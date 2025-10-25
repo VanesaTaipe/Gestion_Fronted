@@ -314,7 +314,7 @@ import { CreateWorkspaceDialogComponent } from '../create-workspace-dialog.compo
               class="bg-[#E0F7F5] border-2 border-[#40E0D0] rounded-2xl p-6 cursor-pointer hover:shadow-lg transition">
               
               <div class="flex items-center justify-between mb-4">
-                <h3 class="font-bold text-lg">{{ proyecto.nombre }}</h3>
+                <h3 class="font-bold text-lg break-words proyecto-nombre">{{ proyecto.nombre }}</h3>
                 <button class="text-gray-400">
                   <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"/>
@@ -389,6 +389,22 @@ import { CreateWorkspaceDialogComponent } from '../create-workspace-dialog.compo
 
   .animate-scaleIn {
     animation: scaleIn 0.3s ease-out;
+  }
+
+
+  .proyecto-nombre {
+
+    display: -webkit-box;              /* para usar line-clamp */
+    -webkit-line-clamp: 2;             /*  máximo 2 líneas */
+    -webkit-box-orient: vertical;      /* define la orientación */
+    overflow: hidden;                  /* oculta el texto extra */
+    text-overflow: ellipsis; 
+
+    white-space: normal;         
+    word-wrap: break-word;       
+    overflow-wrap: break-word;   
+    line-height: 1.3;
+    max-width: 150px;
   }
   `]
 })

@@ -96,7 +96,7 @@ interface ProjectMember {
             </div>
             <div *ngIf="projectDescription">
               <p class="text-sm text-gray-600">Descripción</p>
-              <p class="text-base text-gray-900">{{ projectDescription }}</p>
+              <p class="text-base text-gray-900 descripcion-proyecto">{{ projectDescription }}</p>
             </div>
           </div>
         </ng-template>
@@ -574,6 +574,16 @@ interface ProjectMember {
       background: #fee2e2;
       color: #dc2626;
     }
+
+    .descripcion-proyecto { 
+      white-space: normal;       
+      word-wrap: break-word;     
+      overflow-wrap: break-word;  
+      line-height: 1.5;
+      max-width: 100%;
+      display: block;
+    }
+
   `]
 })
 export class BoardSettingsComponent implements OnInit {

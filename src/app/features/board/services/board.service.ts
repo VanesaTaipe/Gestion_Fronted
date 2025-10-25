@@ -231,8 +231,8 @@ createColumn(projectId: number | string, nombre: string, posicion: number, color
     });
   }
 
-  updateColumnPositions(projectId: number, positions: { id: number; position: number }[]): Observable<any> {
-    return this.http.post(`${this.api}/proyectos/${projectId}/columnas/reorder`, {
+  updateColumnPositions(columnId: number, positions: { id: number; position: number }[]): Observable<any> {
+    return this.http.put(`${this.api}/columnas/${columnId}`, {
       positions: positions
     });
   }

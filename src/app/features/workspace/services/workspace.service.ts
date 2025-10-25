@@ -184,8 +184,11 @@ getProjectsByWorkspaceId(workspaceId: number): Observable<any[]> {
   
   console.log('Enviando al backend:', JSON.stringify(updateData, null, 2));
 
-  return this.http.put<any>(`${this.apiUrl}/${id}`, updateData, {
-    headers: this.getHeaders()
+  return this.http.put<any>(`${this.apiUrl}/${id}`, JSON.stringify(updateData), {
+    headers: new HttpHeaders({
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    })
   }).pipe(
     map(response => response.data || response.espacio || response),
     tap(updatedEspacio => {
@@ -240,6 +243,7 @@ getProjectsByWorkspaceId(workspaceId: number): Observable<any[]> {
   getCurrentUser(): Observable<number> {
     return this.getCurrentUserId();
   }
+
 editWorkspace(id: number, title: string, descripcion: string): Observable<any> {
   const updateData = {
     espacio: {

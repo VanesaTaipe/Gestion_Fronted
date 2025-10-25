@@ -9,7 +9,7 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { from, of } from 'rxjs';
+import { forkJoin, from, Observable, of } from 'rxjs';
 import { catchError, concatMap, map, switchMap } from 'rxjs/operators';
 import { environment } from '../../../../../environments/environment';
 import { Board, Card, Column } from '../../models/board.model';
@@ -329,23 +329,29 @@ private createDefaultColumns() {
     if (event.previousIndex === event.currentIndex) return;
     moveItemInArray(this.columns, event.previousIndex, event.currentIndex);
     if (this.board) this.board.columns = [...this.columns];
-    this.updateColumnPositions();
+    this.updateColumnPositions;
   }
   getCurrentUserName(): string {
   return this.currentUserName;
 }
 
-  updateColumnPositions() {
-    const positions = this.columns.map((col, index) => ({
-      id: col.id,
-      position: index + 1
-    }));
-    
-    this.boardService.updateColumnPositions(this.proyectoId!, positions).subscribe({
-      next: () => console.log('Posiciones actualizadas'),
-      error: (e) => console.error('Error actualizando posiciones:', e)
-    });
-  }
+ updateColumnPositions() {
+  const updates = this.columns.map((col, index) => {
+    const nuevaPosicion = index + 1;
+    return this.boardService.updateColumnPosition(col.id, nuevaPosicion).pipe(
+      catchError(err => {
+        console.error(`Error actualizando columna ${col.id}:`, err);
+        return of(null);
+      })
+    );
+  });
+
+  forkJoin(updates).subscribe({
+    next: () => console.log('Posiciones actualizadas en backend'),
+    error: (e) => console.error('Error general al actualizar posiciones:', e)
+  });
+}
+
 
   trackByColumnId = (_: number, column: Column) => column.id;
 

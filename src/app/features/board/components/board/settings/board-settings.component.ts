@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient} from '@angular/common/http';
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -14,6 +14,7 @@ import { environment } from '../../../../../../environments/environment';
 import { InviteMemberDialogComponent } from '../../../../project/components/invite-member-dialog/inivite-member-dialog.component';
 import { UserService } from '../../../../profile/services/user.service';
 import { User } from '../../../../profile/models/user.interface';
+
 
 interface ProjectMember {
   id_usuario: number;
@@ -34,7 +35,7 @@ interface ProjectMember {
     MatIconModule,
     MatAutocompleteModule,
     MatFormFieldModule,
-    MatInputModule
+    MatInputModule,
   ],
   template: `
     <div class="max-w-5xl mx-auto">
@@ -710,6 +711,8 @@ export class BoardSettingsComponent implements OnInit {
       return;
     }
     const nuevoMiembroTemporal = {
+      id_usuario: user.id_usuario,
+      email: user.email,
       user: user,
       rol_temporal: 2, 
       username: user.username || user.email
@@ -728,7 +731,7 @@ export class BoardSettingsComponent implements OnInit {
 
   confirmarMiembro(miembro: any): void {
     const nuevoMiembro = {
-      id_usuario: miembro.user.id_usuario,
+      id_usuario: miembro.id_usuario,
       id_rol: miembro.rol_temporal
     };
 
@@ -737,6 +740,7 @@ export class BoardSettingsComponent implements OnInit {
       rol: miembro.rol_temporal === 1 ? 'Líder (1)' : 'Miembro (2)',
       data: nuevoMiembro
     });
+
 
     this.http.post(`${this.api}/proyectos/${this.proyectoId}/miembros`, nuevoMiembro).subscribe({
       next: () => {

@@ -42,7 +42,8 @@ export interface Column {
   cards: Card[];
   order?: number;
   posicion?: number;            
-  status?: number | string;    
+  status?: number | string;  
+  tipo_columna?: string;  
 }
 
 export interface Board {

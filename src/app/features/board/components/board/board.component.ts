@@ -89,6 +89,7 @@ currentUserName = '';
     this.colForm = this.fb.group({
       nombre: ['', [Validators.required, Validators.maxLength(120)]],
       color: [this.colorPalette[0], Validators.required],
+      tipo_columna: ['normal', Validators.required], //añadi al form el tipo de columna 
     });
   }
 
@@ -203,6 +204,7 @@ currentUserName = '';
             color: colorFinal, 
             status: c.status,
             posicion: c.posicion,
+            tipo_columna: c.tipo_columna || 'normal',
             cards: []
           };
         });
@@ -414,7 +416,7 @@ private createDefaultColumns() {
     }
     this.editMode = false;
     this.editingColumn = undefined;
-    this.colForm.reset({ nombre: '', color: this.colorPalette[0] });
+    this.colForm.reset({ nombre: '', color: this.colorPalette[0] , tipo_columna: 'normal'});
     this.colModalOpen = true;
   }
 
@@ -426,18 +428,53 @@ private createDefaultColumns() {
 
     const nombre = (this.colForm.value.nombre as string).trim();
     const color = this.colForm.value.color as string; 
-    
+    const tipo_columna = this.colForm.value.tipo_columna as 'normal' | 'fija';
+
     console.log('Datos:', { nombre, color });
     
     if (this.editMode && this.editingColumn) {
+      const tipo_columna = this.colForm.value.tipo_columna;
+      const idColumna = this.editingColumn.id;
 
-      this.boardService.updateColumn(this.editingColumn.id, { nombre, color }).subscribe({
+
+      if (tipo_columna !== this.editingColumn.tipo_columna) { //Nuevo BoardService
+        this.boardService.updateColumnType(this.proyectoId, idColumna, tipo_columna).subscribe({
+          next: () => {
+            console.log('✅ Tipo de columna actualizado correctamente');
+
+            if (this.editingColumn) {
+              this.editingColumn.tipo_columna = tipo_columna;
+            }
+
+            const colIndex = this.columns.findIndex(c => c.id === idColumna);
+            if (colIndex !== -1) {
+              this.columns[colIndex].tipo_columna = tipo_columna;
+            }
+
+            this.cdr.detectChanges();
+            alert('Tipo de columna actualizado correctamente ✅');
+          },
+          error: (e) => {
+            console.error('❌ Error actualizando tipo_columna:', e);
+            // Actualizado
+            if (this.editingColumn) {
+              this.editingColumn.tipo_columna = this.editingColumn.tipo_columna; // no lo cambia
+            }
+
+            alert(e?.error?.error || 'No se pudo actualizar el tipo de columna');
+            this.loadColumns();
+          },
+        });
+      }
+
+      this.boardService.updateColumn(this.editingColumn.id, { nombre, color}).subscribe({
         next: () => {
       
           const colIndex = this.columns.findIndex(c => c.id === this.editingColumn!.id);
           if (colIndex !== -1) {
             this.columns[colIndex].nombre = nombre;
             this.columns[colIndex].color = color;
+            this.columns[colIndex].tipo_columna = tipo_columna; //Actualizado
           }
           
    
@@ -445,6 +482,7 @@ private createDefaultColumns() {
           if (allColIndex !== -1) {
             this.allColumns[allColIndex].nombre = nombre;
             this.allColumns[allColIndex].color = color; 
+            this.allColumns[allColIndex].tipo_columna = tipo_columna; //Actualizado
           }
           
           console.log('Columna actualizada');
@@ -468,7 +506,7 @@ private createDefaultColumns() {
       
       console.log('Creando columna - Pos:', nextPos, 'Color:', color);
       
-      this.boardService.createColumn(this.board.id, nombre, nextPos, color).subscribe({
+      this.boardService.createColumn(this.board.id, nombre, nextPos, color, tipo_columna).subscribe({
         next: (newCol) => {
           console.log('Columna creada:', newCol);
           const columnaConColor = {
@@ -508,7 +546,7 @@ private createDefaultColumns() {
     }
     this.editMode = true;
     this.editingColumn = column;
-    this.colForm.reset({ nombre: column.nombre, color: column.color || this.colorPalette[0] });
+    this.colForm.reset({ nombre: column.nombre, color: column.color || this.colorPalette[0], tipo_columna: column.tipo_columna || 'normal' });
     this.colModalOpen = true;
   }
 

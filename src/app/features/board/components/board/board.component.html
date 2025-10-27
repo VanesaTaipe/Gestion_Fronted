@@ -176,6 +176,37 @@
           </div>
         </div>
 
+        <!-- Selector Normal / Fija ACTUALIZADOOOOOO -->
+        <div class="mt-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de columna</label>
+          <div class="flex gap-4">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                formControlName="tipo_columna"
+                value="normal"
+                class="text-cyan-500 focus:ring-cyan-500"
+                [disabled]="editMode" />
+              <span>Normal</span>
+            </label>
+
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input
+              type="radio"
+              formControlName="tipo_columna"
+              value="fija"
+              class="text-cyan-500 focus:ring-cyan-500"
+              [disabled]="editMode" />
+            <span>Fija</span>
+            </label>
+          </div>
+          <div
+            *ngIf="colForm.value.tipo_columna === 'fija'"
+            class="mt-2 text-xs text-gray-600 bg-blue-50 border border-blue-200 p-2 rounded-lg">
+            Las columnas <strong>fijas</strong> pueden tener hasta <b>200 tareas</b> y no se pueden eliminar.
+          </div>
+        </div>
+
         <div *ngIf="!editMode" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <div class="flex gap-2">
             <svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">

@@ -178,13 +178,15 @@ export class BoardService {
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
     });
   }
-createColumn(projectId: number | string, nombre: string, posicion: number, color: string): Observable<Column> {
+
+createColumn(projectId: number | string, nombre: string, posicion: number, color: string, tipo_columna: 'normal' | 'fija' = 'normal'): Observable<Column> {
   const body = { 
     columna: { 
       id_proyecto: Number(projectId), 
       nombre, 
       posicion: Number(posicion), 
-      color: color
+      color: color,
+      tipo_columna
     } 
   };
   
@@ -210,19 +212,49 @@ createColumn(projectId: number | string, nombre: string, posicion: number, color
     })
   );
 }
-
- updateColumn(columnId: number | string, data: { nombre?: string; color?: string }) {
+  //Actualizado añadiendo nueva propierdad tipo_columna
+ updateColumn(columnId: number | string, data: { nombre?: string; color?: string}) {
   const body: any = { columna: {} };
   
   if (data.nombre !== undefined) body.columna.nombre = data.nombre;
   if (data.color !== undefined) body.columna.color = data.color;
-  
+
   return this.http.put(`${this.api}/columnas/${columnId}`, body, {
     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
   });
 }
 
 
+//Nueva funcion para actualizar tipo_columna
+updateColumnType(
+  projectId: number | string,
+  columnId: number | string,
+  tipo_columna: 'normal' | 'fija'
+) {
+  const body = {
+    gestion: {
+      columnas: [
+        {
+          id_columna: Number(columnId),
+          tipo_columna: tipo_columna
+        }
+      ]
+    }
+  };
+
+  console.log('📤 Payload enviado al backend:', JSON.stringify(body, null, 2));
+
+  return this.http.put(
+    `${this.api}/proyectos/${projectId}/columnas/gestionar-tipos`,
+    body,
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    }
+  );
+}
 
 
   deleteColumn(columnId: number | string) {

@@ -232,6 +232,13 @@ currentUserName = '';
     
     console.log('Columnas activas:', this.columns);
     
+    const savedOrder = localStorage.getItem(`columnOrder_project_${this.proyectoId}`);
+    if (savedOrder) {
+      const orderIds = JSON.parse(savedOrder) as number[];
+      this.columns.sort((a, b) => orderIds.indexOf(a.id) - orderIds.indexOf(b.id));
+      console.log('🔄 Orden restaurado desde localStorage:', orderIds);
+    }
+
     if (this.columns.length === 0) {
       console.log('Sin columnas, creando por defecto...');
       this.createDefaultColumns();
@@ -331,7 +338,8 @@ private createDefaultColumns() {
     if (event.previousIndex === event.currentIndex) return;
     moveItemInArray(this.columns, event.previousIndex, event.currentIndex);
     if (this.board) this.board.columns = [...this.columns];
-    this.updateColumnPositions;
+    this.updateColumnPositions();
+    this.cdr.detectChanges(); //NUEVO
   }
   getCurrentUserName(): string {
   return this.currentUserName;
@@ -340,6 +348,7 @@ private createDefaultColumns() {
  updateColumnPositions() {
   const updates = this.columns.map((col, index) => {
     const nuevaPosicion = index + 1;
+    col.posicion = nuevaPosicion; //NUEVO
     return this.boardService.updateColumnPosition(col.id, nuevaPosicion).pipe(
       catchError(err => {
         console.error(`Error actualizando columna ${col.id}:`, err);
@@ -349,7 +358,10 @@ private createDefaultColumns() {
   });
 
   forkJoin(updates).subscribe({
-    next: () => console.log('Posiciones actualizadas en backend'),
+    next: () => {
+      console.log('Posiciones actualizadas en backend');
+      const order = this.columns.map(c => c.id);
+    },
     error: (e) => console.error('Error general al actualizar posiciones:', e)
   });
 }

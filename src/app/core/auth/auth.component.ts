@@ -19,6 +19,7 @@ interface AuthForm {
   password: FormControl<string>;
   nombre?: FormControl<string>;
   confirmPassword?: FormControl<string>;
+  dni?: FormControl<string>;
 }
 
 @Component({
@@ -66,6 +67,15 @@ export default class AuthComponent implements OnInit {
           nonNullable: true,
         }),
       );
+
+      this.authForm.addControl(
+        "dni",
+        new FormControl("", {
+          validators: [Validators.required, Validators.pattern(/^\d{8,}$/)],
+          nonNullable: true,
+        }),
+      );
+
       this.authForm.addControl(
         "confirmPassword",
         new FormControl("", {
@@ -73,6 +83,7 @@ export default class AuthComponent implements OnInit {
           nonNullable: true,
         }),
       );
+
       
       this.authForm.addValidators(this.passwordMatchValidator());
     }
@@ -148,6 +159,7 @@ export default class AuthComponent implements OnInit {
             nombre: this.authForm.value.nombre!.trim(),
             correo: this.authForm.value.correo!.trim(),
             password: this.authForm.value.password!,
+            dni: this.authForm.value.dni!.trim(), //Nuevo campo: DNI
           });
 
     observable.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({

@@ -429,18 +429,23 @@ export class WorkspaceDetailComponent implements OnInit {
   readonly MAX_WORKSPACES = 3;
 
   ngOnInit() {
-    this.authUserService.currentUser.subscribe(user => {
-      if (user && user.id_usuario) {
-        this.currentUserId = user.id_usuario;
-        this.currentUserName = user.username || 'Usuario';
-      }
-    });
-    this.route.params.subscribe(params => {
-      this.workspaceId = +params['id'];
-      this.loadWorkspace();
-      this.loadProjects();
-      this.loadAllWorkspaces();
-      this.expandedWorkspaces.add(this.workspaceId);
+  // Suscribirse al usuario actual
+  this.authUserService.currentUser.subscribe(user => {
+    if (user && user.id_usuario) {
+      this.currentUserId = user.id_usuario;
+      this.currentUserName = user.username || 'Usuario';
+
+      // NUEVO: Cargar workspaces y proyectos después de obtener el usuario
+      this.route.params.subscribe(params => {
+        this.workspaceId = +params['id'];
+        this.loadWorkspace();
+        this.loadProjects();
+        this.loadAllWorkspaces();
+        this.expandedWorkspaces.add(this.workspaceId);
+      });
+     }else {
+      console.warn('⚠️ Esperando restaurar sesión antes de cargar workspaces...');
+    }
     });
   }
   isWorkspaceCreator(workspaceIdToCheck: number): boolean {

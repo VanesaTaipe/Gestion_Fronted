@@ -677,7 +677,11 @@ closeWithData(): void {
   console.log('Cerrando diálogo con datos:', this.createdUserData);
   
   if (this.createdUserData) {
-    this.dialogRef.close(this.createdUserData);
+    this.dialogRef.close({
+      user: this.createdUserData.user,
+      rol: this.createdUserData.rol,
+      tempPassword: this.createdUserData.tempPassword 
+    });
   } else {
     console.warn('No hay datos de usuario creado');
     this.dialogRef.close();

@@ -705,23 +705,37 @@ export class BoardSettingsComponent implements OnInit {
   }
 
   addMemberFromSearch(user: User): void {
+    if (!user || !user.id_usuario) return;
+
+      // Evita duplicados
     if (this.projectMembers.some(m => m.id_usuario === user.id_usuario)) {
       alert('Este usuario ya es miembro del proyecto');
       this.projectForm.get('searchUser')?.setValue('');
       return;
     }
-    const nuevoMiembroTemporal = {
+
+    const nuevoMiembro = {
       id_usuario: user.id_usuario,
-      email: user.email,
-      user: user,
-      rol_temporal: 2, 
-      username: user.username || user.email
+      id_rol: 2 // Asignar rol de 'miembro' por defecto
     };
 
-    this.miembrosPendientes = this.miembrosPendientes || [];
-    this.miembrosPendientes.push(nuevoMiembroTemporal);
-
-    this.projectForm.get('searchUser')?.setValue('');
+    
+    this.http.post(`${this.api}/proyectos/${this.proyectoId}/miembros`, nuevoMiembro).subscribe({
+      next: () => {
+        alert(`✓ ${user.username || user.email} agregado como miembro`);
+        this.loadProjectMembers(); // refresca la lista
+        this.projectForm.get('searchUser')?.setValue('');
+      },
+      error: (e) => {
+        console.error('Error agregando miembro:', e);
+        if (e.status === 409) {
+          alert('Este usuario ya es miembro del proyecto');
+        } else {
+          alert('Error al agregar el miembro');
+        }
+        this.projectForm.get('searchUser')?.setValue('');
+      }
+    });
   }
 
   toggleRolPendiente(miembro: any): void {

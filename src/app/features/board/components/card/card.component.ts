@@ -14,7 +14,7 @@ export class CardComponent implements OnInit, OnChanges {
   @Input() proyectoId!: number;
   @Output() cardClicked = new EventEmitter<Card>();
   @Output() deleteCard = new EventEmitter<Card>();
-  
+  @Input() isLeader: boolean = false;
 
   constructor(private taskService: TaskService) {}
 
@@ -76,9 +76,13 @@ export class CardComponent implements OnInit, OnChanges {
 
   onDelete(event: Event): void {
     event.stopPropagation();
-    if (confirm(`¿Eliminar la tarjeta "${this.card.title}"?`)) {
-      this.deleteCard.emit(this.card);
-    }
+      if (!this.isLeader) {
+    alert('Solo los líderes pueden eliminar tarjetas');
+    return;
+        }
+      if (confirm(`¿Eliminar la tarjeta "${this.card.title}"?`)) {
+        this.deleteCard.emit(this.card);
+      }
   }
   formatDateShort(dateStr: string): string {    if (!dateStr) return '';
     try {
@@ -133,5 +137,6 @@ export class CardComponent implements OnInit, OnChanges {
     }
     return this.card.prioridad.charAt(0).toUpperCase() + this.card.prioridad.slice(1);
   }
+ 
   
 }

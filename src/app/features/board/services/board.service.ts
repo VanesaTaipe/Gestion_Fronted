@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { forkJoin, Observable, of } from 'rxjs';
-import { catchError, map, switchMap } from 'rxjs/operators';
+import { forkJoin, Observable, of, throwError } from 'rxjs';
+import { catchError, map, switchMap, tap } from 'rxjs/operators';
 import { environment } from '../../../../environments/environment';
 import { Board, Card, Column } from '../models/board.model';
 
@@ -86,7 +86,7 @@ export class BoardService {
               .sort((a: any, b: any) => (a.posicion ?? 0) - (b.posicion ?? 0))
               .map((c: any, idx: number) => {
                 const id = c.id_columna ?? c.id;
-                const colorFinal = this.defaultColorByIndex(idx);
+                const colorFinal = c.color || this.defaultColorByIndex(idx);
                 this.setColumnColor(id, colorFinal);
                 console.log(`[BoardService] Columna ${c.nombre}: color_frontend=${colorFinal}`);                
                 return {
@@ -172,12 +172,7 @@ export class BoardService {
     };
   }
 
-  updateColumnPosition(colId: number | string, posicion: number) {
-    const body = { columna: { posicion: Number(posicion) } };
-    return this.http.put(`${this.api}/columnas/${colId}`, body, {
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
-    });
-  }
+
 createColumn(projectId: number | string, nombre: string, posicion: number, color: string): Observable<Column> {
   const body = { 
     columna: { 
@@ -231,9 +226,28 @@ createColumn(projectId: number | string, nombre: string, posicion: number, color
     });
   }
 
-  updateColumnPositions(columnId: number, positions: { id: number; position: number }[]): Observable<any> {
-    return this.http.put(`${this.api}/columnas/${columnId}`, {
-      positions: positions
-    });
-  }
+updateColumnPosition(columnId: number | string, posicion: number): Observable<any> {
+  const body = { 
+    columna: { 
+      posicion: Number(posicion) 
+    } 
+  };
+  
+  console.log('PUT request:', `${this.api}/columnas/${columnId}`, body);
+  
+  return this.http.put(`${this.api}/columnas/${columnId}`, body, {
+    headers: { 
+      'Content-Type': 'application/json', 
+      'Accept': 'application/json' 
+    }
+  });
+}
+  updateMultipleColumnPositions(columns: { id: number, posicion: number }[]): Observable<any> {
+  const requests = columns.map(col => 
+    this.updateColumnPosition(col.id, col.posicion)
+  );
+  
+  return forkJoin(requests);
+}
+   
 }

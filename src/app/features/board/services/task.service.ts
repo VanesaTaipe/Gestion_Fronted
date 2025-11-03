@@ -64,6 +64,7 @@ export class TaskService {
       return undefined;
     }
   }
+
   createCard(p: TaskCreateDTO): Observable<Card> {
     const currentUserId = this.authService.getCurrentUserId();
     if (!currentUserId) {
@@ -111,17 +112,20 @@ export class TaskService {
           id_asignado: t.id_asignado ?? p.id_asignado,
           asignado_a: '',
           due_at: t.due_at ?? dueMySQL,
+          fecha_vencimiento: t.due_at ?? dueMySQL, 
           prioridad: this.normalizePriority(t.prioridad ?? p.prioridad),
           archivos: [],
           comentarios_count: 0,
         };
+
         if (p.images && p.images.length > 0) {
           console.log(`Subiendo ${p.images.length} archivo(s) para tarea ${taskId}`);
           
           if (p.images.length > 3) {
-            console.warn('Solo se subirán los primeros 5.');
+            console.warn('Solo se subirán los primeros 3.');
             p.images = p.images.slice(0, 3);
           }
+
           const uploadObservables = p.images.map(file => 
             this.uploadFileToTask(taskId, file)
           );
@@ -182,7 +186,7 @@ export class TaskService {
         console.error('Error subiendo archivo:', err);
         
         if (err.status === 400 && err.error?.error?.includes('límite')) {
-          throw new Error('Límite de 5 archivos alcanzado');
+          throw new Error('Límite de 3 archivos alcanzado');
         }
         
         if (err.status === 422) {
@@ -207,6 +211,7 @@ export class TaskService {
       items: items.map(i => ({ id: Number(i.id), position: Number(i.position) })),
     });
   }
+
   checkDuplicateTaskName(
     projectId: number, 
     titulo: string, 
@@ -239,56 +244,75 @@ export class TaskService {
   }
 
   updateCard(card: Card): Observable<any> {
-    const body = {
+    const body: any = {
       titulo: card.title,
       descripcion: card.descripcion,
-      prioridad: card.prioridad,
-      due_at: card.due_at,
-      asignado_a: card.asignado_a,
-      id_asignado: card.id_asignado
+      prioridad: card.prioridad
     };
 
-    return this.http.put(`${this.api}/tareas/${card.id}`, body);
+    // Solo incluir due_at si existe
+    if (card.due_at) {
+      body.due_at = card.due_at;
+    } else if (card.fecha_vencimiento) {
+      body.due_at = card.fecha_vencimiento;
+    }
+
+    // Solo incluir id_asignado si existe (no permitir cambiarlo a null una vez asignado)
+    if (card.id_asignado !== undefined && card.id_asignado !== null) {
+      body.id_asignado = card.id_asignado;
+    }
+
+    console.log('Actualizando tarjeta:', body);
+
+    return this.http.put(`${this.api}/tareas/${card.id}`, body).pipe(
+      tap(res => console.log('Tarjeta actualizada:', res)),
+      catchError(err => {
+        console.error('Error actualizando tarjeta:', err);
+        return throwError(() => err);
+      })
+    );
   }
+
   getTaskFilesComplete(tareaId: number): Observable<ArchivoAdjunto[]> {
-  console.log(`GET archivos completos para tarea ${tareaId}`);
-  
-  return this.http.get<any>(`${this.api}/tareas/${tareaId}/archivos`).pipe(
-    map(response => {
-      console.log('Respuesta de archivos:', response);
-      const archivos = response?.data || [];
-      
-      if (!Array.isArray(archivos)) {
-        console.warn('Formato inesperado:', archivos);
-        return [];
-      }
+    console.log(`GET archivos completos para tarea ${tareaId}`);
+    
+    return this.http.get<any>(`${this.api}/tareas/${tareaId}/archivos`).pipe(
+      map(response => {
+        console.log('Respuesta de archivos:', response);
+        const archivos = response?.data || [];
+        
+        if (!Array.isArray(archivos)) {
+          console.warn('Formato inesperado:', archivos);
+          return [];
+        }
 
-      archivos.forEach((a: any) => {
-        console.log('Archivo recibido:', {
-          id: a.id,
-          nombre: a.archivo_nombre,
-          status: a.status,
-          status_type: typeof a.status
+        archivos.forEach((a: any) => {
+          console.log('Archivo recibido:', {
+            id: a.id,
+            nombre: a.archivo_nombre,
+            status: a.status,
+            status_type: typeof a.status
+          });
         });
-      });
 
-      const archivosCompletos: ArchivoAdjunto[] = archivos.map((a: any) => ({
-        id: a.id,
-        id_tarea: a.id_tarea,
-        archivo_nombre: a.archivo_nombre,
-        archivo_ruta: a.archivo_ruta,
-        status: a.status?.toString() || '0' 
-      }));
+        const archivosCompletos: ArchivoAdjunto[] = archivos.map((a: any) => ({
+          id: a.id,
+          id_tarea: a.id_tarea,
+          archivo_nombre: a.archivo_nombre,
+          archivo_ruta: a.archivo_ruta,
+          status: a.status?.toString() || '0' 
+        }));
 
-      console.log(`${archivosCompletos.length} archivo(s) mapeado(s):`, archivosCompletos);
-      return archivosCompletos;
-    }),
-    catchError(err => {
-      console.error('Error obteniendo archivos:', err);
-      return of([]);
-    })
-  );
-}
+        console.log(`${archivosCompletos.length} archivo(s) mapeado(s):`, archivosCompletos);
+        return archivosCompletos;
+      }),
+      catchError(err => {
+        console.error('Error obteniendo archivos:', err);
+        return of([]);
+      })
+    );
+  }
+
   getTaskFiles(tareaId: number): Observable<string[]> {
     console.log(`GET archivos para tarea ${tareaId}`);
     
@@ -308,7 +332,7 @@ export class TaskService {
           .map((archivo: any) => archivo.archivo_ruta || archivo.url || '')
           .filter((url: string) => url.length > 0);
 
-        console.log(` ${urls.length} URL(s) de archivo(s) obtenida(s):`, urls);
+        console.log(`${urls.length} URL(s) de archivo(s) obtenida(s):`, urls);
         return urls;
       }),
       catchError(err => {
@@ -317,9 +341,12 @@ export class TaskService {
       })
     );
   }
+
   deleteCard(id: number): Observable<any> {
     return this.http.delete(`${this.api}/tareas/${id}`);
   }
+
+
 
   addComment(data: ComentarioCreateDTO): Observable<any> {
     console.log('Enviando comentario:', data);
@@ -346,6 +373,58 @@ export class TaskService {
       })
     );
   }
+
+
+  updateComment(commentId: number, contenido: string): Observable<any> {
+    console.log(`Actualizando comentario ${commentId}:`, contenido);
+    
+    return this.http.put(`${this.api}/comentarios/${commentId}`, {
+      contenido: contenido
+    }).pipe(
+      tap(res => console.log('Comentario actualizado:', res)),
+      catchError(err => {
+        console.error('Error actualizando comentario:', err);
+        
+        if (err.status === 403) {
+          throw new Error('No tienes permiso para editar este comentario');
+        }
+        
+        if (err.status === 404) {
+          throw new Error('Comentario no encontrado');
+        }
+        
+        throw new Error(err.error?.error || 'Error al actualizar comentario');
+      })
+    );
+  }
+
+  // ✅ NUEVO: Eliminar comentario (soft delete)
+  deleteComment(commentId: number): Observable<any> {
+    console.log(`Eliminando comentario ${commentId}`);
+    
+    return this.http.delete(`${this.api}/comentarios/${commentId}`).pipe(
+      tap(res => console.log('Comentario eliminado:', res)),
+      catchError(err => {
+        console.error('Error eliminando comentario:', err);
+        
+        if (err.status === 403) {
+          throw new Error('No tienes permiso para eliminar este comentario');
+        }
+        
+        if (err.status === 404) {
+          throw new Error('Comentario no encontrado');
+        }
+        
+        if (err.status === 400 && err.error?.error?.includes('eliminado')) {
+          throw new Error('El comentario ya está eliminado');
+        }
+        
+        throw new Error(err.error?.error || 'Error al eliminar comentario');
+      })
+    );
+  }
+
+
 
   getResumenTareas(projectId: number): Observable<ColumnaResumen[]> {
     return this.http.get<ColumnaResumen[]>(`${this.api}/proyectos/${projectId}/tareas/resumen`).pipe(
@@ -378,6 +457,7 @@ export class TaskService {
           comentarios_count: tarea.comentarios_count,
           position: tarea.position,
           due_at: tarea.due_at ?? null,
+          fecha_vencimiento: tarea.due_at ?? null,
           comentarios: [],
           archivos: []
         });
@@ -409,24 +489,57 @@ export class TaskService {
     );
   }
 
-
   getTaskById(id: number): Observable<Card> {
-  return this.http.get<any>(`${this.api}/tareas/${id}`).pipe(
-    map((res: any) => {
-      const t = res?.tarea?.data ?? res?.tarea ?? res;
-      return {
-        id: t.id,
-        id_columna: t.columna || t.id_columna,
-        title: t.titulo,
-        descripcion: t.descripcion,
-        prioridad: t.prioridad,
-        due_at: t.due_at,
-        id_asignado: t.id_asignado,
-        asignado_a: t.asignado?.nombre || 'Sin asignar',
-        comentarios: t.comentarios || [],
-        archivos: [],
+    return this.http.get<any>(`${this.api}/tareas/${id}`).pipe(
+      map((res: any) => {
+        const t = res?.tarea?.data ?? res?.tarea ?? res;
+        return {
+          id: t.id,
+          id_columna: t.columna || t.id_columna,
+          title: t.titulo,
+          descripcion: t.descripcion,
+          prioridad: t.prioridad,
+          due_at: t.due_at,
+          fecha_vencimiento: t.due_at,
+          id_asignado: t.id_asignado,
+          asignado_a: t.asignado?.nombre || 'Sin asignar',
+          comentarios: t.comentarios || [],
+          archivos: [],
         } as Card;
       })
     );
   }
+  /**
+ * ✅ NUEVO: Obtener una tarjeta completa por ID
+ */
+getCard(cardId: number): Observable<any> {
+  console.log('🔍 TaskService: Obteniendo tarjeta completa:', cardId);
+  
+  return this.http.get(`${this.api}/tareas/${cardId}`).pipe(
+    map((response: any) => {
+      console.log('📥 TaskService: Tarjeta recibida:', response);
+      
+      // El backend puede devolver { tarea: {...} } o directamente {...}
+      const cardData = response.tarea?.data || response.tarea || response.data || response;
+      
+      return {
+        id: cardData.id_tarea || cardData.id,
+        titulo: cardData.titulo,
+        title: cardData.titulo,
+        descripcion: cardData.descripcion, // ✅ Incluir descripción con HTML
+        prioridad: cardData.prioridad,
+        id_asignado: cardData.id_asignado,
+        asignado_a: cardData.asignado_a || cardData.asignado?.nombre || 'Sin asignar',
+        due_at: cardData.due_at,
+        fecha_vencimiento: cardData.due_at || cardData.fecha_vencimiento,
+        created_at: cardData.created_at,
+        updated_at: cardData.updated_at
+      };
+    }),
+    catchError(err => {
+      console.error('❌ TaskService: Error obteniendo tarjeta:', err);
+      return throwError(() => err);
+    })
+  );
+}
 }

@@ -27,7 +27,7 @@ import { UserService as ProfileUserService } from '../features/profile/services/
          style="background-image: url('assets/im-re-lo.png');"></div>
 
     <!-- Lado derecho - Formulario -->
-    <div class="w-full lg:w-1/2 bg-gray-50 flex items-center justify-center p-8">
+    <div class="w-full lg:w-1/2 bg-gray-50 flex items-center justify-center p-8 overflow-y-auto max-h-screen">
       <div class="w-full max-w-md">
         <!-- Logo -->
         <div class="flex justify-center mb-8">
@@ -61,6 +61,23 @@ import { UserService as ProfileUserService } from '../features/profile/services/
                 *ngIf="searchForm.get('correo')?.touched && searchForm.get('correo')?.invalid"
                 class="text-red-500 text-sm mt-1 ml-4">
                 Ingresa un correo válido
+              </div>
+            </div>
+
+            <div *ngIf="requireDni">
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                  DNI
+              </label>
+              <input
+                formControlName="dni"
+                placeholder="Ingresa tu DNI"
+                maxlength="8"
+                class="w-full px-4 py-3 border-2 border-gray-300 rounded-full focus:border-[#40E0D0] focus:outline-none"
+                type="text" />
+              <div 
+                *ngIf="searchForm.get('dni')?.touched && searchForm.get('dni')?.invalid"
+                class="text-red-500 text-sm mt-1 ml-4">
+                Ingresa un DNI válido de 8 dígitos
               </div>
             </div>
 
@@ -129,6 +146,24 @@ import { UserService as ProfileUserService } from '../features/profile/services/
               </div>
               <p class="text-xs text-gray-500 mt-1 ml-4">
               </p>
+            </div>
+
+            <!-- Campo DNI - Para lo usuarios temporales NUEVOOOO -->
+            <div *ngIf="isTemporalUser">
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Agregar tu DNI *
+              </label>
+              <input
+                formControlName="dni"
+                placeholder="8 dígitos"
+                maxlength="8"
+                class="w-full px-4 py-3 border-2 border-gray-300 rounded-full focus:border-[#40E0D0] focus:outline-none"
+                type="text" />
+              <div 
+                *ngIf="updateForm.get('dni')?.touched && updateForm.get('dni')?.invalid"
+                class="text-red-500 text-sm mt-1 ml-4">
+                Ingresa un DNI válido de 8 dígitos
+              </div>
             </div>
 
             <!-- Campo NUEVA CONTRASEÑA - Siempre visible -->
@@ -264,17 +299,20 @@ export class ForgotPasswordComponent {
   foundUserEmail = '';
   foundUserName = '';
   isTemporalUser = false;
+  requireDni = false; //NUEVOOOO
   
   showPassword = false;
   showConfirmPassword = false;
 
   constructor() {
     this.searchForm = this.fb.group({
-      correo: ['', [Validators.required, Validators.email]]
+      correo: ['', [Validators.required, Validators.email]],
+      dni: [''] //NUEVOOOO
     });
 
     this.updateForm = this.fb.group({
       nombre: [''], 
+      dni: ['',[Validators.pattern(/^\d{8}$/)]], //NUEVOOOO
       newPassword: ['', [Validators.required, Validators.minLength(6)]],
       confirmPassword: ['', [Validators.required, Validators.minLength(6)]]
     }, {
@@ -289,110 +327,171 @@ export class ForgotPasswordComponent {
   }
 
   searchUser(): void {
-  if (this.searchForm.invalid) return;
+    if (this.searchForm.get('correo')?.invalid) return;
 
-  this.isSearching = true;
-  this.errorMessage = '';
-  const correo = this.searchForm.value.correo.trim();
+      this.isSearching = true;
+      this.errorMessage = '';
 
-  console.log('Buscando usuario:', correo);
+      const correo = this.searchForm.value.correo.trim();
+      const dni = this.searchForm.value.dni?.trim();
 
-  this.userService.searchUsers(correo).subscribe({
-    next: (users) => {
-      console.log('Usuarios encontrados:', users);
-      
-      const user = users.find(u => u.email.toLowerCase() === correo.toLowerCase());
-      
-      if (user && user.id_usuario) {
-        console.log('Usuario encontrado:', user);
-        this.foundUserId = user.id_usuario;
-        this.foundUserEmail = user.email;
-        this.foundUserName = user.username ||  '';
-        console.log('Nombre encontrado:', this.foundUserName);
-        console.log('Nombre trimmed:', this.foundUserName.trim());
-        console.log('¿Es "Temporal"?:', this.foundUserName.trim() === 'Temporal');
-        
-        this.isTemporalUser = this.foundUserName.trim() === 'Temporal';
-        
-        console.log('isTemporalUser =', this.isTemporalUser);
-       
-        
-        const nombreControl = this.updateForm.get('nombre');
-        
-        if (this.isTemporalUser) {
-          console.log('Usuario temporal - campo nombre REQUERIDO');
-          nombreControl?.setValidators([Validators.required, Validators.minLength(3)]);
-          nombreControl?.setValue('');
-        } else {
-          console.log('Usuario con nombre - campo nombre NO requerido');
-          nombreControl?.clearValidators();
-          nombreControl?.setValue(this.foundUserName);
+      console.log('Buscando usuario:', correo);
+
+      this.userService.searchByEmail(correo).subscribe({
+        next: (response) => {
+          const user = response.user;
+
+          this.foundUserEmail = user.correo;
+          this.foundUserName = user.nombre;
+          this.isTemporalUser = user.esTemporal;
+
+          console.log('Usuario encontrado:', user);
+          console.log('¿Es temporal?', this.isTemporalUser);
+
+          const nombreControl = this.updateForm.get('nombre');
+
+          // Para Usuario Temporal
+          if (this.isTemporalUser) {
+            console.log('Usuario temporal - campo nombre y DNI requeridos en siguiente paso');
+            this.requireDni = false;
+
+            if (!this.updateForm.get('dni')) {
+              this.updateForm.addControl(
+                'dni',
+                this.fb.control('', [Validators.required, Validators.pattern(/^\d{8}$/)])
+              );
+            }
+
+            nombreControl?.setValidators([Validators.required, Validators.minLength(3)]);
+            nombreControl?.setValue('');
+            nombreControl?.updateValueAndValidity();
+
+            this.step = 'update';
+            this.isSearching = false;
+            return;
+          }
+
+          // Para los usuarios ya registrados
+          if (!this.requireDni) {
+            console.log('Mostrando campo DNI para validación...');
+            this.requireDni = true;
+
+            const dniControl = this.searchForm.get('dni');
+            dniControl?.setValidators([Validators.required, Validators.pattern(/^\d{8}$/)]);
+            dniControl?.updateValueAndValidity();
+
+            this.isSearching = false;
+            return;
+          }
+
+          if (!dni || !/^\d{8}$/.test(dni)) {
+            this.errorMessage = 'Debes ingresar un DNI válido.';
+            this.isSearching = false;
+            return;
+          }
+
+          // Validacion del DNI
+          this.userService.validateDni(correo, dni).subscribe({
+            next: (res) => {
+              console.log('DNI validado correctamente:', res.message);
+
+              nombreControl?.clearValidators();
+              nombreControl?.setValue(this.foundUserName);
+              nombreControl?.updateValueAndValidity();
+
+              this.step = 'update';
+              this.isSearching = false;
+            },
+            error: (error) => {
+              console.error('Error validando DNI:', error);
+              this.errorMessage = error.error?.error || 'El DNI no coincide con el registrado.';
+              this.isSearching = false;
+            }
+          });
+        },
+        error: (error) => {
+          console.error('Error buscando usuario:', error);
+          this.errorMessage = error.error?.error || 'No se encontró una cuenta con ese correo.';
+          this.isSearching = false;
         }
-        
-        nombreControl?.updateValueAndValidity();
-        
-        this.step = 'update';
-      } else {
-        this.errorMessage = 'No se encontró una cuenta con ese correo';
-      }
-      
-      this.isSearching = false;
-    },
-    error: (error) => {
-      console.error('Error buscando usuario:', error);
-      this.errorMessage = 'No se encontró una cuenta con ese correo';
-      this.isSearching = false;
+      });
     }
-  });
-}
 
   updateUserInfo(): void {
-    if (this.updateForm.invalid || !this.foundUserId) {
-      console.warn('Formulario inválido');
-      return;
+    if (this.updateForm.invalid) {
+        console.warn('Formulario inválido');
+        return;
     }
 
     this.isUpdating = true;
     this.errorMessage = '';
-    
+
     const password = this.updateForm.value.newPassword;
     const nombre = this.updateForm.value.nombre?.trim();
+    const correo = this.foundUserEmail;
 
-    console.log('Actualizando usuario ID:', this.foundUserId);
-    console.log('Nueva contraseña:', password.length, 'caracteres');
-    
-    const updateData: { nombre?: string; password: string } = {
-      password: password
-    };
-    
-    if (this.isTemporalUser && nombre) {
-      updateData.nombre = nombre;
-      console.log(' Nuevo nombre:', nombre);
-    } else {
-      console.log('Solo actualizando contraseña (usuario ya tiene nombre)');
+    const dniTemporal = this.updateForm.get('dni')?.value?.trim();
+    const dniRegistrado = this.searchForm.get('dni')?.value?.trim();
+    const dni = this.isTemporalUser ? dniTemporal : dniRegistrado;
+
+    console.log('🛠 Iniciando actualización de usuario...');
+    console.log('Correo:', correo);
+    console.log('DNI:', dni);
+    console.log('¿Es temporal?', this.isTemporalUser);
+
+    //Validaciones básicas antes de enviar al backend
+    if (!password || password.length < 6) {
+      this.errorMessage = 'La contraseña debe tener al menos 6 caracteres.';
+      this.isUpdating = false;
+      return;
     }
 
-    this.userService.updateUser(this.foundUserId, updateData).subscribe({
+    if (!dni || !/^\d{8}$/.test(dni)) {
+      this.errorMessage = 'Debes ingresar un DNI válido de 8 dígitos.';
+      this.isUpdating = false;
+      return;
+    }
+
+    if (this.isTemporalUser && (!nombre || nombre.length < 3)) {
+      this.errorMessage = 'El nombre debe tener al menos 3 caracteres.';
+      this.isUpdating = false;
+      return;
+    }
+
+     //Body a enviar al backend NUEVOOO
+    const updatePayload = {
+      correo: correo,
+      dni: dni,
+      esTemporal: this.isTemporalUser,
+      user: {
+        nombre: this.isTemporalUser ? nombre : undefined,
+        password: password
+      }
+    };
+
+    console.log('Datos a enviar al backend:', updatePayload);
+
+      
+    this.userService.updateUserData(updatePayload).subscribe({
       next: (response) => {
-        console.log('Información actualizada:', response);
+        console.log('Usuario actualizado correctamente:', response);
         this.step = 'success';
         this.isUpdating = false;
+        this.updateForm.reset();
+        this.searchForm.reset();
       },
       error: (error) => {
-        console.error('Error completo:', error);
-        
+        console.error('Error al actualizar:', error);
+
         let mensaje = 'Error al guardar los cambios.';
-        
-        if (error.status === 404) {
-          mensaje = 'Usuario no encontrado.';
-        } else if (error.status === 422) {
-          mensaje = 'Datos inválidos. Verifica la información ingresada.';
-        } else if (error.error?.error) {
-          mensaje = error.error.error;
-        }
-        
+        if (error.status === 404) mensaje = 'Usuario no encontrado.';
+        else if (error.status === 422) mensaje = 'Datos inválidos. Verifica la información ingresada.';
+        else if (error.status === 403) mensaje = 'El DNI o el tipo de usuario no coincide con el registrado.';
+        else if (error.error?.error) mensaje = error.error.error;
+
         this.errorMessage = mensaje;
         this.isUpdating = false;
+        this.updateForm.enable(); 
       }
     });
   }

@@ -10,7 +10,7 @@ import { MatRadioModule } from '@angular/material/radio';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { User } from '../../../profile/models/user.interface';
 import { UserService } from '../../../profile/services/user.service';
-
+import { getPasswordStrength, PasswordStrength } from '../../../../core/auth/validator/password-streangt.validator';
 interface DialogData {
   projectId: number;
   projectName: string;
@@ -546,7 +546,14 @@ export class InviteMemberDialogComponent implements OnInit {
   isInviting = false;
   tempPasswordGenerated: string = '';
   createdUserData: InviteResult | null = null;
-
+  passwordStrengthInfo: PasswordStrength = {
+    hasExactLength: false,
+    hasUpperCase: false,
+    hasLowerCase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+    strength: 0
+  };
   constructor(
     private fb: FormBuilder,
     private dialogRef: MatDialogRef<InviteMemberDialogComponent>,
@@ -563,6 +570,51 @@ export class InviteMemberDialogComponent implements OnInit {
   ngOnInit(): void {
     console.log('Invitando miembro al proyecto:', this.data.projectName);
   }
+    private generateSecurePassword(): string {
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const numbers = '0123456789';
+    const symbols = '!@#$%^&*';
+    const all = uppercase + lowercase + numbers + symbols;
+    
+    let password: string;
+    let attempts = 0;
+    const maxAttempts = 10;
+   
+    do {
+      const chars = [
+        uppercase[Math.floor(Math.random() * uppercase.length)],
+        lowercase[Math.floor(Math.random() * lowercase.length)],
+        numbers[Math.floor(Math.random() * numbers.length)],
+        symbols[Math.floor(Math.random() * symbols.length)],
+      ];
+      
+      // Completar con 2 caracteres aleatorios más
+      for (let i = 0; i < 2; i++) {
+        chars.push(all[Math.floor(Math.random() * all.length)]);
+      }
+      
+      // Mezclar
+      for (let i = chars.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [chars[i], chars[j]] = [chars[j], chars[i]];
+      }
+      
+      password = chars.join('');
+      attempts++;
+      
+      // 
+      const strength = getPasswordStrength(password);
+      
+      if (strength.strength === 100) {
+        break; // Contraseña válida
+      }
+      
+    } while (attempts < maxAttempts);
+    
+    return password;
+  }
+
 
   copyToClipboard(text: string, message: string): void {
     navigator.clipboard.writeText(text).then(() => {
@@ -589,9 +641,13 @@ export class InviteMemberDialogComponent implements OnInit {
 
   this.isInviting = true;
   const formData = this.inviteForm.value;
+  const generatedPassword = this.generateSecurePassword();
+  this.passwordStrengthInfo = getPasswordStrength(generatedPassword);
+
 
   const tempUserData = { 
-    correo: formData.correo 
+    correo: formData.correo,
+    password: generatedPassword
   };
 
   console.log('Creando usuario temporal con:', tempUserData);
@@ -601,29 +657,24 @@ export class InviteMemberDialogComponent implements OnInit {
       console.log('Respuesta del servidor:', response);
       
       let userData: User;
-      let passwordTemp: string = '';
-      
       if (response.user) {
-        passwordTemp = response.user.password || response.user.contrasena_temporal || '';
-        
-        userData = {
-          id_usuario: response.user.id_usuario!,
-          email: response.user.correo || response.user.email!,
-          username: response.user.username || response.user.nombre || response.user.correo?.split('@')[0],
-          es_temporal: response.user.es_temporal !== false
-        };
-      } else {
-        passwordTemp = response.password || response.contrasena_temporal || '';
-        
-        userData = {
-          id_usuario: response.id_usuario!,
-          email: response.email || response.correo!,
-          username: response.username || response.email?.split('@')[0] || response.correo?.split('@')[0],
-          es_temporal: response.es_temporal !== false
-        };
-      }
+          userData = {
+            id_usuario: response.user.id_usuario!,
+            email: response.user.correo || response.user.email!,
+            username: response.user.username || response.user.nombre || response.user.correo?.split('@')[0],
+            es_temporal: response.user.es_temporal !== false
+          };
+        } else {
+          userData = {
+            id_usuario: response.id_usuario!,
+            email: response.email || response.correo!,
+            username: response.username || response.email?.split('@')[0] || response.correo?.split('@')[0],
+            es_temporal: response.es_temporal !== false
+          };
+        }
 
-      this.tempPasswordGenerated = passwordTemp;
+
+      this.tempPasswordGenerated = generatedPassword;
       
       this.createdUserData = {
         user: userData,

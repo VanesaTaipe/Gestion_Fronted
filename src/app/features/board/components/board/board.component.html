@@ -9,6 +9,7 @@
     
     <nav class="flex-1 p-4 flex flex-col gap-2">
       <a 
+        *ngIf="isLeader"
         class="px-4 py-2 rounded flex items-center text-gray-700 cursor-pointer"
         [class.bg-cyan-100]="activeView === 'board'"
         [class.text-cyan-700]="activeView === 'board'"
@@ -30,7 +31,6 @@
       </a>
 
       <a 
-        *ngIf="isLeader"
         class="px-4 py-2 rounded flex items-center text-gray-700 cursor-pointer"
         [class.bg-cyan-100]="activeView === 'settings'"
         [class.text-cyan-700]="activeView === 'settings'"
@@ -70,7 +70,7 @@
             cdkDropList
             cdkDropListOrientation="horizontal"
             [cdkDropListData]="columns"
-            (cdkDropListDropped)="dropColumn($event)"
+            (cdkDropListDropped)="onColumnDrop($event)"
             class="flex gap-4 h-full min-w-max">
             
             <div
@@ -95,9 +95,11 @@
               <app-column
                 [column]="col"
                 [proyectoId]="proyectoId"
+                [currentUserId]="currentUserId"
                 [connectedDropLists]="columnIds"
                 [isLeader]="isLeader"
                 [isMember]="isMember"
+                [deletedMemberId]="lastDeletedMemberId"
                 (cardsChanged)="onCardsChanged()"
                 (editColumn)="onEditColumn($event)"
                 (deleteColumn)="onDeleteColumn($event)">
@@ -115,102 +117,106 @@
     </div>
 
     <!-- Vista: DASHBOARD (solo líder) -->
-    <div *ngIf="activeView === 'dashboard' && isLeader" class="flex-1 overflow-auto bg-gray-100 p-6">
-      <app-board-dashboard 
-        [proyectoId]="proyectoId"
-        [columns]="columns">
-      </app-board-dashboard>
-    </div>
+      <div *ngIf="activeView === 'dashboard' && isLeader" class="flex-1 overflow-auto bg-gray-100 p-6">
+        <app-board-dashboard 
+          [proyectoId]="proyectoId"
+          [columns]="columns">
+        </app-board-dashboard>
+      </div>
 
-    <!-- Vista: CONFIGURACIÓN (solo líder) -->
-    <div *ngIf="activeView === 'settings' && isLeader" class="flex-1 overflow-auto bg-gray-100 p-6">
-      <app-board-settings 
+      <!-- Vista: CONFIGURACIÓN -->
+      <div *ngIf="activeView === 'settings' " class="flex-1 overflow-auto bg-gray-100 p-6">
+       <app-board-settings 
         [proyectoId]="proyectoId"
         [projectName]="board?.nombre ?? 'Proyecto'"
         [workspaceId]="workspaceId"
-        (projectDeleted)="onProjectDeleted()">
+        [isLeader]="isLeader"
+        (projectDeleted)="onProjectDeleted()"
+        (projectLeft)="onProjectLeft()"
+        (roleChanged)="onRoleChanged($event)"
+        (memberDeleted)="onMemberDeleted($event)">
       </app-board-settings>
-    </div>
+      </div>
   </div>
 
-  <!-- Modal crear/editar columna -->
-  <div *ngIf="colModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-    <div class="bg-white w-[520px] max-w-[95vw] rounded-2xl shadow-xl p-6">
-      <h3 class="text-lg font-semibold mb-4">
-        {{ editMode ? 'Editar columna' : 'Nueva columna' }}
-      </h3>
+    <!-- Modal crear/editar columna -->
+    <div *ngIf="colModalOpen && isLeader" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div class="bg-white w-[520px] max-w-[95vw] rounded-2xl shadow-xl p-6">
+        <h3 class="text-lg font-semibold mb-4">
+          {{ editMode ? 'Editar columna' : 'Nueva columna' }}
+        </h3>
 
-      <form [formGroup]="colForm" (ngSubmit)="submitAddColumn()" class="space-y-4">
-        <div>
-          <label class="block text-sm mb-1">Nombre</label>
-          <input
-            type="text"
-            formControlName="nombre"
-            class="w-full rounded-xl border px-3 py-2 outline-none focus:ring"
-            placeholder="Ej. Backlog" />
-          <div
-            *ngIf="colForm.controls['nombre']?.touched && colForm.controls['nombre']?.invalid"
-            class="text-xs text-red-600 mt-1">
-            El nombre es obligatorio.
+        <form [formGroup]="colForm" (ngSubmit)="submitAddColumn()" class="space-y-4">
+          <div>
+            <label class="block text-sm mb-1">Nombre</label>
+            <input
+              type="text"
+              formControlName="nombre"
+              class="w-full rounded-xl border px-3 py-2 outline-none focus:ring"
+              placeholder="Ej. Backlog" />
+            <div
+              *ngIf="colForm.controls['nombre']?.touched && colForm.controls['nombre']?.invalid"
+              class="text-xs text-red-600 mt-1">
+              El nombre es obligatorio.
+            </div>
+            
+            <div *ngIf="colForm.controls['nombre']?.value && isDuplicateColumnName(colForm.controls['nombre']?.value)"
+                class="text-xs text-red-600 mt-1 flex items-center gap-1">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+              </svg>
+              <span>Ya existe una columna activa con este nombre</span>
+            </div>
           </div>
-          
-          <div *ngIf="colForm.controls['nombre']?.value && isDuplicateColumnName(colForm.controls['nombre']?.value)"
-               class="text-xs text-red-600 mt-1 flex items-center gap-1">
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-            </svg>
-            <span>Ya existe una columna activa con este nombre</span>
-          </div>
-        </div>
 
-        <div>
-          <label class="block text-sm mb-2">Color</label>
-          <div class="grid grid-cols-5 gap-2">
-            <label *ngFor="let c of colorPalette" class="cursor-pointer">
-              <input type="radio" formControlName="color" [value]="c" class="sr-only peer" />
-              <div
-                class="h-8 w-8 rounded-lg border shadow-sm peer-checked:ring-2 peer-checked:ring-cyan-500"
-                [style.background-color]="c">
-              </div>
-            </label>
+          <div>
+            <label class="block text-sm mb-2">Color</label>
+            <div class="grid grid-cols-5 gap-2">
+              <label *ngFor="let c of colorPalette" class="cursor-pointer">
+                <input type="radio" formControlName="color" [value]="c" class="sr-only peer" />
+                <div
+                  class="h-8 w-8 rounded-lg border shadow-sm peer-checked:ring-2 peer-checked:ring-cyan-500"
+                  [style.background-color]="c">
+                </div>
+              </label>
+            </div>
           </div>
-        </div>
 
-        <div *ngIf="!editMode" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <div class="flex gap-2">
-            <svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-            </svg>
+          <div *ngIf="!editMode" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div class="flex gap-2">
+              <svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+              </svg>
+            </div>
           </div>
-        </div>
 
-        <div class="flex justify-end gap-3 pt-3">
-          <button
-            type="button"
-            class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
-            (click)="closeAddColumn()">
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            class="px-4 py-2 rounded-xl text-white bg-cyan-500 hover:bg-cyan-600"
-            [disabled]="colForm.invalid || isDuplicateColumnName(colForm.controls['nombre'].value)">
-            {{ editMode ? 'Actualizar' : 'Crear' }}
-          </button>
-        </div>
-      </form>
+          <div class="flex justify-end gap-3 pt-3">
+            <button
+              type="button"
+              class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
+              (click)="closeAddColumn()">
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              class="px-4 py-2 rounded-xl text-white bg-cyan-500 hover:bg-cyan-600"
+              [disabled]="colForm.invalid || isDuplicateColumnName(colForm.controls['nombre'].value)">
+              {{ editMode ? 'Actualizar' : 'Crear' }}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
-  </div>
 
   <!-- Modal de detalle de tarjeta -->
   <app-card-detail-modal
-    *ngIf="showCardDetail && selectedCard"
-    [card]="selectedCard"
-    [columnName]="selectedColumnName"
-    [isLeader]="isLeader"
-    [currentUserId]="currentUserId"
-    (closeModal)="closeCardDetail()"
-    (cardUpdated)="onCardUpdated($event)"
-    (cardDeleted)="onCardDeleted($event)">
-  </app-card-detail-modal>
+  *ngIf="selectedCard"
+  [card]="selectedCard"
+  [proyectoId]="proyectoId"
+  [currentUserId]="currentUserId"
+  [isLeader]="isLeader"                  
+  (closeModal)="closeCardDetail()"
+  (cardUpdated)="onCardUpdated($event)"
+  (cardDeleted)="onCardDeleted($event)">
+</app-card-detail-modal>
 </div>

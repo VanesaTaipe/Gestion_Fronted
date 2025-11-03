@@ -69,7 +69,8 @@ export class UserService {
           return response.users.map((user: any) => ({
             id_usuario: user.id,              
             username: user.nombre,           
-            email: user.correo,     
+            email: user.correo, 
+            dni: user.dni ?? '',    
             bio: user.bio,
             image: user.image,
             es_temporal: user.es_temporal
@@ -163,8 +164,10 @@ export class UserService {
   }
 
 
-updateUser(userId: number, userData: { nombre?: string; password?: string }): Observable<any> {
+updateUser(userId: number, userData: { nombre?: string; password?: string; correo: string; dni?: string }): Observable<any> {
   const updateData: any = {
+    correo: userData.correo,
+    dni: userData.dni || '',
     user: {}
   };
 
@@ -216,4 +219,68 @@ updateUser(userId: number, userData: { nombre?: string; password?: string }): Ob
     }));
   }
   
+    // ============================
+  // 🔹 NUEVAS FUNCIONES ACTUALES (recuperación de contraseña)
+  // ============================
+
+  
+   //Busca un usuario por correo electrónico.
+   //Ruta: POST /api/users/search-by-email
+   
+  searchByEmail(correo: string): Observable<any> {
+    const url = `${environment.apiUrl}/users/search-by-email`;
+    console.log('📩 Buscando usuario por correo:', correo);
+
+    return this.http.post(url, { correo }).pipe(
+      tap(response => console.log('✅ Respuesta de búsqueda:', response)),
+      catchError(error => {
+        console.error('❌ Error en búsqueda de correo:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /**
+   * Valida si el DNI ingresado coincide con el registrado.
+   * Ruta: POST /api/users/validate-dni
+   */
+  validateDni(correo: string, dni: string): Observable<any> {
+    const url = `${environment.apiUrl}/users/validate-dni`;
+    console.log(`🆔 Validando DNI para ${correo}: ${dni}`);
+
+    return this.http.post(url, { correo, dni }).pipe(
+      tap(response => console.log('✅ DNI validado:', response)),
+      catchError(error => {
+        console.error('❌ Error en validación de DNI:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /**
+   * Actualiza datos del usuario (temporal o registrado).
+   * Ruta: PUT /api/users/update
+   */
+  updateUserData(data: {
+    correo: string;
+    dni: string;
+    esTemporal: boolean;
+    user: { nombre?: string; password: string };
+  }): Observable<any> {
+    const url = `${environment.apiUrl}/users/update`;
+    console.log('🛠 Enviando actualización de usuario:', JSON.stringify(data, null, 2));
+
+    return this.http.put(url, data).pipe(
+      tap(response => console.log('✅ Respuesta de actualización:', response)),
+      catchError(error => {
+        console.error('❌ Error al actualizar usuario:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+
+
+
+
 }

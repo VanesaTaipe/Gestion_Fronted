@@ -3,8 +3,8 @@
   <div class="hidden lg:flex lg:w-1/2 bg-cover bg-center" 
        style="background-image: url('assets/im-re-lo.png');"></div>
 
-  <!-- Lado derecho - Formulario -->
-  <div class="w-full lg:w-1/2 bg-gray-50 flex items-center justify-center p-8">
+  <!-- Lado derecho - Formulario , NUEVO: overflow-y-auto -->
+  <div class="w-full lg:w-1/2 bg-gray-50 flex flex-col items-center justify-start p-8 overflow-y-auto h-screen">
     <div class="w-full max-w-md">
       <!-- Logo -->
       <div class="flex justify-center mb-8">
@@ -55,6 +55,27 @@
             </div>
           </div>
         }
+        
+
+        <!--  NUEVO: DNI - Solo en registro -->
+        @if (authType === "register") {
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              DNI
+            </label>
+            <input
+              formControlName="dni"
+              placeholder="Ingresa tu DNI"
+              class="w-full px-4 py-3 border-2 border-gray-300 rounded-full focus:border-[#40E0D0] focus:outline-none"
+              type="text" />
+            <div 
+              *ngIf="authForm.get('dni')?.touched && authForm.get('dni')?.invalid"
+              class="text-red-500 text-sm mt-1 ml-4">
+              El DNI debe tener al menos 8 dígitos numéricos
+            </div>
+          </div>
+        }
+
 
         <!-- Correo electrónico -->
         <div>

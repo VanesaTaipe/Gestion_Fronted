@@ -1,28 +1,28 @@
-import { 
-  CdkDragDrop, 
-  moveItemInArray,
-  DragDropModule 
+import {
+  CdkDragDrop,
+  DragDropModule,
+  moveItemInArray
 } from '@angular/cdk/drag-drop';
-import {  DestroyRef } from '@angular/core';
+
 import { CommonModule, Location } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectorRef, Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin, from, Observable, of } from 'rxjs';
-import { catchError, concatMap, map, switchMap } from 'rxjs/operators';
+import { catchError, concatMap } from 'rxjs/operators';
 import { environment } from '../../../../../environments/environment';
+import { UserService as AuthService } from '../../../../core/auth/services/use.service';
 import { Board, Card, Column } from '../../models/board.model';
 import { BoardService } from '../../services/board.service';
 import { ProjectPermissionService } from '../../services/project-permission.service';
-import { UserService as AuthService } from '../../../../core/auth/services/use.service';
+import { TaskService } from '../../services/task.service';
+import { BoardDashboardComponent } from '../board/dashboard/dashboard.component';
+import { BoardSettingsComponent } from '../board/settings/board-settings.component';
+import { CardDetailModalComponent } from '../card/card-detail.component';
 import { ColumnComponent } from '../column/column.component';
 import { HeaderComponent } from '../header/header.component';
-import { CardDetailModalComponent } from '../card/card-detail.component';
-import { BoardSettingsComponent } from '../board/settings/board-settings.component';
-import { BoardDashboardComponent } from '../board/dashboard/dashboard.component';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { TaskService } from '../../services/task.service';
 
 @Component({
   selector: 'app-board',
@@ -50,12 +50,12 @@ export class BoardComponent {
   proyectoNombre: string = ''; 
   private authService = inject(AuthService);
 private destroyRef = inject(DestroyRef);
-currentUserId = 0;
 currentUserName = '';
   selectedCard: Card | null = null;
   selectedColumnName: string = '';
   showCardDetail = false;
   colModalOpen = false;
+  currentUserId: number = 0;
   editMode = false;
   editingColumn?: Column;
   colForm!: FormGroup;
@@ -74,6 +74,8 @@ currentUserName = '';
   private location = inject(Location);
   private route = inject(ActivatedRoute);
   workspaceId?: number;
+  lastDeletedMemberId?: number; 
+
   
   
 
@@ -93,11 +95,12 @@ currentUserName = '';
   }
 
   ngOnInit() {
+     this.currentUserId = this.authService.getCurrentUserId()!;
+
     this.route.params.subscribe(params => {
       this.proyectoId = +params['projectId']; 
       this.workspaceId = +params['workspaceId'];
-    
-      
+
       console.log('Cargando tablero para proyecto:', this.proyectoId);
       this.loadUserPermissions();
     });
@@ -112,36 +115,43 @@ currentUserName = '';
     .subscribe(user => {
       if (user) {
         this.currentUserName = user.username || 'Usuario';
-        this.currentUserId = user.id_usuario;
+
       }
     });
+ 
   }
 
   private loadUserPermissions() {
-    const currentUserId = this.authService.getCurrentUserId();
-    
-    if (!currentUserId) {
-      console.error('Usuario no autenticado');
-      this.router.navigate(['/login']);
-      return;
-    }
-
-    this.permissionService.getUserRoleInProject(this.proyectoId, currentUserId).subscribe({
-      next: (role) => {
-        this.userRole = role;
-        this.isLeader = this.permissionService.isLeader();
-        this.isMember = this.permissionService.isMember();
-        
-        console.log('Permisos cargados:', { role, isLeader: this.isLeader, isMember: this.isMember });
-        this.loadBoard();
-      },
-      error: (e) => {
-        console.error('Error cargando permisos:', e);
-        alert('No tienes acceso a este proyecto');
-        this.router.navigate(['/workspace', this.workspaceId]);
-      }
-    });
+  const currentUserId = this.authService.getCurrentUserId();
+  
+  if (!currentUserId) {
+    console.error('Usuario no autenticado');
+    this.router.navigate(['/login']);
+    return;
   }
+
+  this.permissionService.getUserRoleInProject(this.proyectoId, currentUserId).subscribe({
+    next: (role) => {
+      this.userRole = role;
+      this.isLeader = this.permissionService.isLeader();
+      this.isMember = this.permissionService.isMember();
+      
+      // ✅ AGREGAR ESTO
+      console.log('🔐 === PERMISOS CARGADOS EN BOARD ===');
+      console.log('userRole:', role);
+      console.log('isLeader:', this.isLeader);
+      console.log('typeof isLeader:', typeof this.isLeader);
+      console.log('isMember:', this.isMember);
+      
+      this.loadBoard();
+    },
+    error: (e) => {
+      console.error('Error cargando permisos:', e);
+      alert('No tienes acceso a este proyecto');
+      this.router.navigate(['/workspace', this.workspaceId]);
+    }
+  });
+}
 
   private loadBoard() {
     if (!this.proyectoId) {
@@ -188,8 +198,16 @@ currentUserName = '';
         const todasLasColumnas = resColumnas?.columnas?.data || resColumnas?.columnas || resColumnas?.data || [];
         
          this.allColumns = todasLasColumnas.map((c: any, index: number) => {
-          const posIndex = index % this.colorPalette.length;
-          const colorFinal = this.colorPalette[posIndex];
+          let colorFinal: string;
+  
+          if (c.color && c.color.trim() !== '') {
+            colorFinal = c.color;
+          } else {
+            const posIndex = index % this.colorPalette.length;
+            colorFinal = this.colorPalette[posIndex];
+            
+            this.guardarColorColumna(c.id_columna ?? c.id, colorFinal);
+  }
 
           console.log(`Columna ${c.nombre}:`, {
             posicion: c.posicion,
@@ -217,7 +235,19 @@ currentUserName = '';
       }
     });
   }
-
+/**
+ * Guarda el color de una columna en la base de datos
+ */
+private guardarColorColumna(columnaId: number, color: string): void {
+  this.boardService.updateColumn(columnaId, { color }).subscribe({
+    next: () => {
+      console.log(`✅ Color guardado para columna ${columnaId}: ${color}`);
+    },
+    error: (e) => {
+      console.error(`❌ Error guardando color para columna ${columnaId}:`, e);
+    }
+  });
+}
   private loadBoardData() {
  
     const columnasActivas = this.allColumns.filter(col => String(col.status) === '0');
@@ -358,26 +388,30 @@ private createDefaultColumns() {
   onCardsChanged() {
     console.log('Tarjetas actualizadas');
   }
-
-  openCardDetail(card: Card) {
+openCardDetail(card: Card) {
   if (!card?.id) return;
 
-  // 🔹 Llama al backend para traer todos los datos (incluido due_at)
+  // ✅ AGREGAR ESTO
+  console.log('🔓 === ABRIENDO MODAL DESDE BOARD ===');
+  console.log('currentUserId:', this.currentUserId);
+  console.log('isLeader:', this.isLeader);
+  console.log('typeof isLeader:', typeof this.isLeader);
+  console.log('proyectoId:', this.proyectoId);
+
   this.taskService.getTaskById(card.id).subscribe({
     next: (tareaCompleta: any) => {
-      // Combina datos antiguos con los nuevos del backend
       this.selectedCard = {
         ...card,
         ...tareaCompleta,
         due_at: tareaCompleta.due_at || card.due_at || null
       };
+      
       this.selectedColumnName = this.columns.find(c => c.id === card.id_columna)?.nombre || '';
       this.showCardDetail = true;
       console.log('Tarea completa cargada:', this.selectedCard);
     },
   });
 }
-
   closeCardDetail() {
     this.showCardDetail = false;
     this.selectedCard = null;
@@ -613,10 +647,7 @@ private createDefaultColumns() {
   }
 
   setActiveView(view: 'board' | 'dashboard' | 'settings') {
-    if (view === 'settings' && !this.isLeader) {
-      alert('No tienes permisos para acceder a Configuración');
-      return;
-    }
+  
     this.activeView = view;
   }
 
@@ -632,4 +663,127 @@ private createDefaultColumns() {
     }
   }
   
+  onColumnDrop(event: CdkDragDrop<Column[]>): void {
+  console.log('🔵 DROP EJECUTADO');
+  
+  // Validar permisos
+  if (!this.isLeader) {
+    console.warn('❌ Sin permisos para reordenar columnas');
+    alert('Solo el líder puede reordenar columnas');
+    return;
+  }
+  
+  const prevIndex = event.previousIndex;
+  const currIndex = event.currentIndex;
+
+  // Si no cambió de posición, no hacer nada
+  if (prevIndex === currIndex) {
+    console.log('⚠️ Misma posición, no se actualiza');
+    return;
+  }
+
+  if (!this.columns || this.columns.length === 0) {
+    console.warn('⚠️ No hay columnas para reordenar');
+    return;
+  }
+
+  console.log(`📦 Moviendo columna: posición ${prevIndex} → ${currIndex}`);
+
+  // Mover en el array
+  moveItemInArray(this.columns, prevIndex, currIndex);
+
+  // ✅ CRÍTICO: Actualizar el campo 'posicion' de TODAS las columnas
+  this.columns.forEach((col, index) => {
+    col.posicion = index;
+    console.log(`  ${col.nombre}: nueva posición = ${index}`);
+  });
+
+  // Crear array de updates
+  const updates = this.columns.map((col, index) => ({
+    id: col.id,
+    posicion: index
+  }));
+
+  console.log('📤 Actualizando posiciones en backend...', updates);
+
+  // Actualizar de forma secuencial para evitar conflictos
+  from(updates).pipe(
+    concatMap(update => 
+      this.boardService.updateColumnPosition(update.id, update.posicion)
+    ),
+    takeUntilDestroyed(this.destroyRef)
+  ).subscribe({
+    next: () => {
+      // Progreso
+    },
+    error: (err) => {
+      console.error('❌ Error actualizando posiciones:', err);
+      alert('Error al reordenar columnas. Recargando...');
+      this.loadBoard();
+    },
+    complete: () => {
+      console.log('✅ Todas las posiciones actualizadas correctamente');
+      
+      // Actualizar también en allColumns
+      if (this.allColumns && this.allColumns.length > 0) {
+        this.columns.forEach(col => {
+          const allColIndex = this.allColumns.findIndex(c => c.id === col.id);
+          if (allColIndex !== -1) {
+            this.allColumns[allColIndex].posicion = col.posicion;
+          }
+        });
+      }
+      
+      this.cdr.detectChanges();
+      console.log('✅ Orden final:', this.columns.map(c => `${c.nombre}:${c.posicion}`));
+    }
+  });
+}
+onProjectLeft() {
+  console.log('[BoardComponent] Usuario salió del proyecto');
+  this.router.navigate(['/workspace', this.workspaceId]);
+}
+onRoleChanged(newRoleId: number) {
+  console.log('[BoardComponent] Rol actualizado:', newRoleId);
+  
+  this.isLeader = newRoleId === 1;
+  this.isMember = newRoleId === 2;
+  this.userRole = newRoleId === 1 ? 'lider' : 'miembro';
+  
+  alert(`Tu rol ha sido actualizado a ${this.userRole === 'lider' ? 'Líder' : 'Miembro'}`);
+  
+  this.cdr.detectChanges();
+  
+  if (this.activeView === 'dashboard' && !this.isLeader) {
+    this.activeView = 'board';
+  }
+}
+/**
+ * 🔄 Actualizar tareas cuando se elimina un miembro
+ */
+onMemberDeleted(usuarioId: number) {
+  console.log('🔄 Actualizando UI: miembro eliminado', usuarioId);
+  
+  // Actualizar todas las tarjetas que estaban asignadas al usuario
+  this.columns.forEach(col => {
+    col.cards.forEach(card => {
+      if (card.id_asignado === usuarioId) {
+        card.id_asignado = undefined;
+        card.asignado_a = 'Sin asignar';
+        console.log(`✅ Tarea ${card.id} actualizada en UI`);
+      }
+    });
+  });
+  
+  // ✅ Guardar el ID para pasarlo a las columnas
+  this.lastDeletedMemberId = usuarioId;
+  
+  // ✅ Resetear después de un momento para que el binding funcione
+  setTimeout(() => {
+    this.lastDeletedMemberId = undefined;
+  }, 100);
+  
+  // Forzar detección de cambios
+  this.cdr.detectChanges();
+}
 }

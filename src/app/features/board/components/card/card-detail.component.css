@@ -50,3 +50,103 @@
     .overflow-y-auto::-webkit-scrollbar-thumb:hover {
       background: #a0aec0;
     }
+/* Forzar dirección LTR en textareas */
+textarea {
+  direction: ltr !important;
+  text-align: left !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+textarea::placeholder {
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+/* Asegurar que el texto siempre sea LTR */
+textarea:focus {
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+/* Estilos para el texto formateado en modo lectura */
+.text-gray-700 strong {
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.text-gray-700 u {
+  text-decoration: underline;
+  text-decoration-color: #3b82f6;
+  text-underline-offset: 2px;
+}
+/* Estilos para Quill */
+.ql-container {
+  font-family: inherit !important;
+  font-size: 0.875rem !important;
+}
+
+.ql-editor {
+  min-height: 150px;
+  max-height: 400px;
+  overflow-y: auto;
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+.ql-editor.ql-blank::before {
+  direction: ltr !important;
+  text-align: left !important;
+  left: 15px !important;
+  right: auto !important;
+}
+
+/* Ocultar toolbar de Quill por defecto */
+.ql-toolbar {
+  display: none;
+}
+
+/* Estilos personalizados para botones de toolbar */
+#toolbar-container button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#toolbar-container button:hover {
+  background-color: white;
+  border-radius: 0.375rem;
+}
+
+#toolbar-container button.ql-active {
+  background-color: #e0f2fe;
+}
+
+#toolbar-container button svg {
+  pointer-events: none;
+}
+
+/* Estilos para listas en el editor */
+.ql-editor ul,
+.ql-editor ol {
+  padding-left: 1.5rem;
+}
+
+.ql-editor li {
+  padding-left: 0.5rem;
+}
+
+/* Prevenir dirección RTL */
+.ql-editor *,
+.ql-editor p,
+.ql-editor ul,
+.ql-editor ol,
+.ql-editor li {
+  direction: ltr !important;
+  text-align: left !important;
+}
+

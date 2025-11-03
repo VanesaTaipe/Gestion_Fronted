@@ -18,10 +18,10 @@
     </div>
   </div>
 
-  <!-- Descripción (opcional, solo si existe) -->
-  <p *ngIf="card.descripcion" class="text-sm text-gray-600 mb-3">
-    Descripción
-  </p>
+    <!-- Descripción (opcional, solo si existe) -->
+    <p *ngIf="card.descripcion" class="text-sm text-gray-600 mb-3">
+      Descripción
+    </p>
 
   <!-- Footer: Asignado y Acciones -->
   <div class="flex items-center justify-between">
@@ -50,6 +50,7 @@
 
       <!-- Botón eliminar -->
        <button 
+          *ngIf="isLeader"
           (click)="onDelete($event)"
           class="w-8 h-8 flex items-center justify-center text-teal-600 hover:bg-teal-50 rounded-full transition"
           title="Eliminar tarjeta">

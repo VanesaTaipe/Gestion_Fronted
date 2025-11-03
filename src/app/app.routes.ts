@@ -7,6 +7,9 @@ import { WorkspaceDashboardComponent } from './features/workspace/components/wor
 import { WorkspaceDetailComponent } from './features/workspace/components/workspace-detail.component/workspace-detail.component';
 import { WorkspaceSettingsComponent } from '../app/features/workspace/components/workspace-settings.component';
 import { workspaceSettingsGuard } from './features/workspace/components/workspace-settings.guard';
+import { AuthGuard } from './core/auth/auth.guard'; 
+
+
 export const routes: Routes = [
   // ====================
   // RUTA PRINCIPAL
@@ -45,20 +48,22 @@ export const routes: Routes = [
   {
     path: 'workspace',
     component: WorkspaceDashboardComponent,
-    title: 'Espacios de Trabajo'
+    title: 'Espacios de Trabajo',
+    canActivate: [AuthGuard] //NUEVO: Protegida con AuthGuard
 
   },
     {
     path: 'workspace-settings/:id',
     component: WorkspaceSettingsComponent,
-     canActivate: [workspaceSettingsGuard]
+     canActivate: [AuthGuard,workspaceSettingsGuard]
   },
 
   // Detalle de un workspace específico
   {
     path: 'workspace/:id',
     component: WorkspaceDetailComponent,
-    title: 'Detalle del Espacio'
+    title: 'Detalle del Espacio',
+    canActivate: [AuthGuard]
   },
 
   // ====================
@@ -70,7 +75,8 @@ export const routes: Routes = [
     path: 'projects',
     loadComponent: () => import('./features/project/components/project-list/project-list.component')
       .then(m => m.ProjectListComponent),
-    title: 'Proyectos'
+    title: 'Proyectos',
+    canActivate: [AuthGuard]
   },
 
   // Crear nuevo proyecto - CORREGIDO
@@ -78,7 +84,8 @@ export const routes: Routes = [
     path: 'projects/create',
     loadComponent: () => import('./features/project/components/create-project/create-project.component')
       .then(m => m.CreateProjectDialogComponent),
-    title: 'Crear Proyecto'
+    title: 'Crear Proyecto',
+    canActivate: [AuthGuard]
   },
 
   // Proyecto específico con su tablero
@@ -86,14 +93,16 @@ export const routes: Routes = [
     path: 'projects/:projectId',
     loadComponent: () => import('./features/project/components/project-list/project-list.component')
       .then(m => m.ProjectListComponent),
-    title: 'Detalle del Proyecto'
+    title: 'Detalle del Proyecto',
+    canActivate: [AuthGuard]
   },
 
   // Board del proyecto
   {
     path: 'projects/:projectId/board',
     component: BoardComponent,
-    title: 'Tablero del Proyecto'
+    title: 'Tablero del Proyecto',
+    canActivate: [AuthGuard]
   },
 
   // ====================
@@ -105,14 +114,16 @@ export const routes: Routes = [
     path: 'workspace/:workspaceId/projects',
     loadComponent: () => import('./features/project/components/project-list/project-list.component')
       .then(m => m.ProjectListComponent),
-    title: 'Proyectos del Espacio'
+    title: 'Proyectos del Espacio',
+    canActivate: [AuthGuard]
   },
 
   // Board de un proyecto dentro de un workspace
   {
     path: 'workspace/:workspaceId/projects/:projectId/board',
     component: BoardComponent,
-    title: 'Tablero'
+    title: 'Tablero',
+    canActivate: [AuthGuard]
   },
 
   // ====================
@@ -123,14 +134,16 @@ export const routes: Routes = [
   {
     path: 'board',
     component: BoardComponent,
-    title: 'Tablero Kanban'
+    title: 'Tablero Kanban',
+    canActivate: [AuthGuard]
   },
 
   // Board con ID específico
   {
     path: 'board/:id',
     component: BoardComponent,
-    title: 'Tablero'
+    title: 'Tablero',
+    canActivate: [AuthGuard]
   },
 
   // ====================
@@ -141,4 +154,3 @@ export const routes: Routes = [
     redirectTo: 'workspace'
   }
 ];
-

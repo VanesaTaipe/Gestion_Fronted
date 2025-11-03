@@ -9,10 +9,11 @@ import { environment } from '../../../../../environments/environment';
 import { HttpClient } from '@angular/common/http';
 import { debounceTime, distinctUntilChanged, map, Observable, startWith } from 'rxjs';
 import { CardComponent } from '../card/card.component';
+import { DescriptionEditorComponent } from './descripction-editor.component';
 @Component({
   selector: 'app-column',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, CdkDropList, CdkDrag, CardComponent, CardDetailModalComponent],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, CdkDropList, CdkDrag, CardComponent, CardDetailModalComponent,DescriptionEditorComponent],
   templateUrl: './column.component.html',
   styleUrls: ['./column.component.css']
 })
@@ -22,6 +23,7 @@ export class ColumnComponent {
   @Input() connectedDropLists: string[] = [];
    @Input() isLeader: boolean = false;
   @Input() isMember: boolean = false;
+  @Input() currentUserId!: number; 
   @Output() cardsChanged = new EventEmitter<void>();
   @Output() editColumn = new EventEmitter<Column>();
   @Output() deleteColumn = new EventEmitter<Column>();
@@ -45,6 +47,7 @@ export class ColumnComponent {
   private api = environment.apiBase;
   totalComentarios: number = 0;
   dropdownOpen = false;
+  
 
 
   constructor(
@@ -54,10 +57,31 @@ export class ColumnComponent {
   ) {
     this.form = this.fb.group({
       titulo: ['', [Validators.required, Validators.maxLength(200)]],
+      descripcion: [''], 
       prioridad: ['', Validators.required],
-      fecha_vencimiento: [''] 
+      fecha_vencimiento: [''],
+      assignee: [''],
+      assigneeName: ['']
     });
   }
+
+@Input() set deletedMemberId(id: number | undefined) {
+  if (id) {
+    console.log('🔔 Column: miembro eliminado', id);
+    
+    // Actualizar todas las tarjetas de esta columna
+    this.column.cards.forEach(card => {
+      if (card.id_asignado === id) {
+        card.id_asignado = undefined;
+        card.asignado_a = 'Sin asignar';
+        console.log(`✅ Card ${card.id} actualizada en columna`);
+      }
+    });
+    
+    // Actualizar modal si está abierto
+    this.updateSelectedCard(id);
+  }
+}
   ngOnInit() {
     this.loadProjectMembers();
     this.setupMemberSearch();
@@ -351,14 +375,17 @@ private getColumnIdFromContainer(container: any): number {
     alert('Esta columna ya tiene 20 tareas (límite máximo).');
     return;
   }
-
+  
   this.creating = true;
   const titulo = (this.form.value.titulo as string).trim();
   const descripcion = (this.form.value.descripcion as string)?.trim() || '';
   const fecha = this.form.value.fecha_vencimiento || null;
   const prioridad = this.form.value.prioridad;
-  const idAsignado = this.form.value.assignee;
-  const nombreAsignado = this.form.value.assigneeName || 'Sin asignar'; 
+  const assigneeValue = this.form.value.assignee;
+  const idAsignado = (assigneeValue && assigneeValue !== '' && assigneeValue !== 'null') 
+  ? Number(assigneeValue) 
+  : undefined;
+    const nombreAsignado = this.form.value.assigneeName || 'Sin asignar'; 
 
   if (!prioridad) {
     alert('Por favor selecciona una prioridad');
@@ -383,7 +410,7 @@ private getColumnIdFromContainer(container: any): number {
     titulo: titulo,
     descripcion: descripcion,
     due_at: fecha,
-    prioridad: prioridad,
+    prioridad: prioridad.toLowerCase(),
     id_asignado: idAsignado,
     id_creador: 1,
     position: 0,
@@ -398,7 +425,8 @@ private getColumnIdFromContainer(container: any): number {
         title: newCard.title,
         asignado_a: nombreAsignado, 
         id_asignado: idAsignado,   
-        fecha_vencimiento: fecha,
+        fecha_vencimiento: fecha||newCard.due_at,
+        due_at: newCard.due_at || fecha,
         images: [...this.previewUrls]
       };
       
@@ -511,6 +539,27 @@ onClickOutside(event: MouseEvent) {
     this.dropdownOpen = false;
   }
 }
-
+/**
+ * 🔄 Actualizar tarjeta seleccionada si está en el modal
+ */
+updateSelectedCard(usuarioIdEliminado: number) {
+  if (this.showCardDetail && this.selectedCard && this.selectedCard.id_asignado === usuarioIdEliminado) {
+    console.log('🔄 Actualizando tarjeta en modal abierto');
+    
+    // Buscar la tarjeta actualizada en column.cards
+    const updatedCard = this.column.cards.find(c => c.id === this.selectedCard!.id);
+    
+    if (updatedCard) {
+      // Actualizar selectedCard con los nuevos datos
+      this.selectedCard = {
+        ...updatedCard,
+        id_asignado: undefined,
+        asignado_a: 'Sin asignar'
+      };
+      
+      console.log('✅ selectedCard actualizada:', this.selectedCard);
+    }
+  }
+}
   
 }

@@ -14,11 +14,14 @@ import { UserService } from "./services/use.service";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { CommonModule } from "@angular/common";
 import { MatIconModule } from '@angular/material/icon';
+import { passwordStrengthValidator, getPasswordStrength, PasswordStrength } from './validator/password-streangt.validator';
+
 interface AuthForm {
   correo: FormControl<string>;
   password: FormControl<string>;
   nombre?: FormControl<string>;
   confirmPassword?: FormControl<string>;
+  dni?: FormControl<string>;
 }
 
 @Component({
@@ -36,6 +39,14 @@ export default class AuthComponent implements OnInit {
   showConfirmPassword = false;
   authForm: FormGroup<AuthForm>;
   destroyRef = inject(DestroyRef);
+    passwordStrength: PasswordStrength = {
+    hasExactLength: false, 
+    hasUpperCase: false,
+    hasLowerCase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+    strength: 0
+  };
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -48,7 +59,7 @@ export default class AuthComponent implements OnInit {
         nonNullable: true,
       }),
       password: new FormControl("", {
-        validators: [Validators.required, Validators.minLength(6)],
+        validators: [Validators.required],
         nonNullable: true,
       }),
     });
@@ -66,13 +77,34 @@ export default class AuthComponent implements OnInit {
           nonNullable: true,
         }),
       );
+
       this.authForm.addControl(
-        "confirmPassword",
+        "dni",
         new FormControl("", {
-          validators: [Validators.required, Validators.minLength(6)],
+          validators: [Validators.required, Validators.pattern(/^\d{8,}$/)],
           nonNullable: true,
         }),
       );
+
+      this.authForm.addControl(
+        "confirmPassword",
+        new FormControl("", {
+          validators: [Validators.required],
+          nonNullable: true,
+        }),
+      );
+      
+      this.authForm.get('password')?.setValidators([
+        Validators.required,
+        passwordStrengthValidator()
+      ]);
+      this.authForm.get('password')?.updateValueAndValidity();
+
+      this.authForm.get('password')?.valueChanges.subscribe(password => {
+        this.passwordStrength = getPasswordStrength(password);
+      });
+
+
       
       this.authForm.addValidators(this.passwordMatchValidator());
     }
@@ -104,6 +136,20 @@ export default class AuthComponent implements OnInit {
 
   toggleConfirmPassword(): void {
     this.showConfirmPassword = !this.showConfirmPassword;
+  }
+    getStrengthColor(): string {
+    if (this.passwordStrength.strength < 40) return '#ef4444'; // Rojo
+    if (this.passwordStrength.strength < 60) return '#f59e0b'; // Amarillo
+    if (this.passwordStrength.strength < 80) return '#3b82f6'; // Azul
+    return '#10b981'; // Verde
+  }
+
+  getStrengthText(): string {
+    if (this.passwordStrength.strength === 0) return '';
+    if (this.passwordStrength.strength < 40) return 'Débil';
+    if (this.passwordStrength.strength < 60) return 'Media';
+    if (this.passwordStrength.strength < 80) return 'Fuerte';
+    return 'Muy fuerte';
   }
 
   submitForm(): void {
@@ -148,6 +194,7 @@ export default class AuthComponent implements OnInit {
             nombre: this.authForm.value.nombre!.trim(),
             correo: this.authForm.value.correo!.trim(),
             password: this.authForm.value.password!,
+            dni: this.authForm.value.dni!.trim(), //Nuevo campo: DNI
           });
 
     observable.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({

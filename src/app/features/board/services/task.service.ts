@@ -199,10 +199,22 @@ export class TaskService {
   }
 
   moveCard(taskId: number | string, toColumnId: number | string, toIndex1Based: number): Observable<any> {
-    return this.http.put(`${this.api}/tareas/${taskId}`, {
+    console.log('🔄 Moviendo tarjeta:', { taskId, toColumnId, position: toIndex1Based });
+    
+    return this.http.patch(`${this.api}/tareas/${taskId}/move`, {
       id_columna: Number(toColumnId),
       position: Number(toIndex1Based),
-    });
+    }).pipe(
+      tap(res => console.log('✅ Tarjeta movida exitosamente:', res)),
+      catchError(err => {
+        console.error('❌ Error moviendo tarjeta:', err);
+        console.error('📋 Detalles:', {
+          status: err.status,
+          error: err.error
+        });
+        return throwError(() => err);
+      })
+    );
   }
 
   reorderCard(columnId: number | string, items: { id: number | string; position: number }[]): Observable<any> {

@@ -42,7 +42,10 @@ export interface Column {
   cards: Card[];
   order?: number;
   posicion?: number;            
-  status?: number | string;    
+  status?: number | string;
+  tipo_columna?: 'normal' | 'fija';
+  status_fijas?: '1' | '2' | null;  // '1' = En Progreso, '2' = Finalizado
+  cantidad_tareas?: number;
 }
 
 export interface Board {

@@ -4,6 +4,8 @@ import { Router, RouterModule } from '@angular/router';
 import { Espacio } from '../../workspace/models/espacio.interface';
 import { WorkspaceService } from '../../workspace/services/workspace.service';
 
+
+
 @Component({
   selector: 'app-workspace-layout',
   standalone: true,
@@ -107,7 +109,7 @@ export class WorkspaceLayoutComponent implements OnInit {
   expandedWorkspaces = new Set<number>();
 
   ngOnInit() {
-    this.loadWorkspaces();
+      this.loadWorkspaces();
   }
 
   loadWorkspaces() {
@@ -144,4 +146,5 @@ export class WorkspaceLayoutComponent implements OnInit {
   event.preventDefault();
   this.router.navigate(['/workspace-settings', 1]);
 }
+  
 }

@@ -70,6 +70,10 @@ currentUserName = '';
   activeView: 'board' | 'dashboard' | 'settings' = 'board';
   projectDescription: string = '';
   projectMembers: any[] = [];
+  
+  // Para gestionar columnas fijas
+  columnaConStatusEnProgreso?: Column;
+  columnaConStatusFinalizado?: Column;
 
   private location = inject(Location);
   private route = inject(ActivatedRoute);
@@ -91,6 +95,7 @@ currentUserName = '';
     this.colForm = this.fb.group({
       nombre: ['', [Validators.required, Validators.maxLength(120)]],
       color: [this.colorPalette[0], Validators.required],
+      status_fijas: [null],
     });
   }
 
@@ -153,6 +158,16 @@ currentUserName = '';
   });
 }
 
+  private identificarColumnasFijas() {
+    this.columnaConStatusEnProgreso = this.allColumns.find(c => c.status_fijas === '1');
+    this.columnaConStatusFinalizado = this.allColumns.find(c => c.status_fijas === '2');
+    
+    console.log('📌 Columnas fijas identificadas:', {
+      enProgreso: this.columnaConStatusEnProgreso?.nombre,
+      finalizado: this.columnaConStatusFinalizado?.nombre
+    });
+  }
+
   private loadBoard() {
     if (!this.proyectoId) {
       console.error('No hay projectId');
@@ -193,9 +208,15 @@ currentUserName = '';
   }
 
   private loadColumns() {
+    console.log('🔍 === INICIANDO CARGA DE COLUMNAS ===');
+    console.log('URL:', `${environment.apiBase}/proyectos/${this.proyectoId}/columnas`);
+    
     this.http.get<any>(`${environment.apiBase}/proyectos/${this.proyectoId}/columnas`).subscribe({
       next: (resColumnas) => {
+        console.log('📥 RESPUESTA COMPLETA del backend:', JSON.stringify(resColumnas, null, 2));
+        
         const todasLasColumnas = resColumnas?.columnas?.data || resColumnas?.columnas || resColumnas?.data || [];
+        console.log('📊 Columnas extraídas:', todasLasColumnas);
         
          this.allColumns = todasLasColumnas.map((c: any, index: number) => {
           let colorFinal: string;
@@ -209,10 +230,13 @@ currentUserName = '';
             this.guardarColorColumna(c.id_columna ?? c.id, colorFinal);
   }
 
-          console.log(`Columna ${c.nombre}:`, {
+          console.log(`📝 Columna "${c.nombre}" (ID: ${c.id_columna ?? c.id}):`, {
             posicion: c.posicion,
             color_bd: c.color,
-            color_asignado: colorFinal
+            color_asignado: colorFinal,
+            tipo_columna: c.tipo_columna,
+            status_fijas: c.status_fijas,  // 👈 ESTO ES LO MÁS IMPORTANTE
+            cantidad_tareas: c.tareas_count || c.cantidad_tareas || 0
           });
           
           return {
@@ -221,11 +245,20 @@ currentUserName = '';
             color: colorFinal, 
             status: c.status,
             posicion: c.posicion,
+            tipo_columna: c.tipo_columna,
+            status_fijas: c.status_fijas,
+            cantidad_tareas: c.tareas_count || c.cantidad_tareas || 0,
             cards: []
           };
         });
         
-        console.log('Columnas cargadas con colores:', this.allColumns);
+        console.log('✅ Columnas procesadas:', this.allColumns);
+        console.log('🔍 Verificando status_fijas de cada columna:');
+        this.allColumns.forEach(col => {
+          console.log(`  - ${col.nombre}: status_fijas = ${col.status_fijas}`);
+        });
+        
+        this.identificarColumnasFijas();
         this.loadBoardData();
       },
       error: (e) => {
@@ -448,7 +481,7 @@ openCardDetail(card: Card) {
     }
     this.editMode = false;
     this.editingColumn = undefined;
-    this.colForm.reset({ nombre: '', color: this.colorPalette[0] });
+    this.colForm.reset({ nombre: '', color: this.colorPalette[0], status_fijas: null });
     this.colModalOpen = true;
   }
 
@@ -460,33 +493,29 @@ openCardDetail(card: Card) {
 
     const nombre = (this.colForm.value.nombre as string).trim();
     const color = this.colForm.value.color as string; 
+    const status_fijas = this.colForm.value.status_fijas;
     
-    console.log('Datos:', { nombre, color });
+    console.log('💾 Guardando cambios de columna:', { nombre, color, status_fijas });
     
     if (this.editMode && this.editingColumn) {
-
+      // Primero guardar nombre y color
       this.boardService.updateColumn(this.editingColumn.id, { nombre, color }).subscribe({
         next: () => {
-      
-          const colIndex = this.columns.findIndex(c => c.id === this.editingColumn!.id);
-          if (colIndex !== -1) {
-            this.columns[colIndex].nombre = nombre;
-            this.columns[colIndex].color = color;
-          }
+          console.log('✅ Nombre y color actualizados');
           
-   
-          const allColIndex = this.allColumns.findIndex(c => c.id === this.editingColumn!.id);
-          if (allColIndex !== -1) {
-            this.allColumns[allColIndex].nombre = nombre;
-            this.allColumns[allColIndex].color = color; 
+          // Ahora guardar status_fijas si cambió
+          if (this.editingColumn!.status_fijas !== status_fijas) {
+            console.log('📝 Status_fijas cambió, guardando...');
+            this.guardarStatusFijas(status_fijas);
+          } else {
+            console.log('ℹ️ Status_fijas sin cambios');
+            const tipo_columna = status_fijas ? 'fija' : 'normal';
+            this.actualizarColumnaLocal(nombre, color, tipo_columna, status_fijas);
+            this.identificarColumnasFijas();
           }
-          
-          console.log('Columna actualizada');
-          this.cdr.detectChanges();
-          this.closeAddColumn();
         },
         error: (e) => {
-          console.error('Error actualizando columna:', e);
+          console.error('❌ Error actualizando columna:', e);
           alert(e?.error?.error ?? 'No se pudo actualizar');
         }
       });
@@ -535,6 +564,124 @@ openCardDetail(card: Card) {
     }
   }
 
+  actualizarColumnaLocal(nombre: string, color: string, tipo_columna: 'normal' | 'fija', status_fijas: '1' | '2' | null) {
+    const colIndex = this.columns.findIndex(c => c.id === this.editingColumn!.id);
+    if (colIndex !== -1) {
+      this.columns[colIndex].nombre = nombre;
+      this.columns[colIndex].color = color;
+      this.columns[colIndex].tipo_columna = tipo_columna;
+      this.columns[colIndex].status_fijas = status_fijas;
+    }
+    
+    const allColIndex = this.allColumns.findIndex(c => c.id === this.editingColumn!.id);
+    if (allColIndex !== -1) {
+      this.allColumns[allColIndex].nombre = nombre;
+      this.allColumns[allColIndex].color = color;
+      this.allColumns[allColIndex].tipo_columna = tipo_columna;
+      this.allColumns[allColIndex].status_fijas = status_fijas;
+    }
+    
+    console.log('✅ Columna actualizada localmente:', { nombre, tipo_columna, status_fijas });
+    this.cdr.detectChanges();
+    this.closeAddColumn();
+  }
+
+  isStatusFijasDisabled(status: '1' | '2'): boolean {
+    // Si la columna actual ya tiene este status, NO está deshabilitado
+    if (this.editingColumn && this.editingColumn.status_fijas === status) {
+      return false;
+    }
+    
+    // Si la columna tiene tareas, está deshabilitado
+    if (this.editingColumn && (this.editingColumn.cantidad_tareas || this.editingColumn.cards?.length || 0) > 0) {
+      return true;
+    }
+    
+    // Si otra columna ya tiene este status, está deshabilitado
+    if (status === '1') {
+      return !!this.columnaConStatusEnProgreso && this.columnaConStatusEnProgreso.id !== this.editingColumn?.id;
+    }
+    if (status === '2') {
+      return !!this.columnaConStatusFinalizado && this.columnaConStatusFinalizado.id !== this.editingColumn?.id;
+    }
+    
+    return false;
+  }
+
+  toggleStatusFijas(status: '1' | '2') {
+    if (!this.editingColumn) return;
+    
+    // Verificar si está deshabilitado
+    if (this.isStatusFijasDisabled(status)) {
+      return;
+    }
+    
+    const currentValue = this.colForm.get('status_fijas')?.value;
+    const newValue = currentValue === status ? null : status;
+    
+    console.log('🔄 Toggle status_fijas (solo visual):', {
+      columna: this.editingColumn.nombre,
+      currentValue,
+      newValue,
+      status
+    });
+    
+    // Solo actualizar el formulario (cambio visual)
+    this.colForm.patchValue({ status_fijas: newValue });
+  }
+
+  guardarStatusFijas(newStatusFijas: '1' | '2' | null) {
+    if (!this.editingColumn) return;
+    
+    console.log('💾 Guardando status_fijas al hacer clic en Actualizar:', {
+      columna_id: this.editingColumn.id,
+      columna_nombre: this.editingColumn.nombre,
+      status_fijas_anterior: this.editingColumn.status_fijas,
+      status_fijas_nuevo: newStatusFijas
+    });
+    
+    const tipo_columna = newStatusFijas ? 'fija' : 'normal';
+    const columnasActualizar = [
+      {
+        id_columna: Number(this.editingColumn.id),
+        status_fijas: newStatusFijas
+      }
+    ];
+       
+    
+    this.boardService.gestionarTiposColumnas(this.proyectoId, columnasActualizar).subscribe({
+      next: (response) => {
+        console.log('✅ Status_fijas guardado exitosamente:', response);
+        // Actualizar estado local
+        const nombre = this.editingColumn!.nombre || '';
+        const color = this.editingColumn!.color || this.colorPalette[0];
+        this.actualizarColumnaLocal(nombre, color, tipo_columna, newStatusFijas);
+        this.identificarColumnasFijas();
+        
+        // Mensaje de éxito
+        const mensaje = newStatusFijas === '1' ? 'Establecida como "En progreso"' :
+                       newStatusFijas === '2' ? 'Establecida como "Finalizado"' :
+                       'Convertida a columna normal';
+        console.log(`✅ ${mensaje}`);
+      },
+      error: (e) => {
+        console.error('❌ Error guardando status_fijas:', e);
+        console.error('📋 Detalles del error:', {
+          status: e?.status,
+          statusText: e?.statusText,
+          error: e?.error,
+          message: e?.message
+        });
+        
+        // Revertir el cambio en el formulario
+        this.colForm.patchValue({ status_fijas: this.editingColumn!.status_fijas });
+        
+        const errorMsg = e?.error?.error || e?.error?.message || e?.message || 'No se pudo actualizar el tipo de columna';
+        alert(`Error: ${errorMsg}\n\nRevisa la consola para más detalles.`);
+      }
+    });
+  }
+
   onEditColumn(column: Column) {
     if (!this.isLeader) {
       alert('Solo el líder puede editar columnas');
@@ -542,7 +689,11 @@ openCardDetail(card: Card) {
     }
     this.editMode = true;
     this.editingColumn = column;
-    this.colForm.reset({ nombre: column.nombre, color: column.color || this.colorPalette[0] });
+    this.colForm.reset({ 
+      nombre: column.nombre, 
+      color: column.color || this.colorPalette[0],
+      status_fijas: column.status_fijas || null
+    });
     this.colModalOpen = true;
   }
 
@@ -576,6 +727,11 @@ openCardDetail(card: Card) {
     this.colModalOpen = false;
     this.editMode = false;
     this.editingColumn = undefined;
+    this.colForm.reset({ 
+      nombre: '', 
+      color: this.colorPalette[0],
+      status_fijas: null
+    });
   }
 
   isDuplicateColumnName(nombre: string): boolean {

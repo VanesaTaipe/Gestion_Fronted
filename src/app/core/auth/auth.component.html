@@ -117,6 +117,38 @@
             class="text-red-500 text-sm mt-1 ml-4">
             La contraseña debe tener al menos 6 caracteres
           </div>
+
+          <!-- Barra de fortaleza (solo visible al escribir contraseña y en registro) -->
+          @if (authType === "register") {
+            <div class="mt-3" *ngIf="authForm.get('password')?.value">
+              <!-- Barra de color -->
+              <div class="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  class="h-full transition-all duration-300"
+                  [style.width.%]="passwordStrength.strength"
+                  [style.backgroundColor]="getStrengthColor()">
+                </div>
+              </div>
+
+              <!-- Etiquetas -->
+              <div class="flex justify-between mt-1 text-xs font-medium">
+                <span [style.color]="getStrengthColor()">
+                  {{ getStrengthText() }}
+                </span>
+
+                <!-- Consejos dinámicos -->
+                <span class="text-gray-500">
+                  {{
+                    !passwordStrength.hasExactLength ? 'Mín. 8 carac.' :
+                    !passwordStrength.hasUpperCase ? 'Agrega mayúscula' :
+                    !passwordStrength.hasLowerCase ? 'Agrega minúscula' :
+                    !passwordStrength.hasNumber ? 'Agrega número' :
+                    !passwordStrength.hasSpecialChar ? 'Agrega símbolo' : ''
+                  }}
+                </span>
+              </div>
+            </div>
+          }
         </div>
 
         <!-- Confirmar contraseña - Solo en registro -->
@@ -138,11 +170,11 @@
                 <mat-icon>{{ showConfirmPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
               </button>
             </div>
-            <div 
-              *ngIf="authForm.hasError('passwordMismatch') && authForm.get('confirmPassword')?.touched"
-              class="text-red-500 text-sm mt-1 ml-4">
-              Las contraseñas no coinciden
-            </div>
+              <div 
+                *ngIf="authForm.hasError('passwordMismatch') && authForm.get('confirmPassword')?.touched"
+                class="text-red-500 text-sm mt-1 ml-4">
+                  Las contraseñas no coinciden
+              </div>
           </div>
         }
 

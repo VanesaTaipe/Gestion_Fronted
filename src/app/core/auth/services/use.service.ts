@@ -254,4 +254,23 @@ export class UserService {
 
   return null;
 }
+
+  getCurrentUserEmail(): string {
+  const user = this.currentUserSubject.value;
+  if (user?.email) return user.email;
+  if (user?.correo) return user.correo;
+
+  try {
+    const stored = localStorage.getItem('user');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return parsed.email || parsed.correo || '';
+    }
+  } catch {
+    return '';
+  }
+
+  return '';
+}
+
 }

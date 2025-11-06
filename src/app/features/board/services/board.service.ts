@@ -217,8 +217,32 @@ createColumn(projectId: number | string, nombre: string, posicion: number, color
   });
 }
 
-
-
+  gestionarTiposColumnas(proyectoId: number, columnas: Array<{ id_columna: number; status_fijas: '1' | '2' | null }>) {
+  const body = {
+    columnas: columnas
+  };
+  
+  const url = `${this.api}/proyectos/${proyectoId}/columnas/gestionar-tipos`;
+  
+  console.log('🔄 Gestionando tipos de columnas:');
+  console.log('  URL:', url);
+  console.log('  Body:', JSON.stringify(body, null, 2));
+  console.log('  Columnas:', columnas);
+  
+  return this.http.put(url, body, {
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
+  }).pipe(
+    tap((response: any) => {
+      console.log('✅ Respuesta del backend:', response);
+    }),
+    catchError((error: any) => {
+      console.error('❌ Error en gestionarTiposColumnas:', error);
+      console.error('  Status:', error.status);
+      console.error('  Error body:', error.error);
+      return throwError(() => error);
+    })
+  );
+}
 
   deleteColumn(columnId: number | string) {
     return this.http.delete(`${this.api}/columnas/${columnId}`, { 

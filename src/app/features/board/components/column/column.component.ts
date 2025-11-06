@@ -240,6 +240,13 @@ onDocumentClick(event: MouseEvent) {
   }
 
   const mismaLista = event.previousContainer === event.container;
+  
+  // Verificar si la columna de origen es una columna "Finalizado" (status_fijas === '2')
+  if (!mismaLista && this.column.status_fijas === '2') {
+    console.log('🚫 No se puede mover tarjetas desde una columna Finalizada');
+    return; // Simplemente no permitir el movimiento
+  }
+  
   if (!mismaLista) {
     const columnaDestino = event.container.data;
     if (columnaDestino.length >= 20) {
@@ -306,8 +313,8 @@ onDocumentClick(event: MouseEvent) {
       },
       error: (e) => {
         console.error('No se pudo mover la tarjeta:', e);
+        // Revertir el movimiento silenciosamente
         transferArrayItem(actual, previo, currentIndex, previousIndex);
-        alert('Error al mover la tarjeta. Por favor, intenta de nuevo.');
       },
     });
   }

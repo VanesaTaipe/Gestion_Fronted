@@ -230,4 +230,5 @@ export default class AuthComponent implements OnInit {
   console.log('Navegando a forgot-password');
   this.router.navigate(['/forgot-password']);
 }
+
 }

@@ -7,6 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { UserService as ProfileUserService } from '../features/profile/services/user.service';
+import { passwordStrengthValidator } from './auth/validator/password-streangt.validator';
 
 @Component({
   selector: 'app-forgot-password',
@@ -175,6 +176,7 @@ import { UserService as ProfileUserService } from '../features/profile/services/
                 <input
                   formControlName="newPassword"
                   [type]="showPassword ? 'text' : 'password'"
+                  (input)="evaluateStrength($event.target.value)"
                   placeholder="Mínimo 6 caracteres"
                   class="w-full px-4 py-3 border-2 border-gray-300 rounded-full focus:border-[#40E0D0] focus:outline-none pr-12" />
                 <button
@@ -184,6 +186,31 @@ import { UserService as ProfileUserService } from '../features/profile/services/
                   <mat-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
                 </button>
               </div>
+
+
+              <!-- Barra de seguridad NUEVOOOOOO -->
+              <div class="h-2 w-full bg-gray-200 rounded-full mt-2 overflow-hidden">
+                <div
+                  class="h-full transition-all duration-300"
+                  [ngClass]="{
+                    'bg-red-500': passwordStrength <= 25,
+                    'bg-yellow-500': passwordStrength > 25 && passwordStrength < 75,
+                    'bg-green-500': passwordStrength >= 75
+                  }"
+                  [style.width.%]="passwordStrength">
+                </div>
+              </div>
+
+              <!-- Texto debajo de la barra -->
+              <p class="text-xs mt-1 ml-2"
+                [ngClass]="{
+                  'text-red-500': passwordStrength <= 25,
+                  'text-yellow-500': passwordStrength > 25 && passwordStrength < 75,
+                  'text-green-500': passwordStrength >= 75
+                }">
+                {{ passwordStrength <= 25 ? 'Débil' : passwordStrength < 75 ? 'Media' : 'Fuerte' }}
+              </p>
+
               <div 
                 *ngIf="updateForm.get('newPassword')?.touched && updateForm.get('newPassword')?.invalid"
                 class="text-red-500 text-sm mt-1 ml-4">
@@ -307,14 +334,14 @@ export class ForgotPasswordComponent {
   constructor() {
     this.searchForm = this.fb.group({
       correo: ['', [Validators.required, Validators.email]],
-      dni: [''] //NUEVOOOO
+      dni: [''] 
     });
 
     this.updateForm = this.fb.group({
       nombre: [''], 
-      dni: ['',[Validators.pattern(/^\d{8}$/)]], //NUEVOOOO
-      newPassword: ['', [Validators.required, Validators.minLength(6)]],
-      confirmPassword: ['', [Validators.required, Validators.minLength(6)]]
+      dni: ['',[Validators.pattern(/^\d{8}$/)]], 
+      newPassword: ['', [Validators.required, passwordStrengthValidator()]],
+      confirmPassword: ['', [Validators.required, passwordStrengthValidator()]]
     }, {
       validators: this.passwordMatchValidator
     });
@@ -499,4 +526,23 @@ export class ForgotPasswordComponent {
   goToLogin(): void {
     this.router.navigate(['/login']);
   }
+
+  passwordStrength = 0;
+
+  evaluateStrength(password: string): void {
+  let strength = 0;
+  if (!password) {
+    this.passwordStrength = 0;
+    return;
+  }
+
+  // Suma puntos por criterios cumplidos
+  if (password.length >= 6) strength += 25;
+  if (/[A-Z]/.test(password)) strength += 25;
+  if (/[0-9]/.test(password)) strength += 25;
+  if (/[^A-Za-z0-9]/.test(password)) strength += 25;
+
+  this.passwordStrength = strength;
+}
+
 }

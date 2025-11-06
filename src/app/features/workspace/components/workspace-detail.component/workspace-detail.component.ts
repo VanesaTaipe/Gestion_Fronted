@@ -5,7 +5,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, Router } from '@angular/router';
-
+import { EditProfileModalComponent } from '../../../../features/profile/components/edit-profile.component'; 
 import { UserService } from '../../../../core/auth/services/use.service';
 import { CreateProjectDialogComponent } from '../../../project/components/create-project/create-project.component';
 import { Proyecto } from '../../../project/models/proyecto.interfacce';
@@ -16,7 +16,7 @@ import { CreateWorkspaceDialogComponent } from '../create-workspace-dialog.compo
 @Component({
   selector: 'app-workspace-detail',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatCardModule, MatIconModule],
+  imports: [CommonModule, MatButtonModule, MatCardModule, MatIconModule, EditProfileModalComponent],
   template: `
   <div class="flex h-screen bg-gray-50 overflow-hidden">
   <!-- Sidebar -->
@@ -190,6 +190,17 @@ import { CreateWorkspaceDialogComponent } from '../create-workspace-dialog.compo
             class="absolute right-0 mt-3 w-56 bg-white rounded-lg shadow-2xl border border-gray-200 py-2 z-50 overflow-hidden"
             style="animation: slideDown 0.2s ease-out;">
 
+
+            <!-- Opción de editar perfil Editado por Rodrigo -->
+            <button
+              (click)="openEditProfile()"
+              class="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-3 transition-colors duration-150">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+              </svg>
+              <span class="font-medium">Editar Perfil</span>
+            </button>
+
             <!-- Opción de cerrar sesión -->
             <button
               (click)="logout()"
@@ -346,6 +357,12 @@ import { CreateWorkspaceDialogComponent } from '../create-workspace-dialog.compo
       </div>
     </div>
   </main>
+  <app-edit-profile-modal
+    *ngIf="showEditModal"
+    [user]="user"
+    (close)="closeEditModal()"
+    (updated)="onProfileUpdated($event)">
+  </app-edit-profile-modal>
 </div>
 `,
   styles: [`
@@ -433,14 +450,14 @@ export class WorkspaceDetailComponent implements OnInit {
       if (user && user.id_usuario) {
         this.currentUserId = user.id_usuario;
         this.currentUserName = user.username || 'Usuario';
+        this.route.params.subscribe(params => {
+          this.workspaceId = +params['id'];
+          this.loadWorkspace();
+          this.loadProjects();
+          this.loadAllWorkspaces();
+          this.expandedWorkspaces.add(this.workspaceId);
+        });
       }
-    });
-    this.route.params.subscribe(params => {
-      this.workspaceId = +params['id'];
-      this.loadWorkspace();
-      this.loadProjects();
-      this.loadAllWorkspaces();
-      this.expandedWorkspaces.add(this.workspaceId);
     });
   }
   isWorkspaceCreator(workspaceIdToCheck: number): boolean {
@@ -636,5 +653,32 @@ getProjectId(proyecto: Proyecto): number {
     this.closeUserMenu();
     this.router.navigate(['/profile']);
   }
-  
+
+  showEditModal = false;
+
+user = {
+  id_usuario: this.currentUserId,
+  username: this.currentUserName,
+  email: ''
+};
+
+openEditProfile(): void {
+  this.showUserMenu = false;
+  this.user.id_usuario = this.currentUserId;
+  this.user.username = this.currentUserName;
+  this.user.email = this.authUserService.getCurrentUserEmail
+    ? this.authUserService.getCurrentUserEmail()
+    : this.user.email;
+  this.showEditModal = true;
+}
+
+closeEditModal(): void {
+  this.showEditModal = false;
+}
+
+onProfileUpdated(updated: any): void {
+  console.log('Perfil actualizado:', updated);
+  this.currentUserName = updated.username;
+}
+
 }

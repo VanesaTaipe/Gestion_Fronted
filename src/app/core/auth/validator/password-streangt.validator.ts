@@ -17,7 +17,7 @@ export function passwordStrengthValidator(): ValidatorFn {
       return null;
     }
 
-    const hasExactLength = value.length === 6; 
+    const hasExactLength = value.length >= 6; 
     const hasUpperCase = /[A-Z]/.test(value);
     const hasLowerCase = /[a-z]/.test(value);
     const hasNumber = /[0-9]/.test(value);
@@ -53,7 +53,7 @@ export function getPasswordStrength(password: string): PasswordStrength {
     };
   }
 
-  const hasExactLength = password.length === 6;
+  const hasExactLength = password.length >= 6;
   const hasUpperCase = /[A-Z]/.test(password);
   const hasLowerCase = /[a-z]/.test(password);
   const hasNumber = /[0-9]/.test(password);

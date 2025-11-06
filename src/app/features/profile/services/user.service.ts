@@ -279,8 +279,16 @@ updateUser(userId: number, userData: { nombre?: string; password?: string; corre
     );
   }
 
-
-
-
+  updateProfile(userId: number, data: { nombre: string; correo: string }) { //NUEVOOOO
+  const url = `http://localhost:8000/api/profiles/updateProfile/${userId}`;
+  console.log('🔄 Actualizando perfil:', data);
+  return this.http.put(url, {user: data}).pipe(
+    tap((res) => console.log('✅ Perfil actualizado:', res)),
+    catchError((err) => {
+      console.error('❌ Error en updateProfile:', err);
+      return throwError(() => err);
+    })
+  );
+}
 
 }

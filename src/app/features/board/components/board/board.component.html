@@ -99,6 +99,7 @@
                 [connectedDropLists]="columnIds"
                 [isLeader]="isLeader"
                 [isMember]="isMember"
+                [allColumns]="allColumns"
                 [deletedMemberId]="lastDeletedMemberId"
                 (cardsChanged)="onCardsChanged()"
                 (editColumn)="onEditColumn($event)"
@@ -216,9 +217,20 @@
               </div>
             </div>
             
-            <!-- Mensaje informativo -->
-            <p class="text-xs text-gray-500 mt-3" *ngIf="editingColumn && (editingColumn.cantidad_tareas || editingColumn.cards?.length || 0) > 0">
-              ⚠️ Esta columna tiene tareas, no puedes cambiar su tipo.
+            <!-- Mensajes informativos -->
+            <!-- Columna Fija con tareas: no puede cambiar tipo -->
+            <p class="text-xs text-yellow-600 mt-3" *ngIf="editingColumn && editingColumn.tipo_columna === 'fija' && (editingColumn.cantidad_tareas || editingColumn.cards?.length || 0) > 0">
+              ⚠️ Esta columna fija tiene tareas. Para cambiar su tipo o convertirla a normal, primero debes eliminar todas las tareas.
+            </p>
+            
+            <!-- Columna Fija sin tareas: puede hacer cualquier cambio -->
+            <p class="text-xs text-green-600 mt-3" *ngIf="editingColumn && editingColumn.tipo_columna === 'fija' && (editingColumn.cantidad_tareas || editingColumn.cards?.length || 0) === 0">
+              ✅ Esta columna fija no tiene tareas. Puedes cambiar su tipo o convertirla a normal haciendo clic en el botón activo.
+            </p>
+            
+            <!-- Columna Normal con tareas: puede convertirse a fija -->
+            <p class="text-xs text-blue-600 mt-3" *ngIf="editingColumn && editingColumn.tipo_columna === 'normal' && (editingColumn.cantidad_tareas || editingColumn.cards?.length || 0) > 0">
+              ℹ️ Puedes convertir esta columna a fija aunque tenga tareas. Las tareas permanecerán en la columna.
             </p>
             <p class="text-xs text-gray-500 mt-3" *ngIf="(columnaConStatusEnProgreso || columnaConStatusFinalizado) && !(editingColumn?.status_fijas)">
               ℹ️ Ya existen columnas fijas

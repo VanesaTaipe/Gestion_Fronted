@@ -21,9 +21,9 @@ import { AnalyticsService, Metricas } from '../../../services/analytics.service'
             <span class="text-3xl font-bold text-gray-900">{{ completionPercentage }}%</span>
             <span class="text-sm text-gray-600">Completado</span>
           </div>
-          <div class="w-full bg-gray-200 rounded-full h-3">
+          <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
             <div 
-              class="bg-cyan-400 h-3 rounded-full transition-all duration-500"
+              class="bg-cyan-400 h-3 rounded-full transition-all duration-500 max-w-full"
               [style.width.%]="completionPercentage">
             </div>
           </div>
@@ -166,7 +166,8 @@ export class BoardDashboardComponent implements OnInit {
 
   // Estas propiedades ahora vienen directamente del backend
   get completionPercentage(): number {
-    return Math.round(this.metricas.rendimiento_porcentaje);
+    // Limitar el porcentaje a un máximo de 100% para evitar deformación de la barra
+    return Math.min(100, Math.round(this.metricas.rendimiento_porcentaje));
   }
 
   get totalTareas(): number {

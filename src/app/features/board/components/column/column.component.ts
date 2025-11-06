@@ -23,7 +23,8 @@ export class ColumnComponent {
   @Input() connectedDropLists: string[] = [];
    @Input() isLeader: boolean = false;
   @Input() isMember: boolean = false;
-  @Input() currentUserId!: number; 
+  @Input() currentUserId!: number;
+  @Input() allColumns: Column[] = []; 
   @Output() cardsChanged = new EventEmitter<void>();
   @Output() editColumn = new EventEmitter<Column>();
   @Output() deleteColumn = new EventEmitter<Column>();
@@ -239,12 +240,73 @@ onDocumentClick(event: MouseEvent) {
     return;
   }
 
+  // IMPORTANTE: Este evento se ejecuta solo en la columna DESTINO (donde se suelta)
+  // Por lo tanto, this.column es la columna DESTINO
   const mismaLista = event.previousContainer === event.container;
   
-  // Verificar si la columna de origen es una columna "Finalizado" (status_fijas === '2')
-  if (!mismaLista && this.column.status_fijas === '2') {
-    console.log('🚫 No se puede mover tarjetas desde una columna Finalizada');
-    return; // Simplemente no permitir el movimiento
+  // Obtener la columna de ORIGEN (desde donde se está moviendo la tarjeta)
+  const previousContainerId = event.previousContainer.id;
+  const previousColumnId = this.getColumnIdFromContainer(event.previousContainer);
+  const previousColumn = this.allColumns.find(col => col.id === previousColumnId);
+  
+  console.log('🔍 Debug drop:', {
+    columnaActual: this.column.nombre,
+    columnaActualId: this.column.id,
+    allColumnsLength: this.allColumns.length,
+    previousColumnId: previousColumnId,
+    previousColumn: previousColumn ? {
+      id: previousColumn.id,
+      nombre: previousColumn.nombre,
+      status_fijas: previousColumn.status_fijas
+    } : null,
+    esMismaLista: mismaLista,
+    allColumns: this.allColumns.map(c => ({ id: c.id, nombre: c.nombre, status_fijas: c.status_fijas }))
+  });
+  
+  // REGLAS DE MOVIMIENTO (Flujo Kanban Estricto - Sincronizado con Backend):
+  // Normal → Normal ✅ | Normal → En Progreso ✅ | Normal → Finalizado ❌
+  // En Progreso → Normal ❌ | En Progreso → Finalizado ✅
+  // Finalizado → Todo bloqueado ❌
+  if (!mismaLista && previousColumn) {
+    // Normalizar valores a string, convirtiendo null/undefined a string vacío
+    const statusFijasOrigen = previousColumn.status_fijas ? String(previousColumn.status_fijas) : '';
+    const statusFijasDestino = this.column.status_fijas ? String(this.column.status_fijas) : '';
+    
+    console.log('🔍 Verificando bloqueo:', {
+      columnaOrigen: previousColumn.nombre,
+      columnaDestino: this.column.nombre,
+      status_fijas_origen_raw: previousColumn.status_fijas,
+      status_fijas_destino_raw: this.column.status_fijas,
+      status_fijas_origen: statusFijasOrigen,
+      status_fijas_destino: statusFijasDestino,
+      esColumnaOrigenNormal: statusFijasOrigen === '',
+      esColumnaOrigenEnProgreso: statusFijasOrigen === '1',
+      esColumnaOrigenFinalizado: statusFijasOrigen === '2',
+      esColumnaDestinoNormal: statusFijasDestino === '',
+      esColumnaDestinoEnProgreso: statusFijasDestino === '1',
+      esColumnaDestinoFinalizado: statusFijasDestino === '2'
+    });
+    
+    // Regla 1: No se puede mover DESDE una columna Finalizado (2)
+    if (statusFijasOrigen === '2') {
+      console.log('🚫 BLOQUEADO: No se puede mover tarjetas desde una columna Finalizada (status_fijas: 2)');
+      return;
+    }
+    
+    // Regla 2: Desde "En Progreso" (1) solo se puede mover a "Finalizado" (2)
+    // NO puede volver a Normal
+    if (statusFijasOrigen === '1' && statusFijasDestino !== '2') {
+      console.log('🚫 BLOQUEADO: Desde "En Progreso" solo puedes mover a "Finalizado", no a Normal');
+      return;
+    }
+    
+    // Regla 3: Desde columna Normal puede ir a Normal o En Progreso, pero NO a Finalizado
+    if (statusFijasOrigen === '' && statusFijasDestino === '2') {
+      console.log('🚫 BLOQUEADO: Desde columna Normal no puedes saltar directamente a "Finalizado"');
+      return;
+    }
+    
+    console.log('✅ PERMITIDO: El movimiento cumple las reglas del flujo Kanban');
   }
   
   if (!mismaLista) {
@@ -313,7 +375,12 @@ onDocumentClick(event: MouseEvent) {
       },
       error: (e) => {
         console.error('No se pudo mover la tarjeta:', e);
-        // Revertir el movimiento silenciosamente
+        
+        // Mostrar mensaje de error del backend al usuario
+        const errorMsg = e?.error?.error || e?.error?.message || 'No se pudo mover la tarjeta';
+        alert(errorMsg);
+        
+        // Revertir el movimiento
         transferArrayItem(actual, previo, currentIndex, previousIndex);
       },
     });

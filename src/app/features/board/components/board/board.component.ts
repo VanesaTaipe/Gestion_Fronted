@@ -587,22 +587,35 @@ openCardDetail(card: Card) {
   }
 
   isStatusFijasDisabled(status: '1' | '2'): boolean {
-    // Si la columna actual ya tiene este status, NO está deshabilitado
-    if (this.editingColumn && this.editingColumn.status_fijas === status) {
-      return false;
+    if (!this.editingColumn) return false;
+    
+    const tieneTareas = (this.editingColumn.cantidad_tareas || this.editingColumn.cards?.length || 0) > 0;
+    const esColumnaFija = this.editingColumn.tipo_columna === 'fija' && this.editingColumn.status_fijas !== null;
+    const tieneEsteStatus = this.editingColumn.status_fijas === status;
+    
+    // Caso 1: Hacer clic en el botón que YA está seleccionado (quitar status_fijas, convertir a Normal)
+    if (tieneEsteStatus) {
+      // Solo permitir quitar status_fijas si NO tiene tareas
+      if (esColumnaFija && tieneTareas) {
+        return true; // Bloqueado: columna fija con tareas no se puede convertir a normal
+      }
+      return false; // Permitido: se puede quitar status_fijas
     }
     
-    // Si la columna tiene tareas, está deshabilitado
-    if (this.editingColumn && (this.editingColumn.cantidad_tareas || this.editingColumn.cards?.length || 0) > 0) {
-      return true;
+    // Caso 2: Cambiar de un status_fijas a otro (ej: de '1' a '2' o viceversa)
+    // REGLA DEL BACKEND: Solo bloquear si la columna YA ES FIJA y tiene tareas
+    // Columna Normal → Fija: ✅ Permitido aunque tenga tareas
+    // Columna Fija → Cambiar status_fijas: ❌ Bloqueado si tiene tareas
+    if (esColumnaFija && tieneTareas) {
+      return true; // Bloquear cambio en columnas fijas con tareas
     }
     
-    // Si otra columna ya tiene este status, está deshabilitado
+    // Caso 3: Si otra columna ya tiene este status, está deshabilitado
     if (status === '1') {
-      return !!this.columnaConStatusEnProgreso && this.columnaConStatusEnProgreso.id !== this.editingColumn?.id;
+      return !!this.columnaConStatusEnProgreso && this.columnaConStatusEnProgreso.id !== this.editingColumn.id;
     }
     if (status === '2') {
-      return !!this.columnaConStatusFinalizado && this.columnaConStatusFinalizado.id !== this.editingColumn?.id;
+      return !!this.columnaConStatusFinalizado && this.columnaConStatusFinalizado.id !== this.editingColumn.id;
     }
     
     return false;

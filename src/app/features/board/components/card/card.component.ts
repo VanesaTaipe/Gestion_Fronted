@@ -76,13 +76,12 @@ export class CardComponent implements OnInit, OnChanges {
 
   onDelete(event: Event): void {
     event.stopPropagation();
-      if (!this.isLeader) {
-    alert('Solo los líderes pueden eliminar tarjetas');
-    return;
-        }
-      if (confirm(`¿Eliminar la tarjeta "${this.card.title}"?`)) {
-        this.deleteCard.emit(this.card);
-      }
+    if (!this.isLeader) {
+      alert('Solo los líderes pueden eliminar tarjetas');
+      return;
+    }
+    // Eliminar directamente sin confirmación
+    this.deleteCard.emit(this.card);
   }
   formatDateShort(dateStr: string): string {    if (!dateStr) return '';
     try {

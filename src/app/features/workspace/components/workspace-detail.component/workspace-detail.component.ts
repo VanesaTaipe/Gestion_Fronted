@@ -5,7 +5,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, Router } from '@angular/router';
-
+import { EditProfileModalComponent } from '../../../profile/components/edit-profile.component';
 import { UserService } from '../../../../core/auth/services/use.service';
 import { CreateProjectDialogComponent } from '../../../project/components/create-project/create-project.component';
 import { Proyecto } from '../../../project/models/proyecto.interfacce';
@@ -13,10 +13,11 @@ import { ProyectoService } from '../../../project/services/proyecto.service';
 import { Espacio } from '../../models/espacio.interface';
 import { WorkspaceService } from '../../services/workspace.service';
 import { CreateWorkspaceDialogComponent } from '../create-workspace-dialog.component/create-workspace-dialog.compent';
+import { filter, take } from 'rxjs';
 @Component({
   selector: 'app-workspace-detail',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatCardModule, MatIconModule],
+  imports: [CommonModule, MatButtonModule, MatCardModule, MatIconModule,EditProfileModalComponent],
   template: `
   <div class="flex h-screen bg-gray-50 overflow-hidden">
   <!-- Sidebar -->
@@ -189,7 +190,15 @@ import { CreateWorkspaceDialogComponent } from '../create-workspace-dialog.compo
             *ngIf="showUserMenu"
             class="absolute right-0 mt-3 w-56 bg-white rounded-lg shadow-2xl border border-gray-200 py-2 z-50 overflow-hidden"
             style="animation: slideDown 0.2s ease-out;">
-
+              <!-- Opción de perfil -->
+            <button
+              (click)="openEditProfile()"
+              class="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-3 transition-colors duration-150">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+              </svg>
+              <span class="font-medium">Editar Perfil</span>
+            </button>
             <!-- Opción de cerrar sesión -->
             <button
               (click)="logout()"
@@ -305,48 +314,54 @@ import { CreateWorkspaceDialogComponent } from '../create-workspace-dialog.compo
         </div>
 
         <!-- Projects Grid -->
-        <div *ngIf="!isLoading && proyectos.length > 0" class="max-w-6xl mx-auto">
-          <!-- Grid de proyectos -->
-          <div class="grid md:grid-cols-3 gap-6 mb-8">
-            <div
-              *ngFor="let proyecto of proyectos"
-              (click)="openProjectBoard(getProjectId(proyecto))"
-              class="bg-[#E0F7F5] border-2 border-[#40E0D0] rounded-2xl p-6 cursor-pointer hover:shadow-lg transition">
-              
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="font-bold text-lg break-words proyecto-nombre">{{ proyecto.nombre }}</h3>
-                <button class="text-gray-400">
-                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"/>
-                  </svg>
-                </button>
-              </div>
+          <div *ngIf="!isLoading && proyectos.length > 0" class="max-w-6xl mx-auto">
+            <!-- Grid de proyectos -->
+            <div class="grid md:grid-cols-3 gap-6 mb-8">
+              <div
+                *ngFor="let proyecto of proyectos"
+                (click)="openProjectBoard(getProjectId(proyecto))"
+                class="bg-[#E0F7F5] border-2 border-[#40E0D0] rounded-2xl p-6 cursor-pointer hover:shadow-lg transition">
+                
+                <div class="flex items-center justify-between mb-4">
+                  <h3 class="font-bold text-lg break-words proyecto-nombre">{{ proyecto.nombre }}</h3>
+                  <button class="text-gray-400">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"/>
+                    </svg>
+                  </button>
+                </div>
 
-              <div class="flex -space-x-2">
-                <div class="w-8 h-8 rounded-full bg-gray-300 border-2 border-white"></div>
-                <div class="w-8 h-8 rounded-full bg-gray-400 border-2 border-white"></div>
-                <div class="w-8 h-8 rounded-full bg-gray-500 border-2 border-white"></div>
-                <div class="w-8 h-8 rounded-full bg-[#40E0D0] border-2 border-white flex items-center justify-center text-white text-sm font-bold">
-                  +
+                <div class="flex -space-x-2">
+                  <div class="w-8 h-8 rounded-full bg-gray-300 border-2 border-white"></div>
+                  <div class="w-8 h-8 rounded-full bg-gray-400 border-2 border-white"></div>
+                  <div class="w-8 h-8 rounded-full bg-gray-500 border-2 border-white"></div>
+                  <div class="w-8 h-8 rounded-full bg-[#40E0D0] border-2 border-white flex items-center justify-center text-white text-sm font-bold">
+                    +
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Botón Crear Proyecto centrado -->
-          <div class="flex justify-center mt-6">
-            <button
-              (click)="createProject()"
-              class="bg-[#40E0D0] hover:bg-[#38c9b8] text-white font-semibold px-8 py-3 rounded-full inline-flex items-center gap-2 shadow-md transition">
-              <span class="text-xl">+</span>
-              Crear Proyecto
-            </button>
+            <!-- Botón Crear Proyecto centrado -->
+            <div class="flex justify-center mt-6">
+              <button
+                (click)="createProject()"
+                class="bg-[#40E0D0] hover:bg-[#38c9b8] text-white font-semibold px-8 py-3 rounded-full inline-flex items-center gap-2 shadow-md transition">
+                <span class="text-xl">+</span>
+                Crear Proyecto
+              </button>
+            </div>
           </div>
-        </div>
       </div>
     </div>
   </main>
 </div>
+<app-edit-profile-modal
+  *ngIf="showEditModal"
+  [user]="user"
+  (close)="closeEditModal()"
+  (updated)="onProfileUpdated($event)"
+></app-edit-profile-modal>
 `,
   styles: [`
     .rotate-180 {
@@ -428,68 +443,116 @@ export class WorkspaceDetailComponent implements OnInit {
    showLimitAlert: boolean = false;
   readonly MAX_WORKSPACES = 3;
 
-  ngOnInit() {
-    this.authUserService.currentUser.subscribe(user => {
-      if (user && user.id_usuario) {
-        this.currentUserId = user.id_usuario;
-        this.currentUserName = user.username || 'Usuario';
-      }
-    });
-    this.route.params.subscribe(params => {
-      this.workspaceId = +params['id'];
-      this.loadWorkspace();
-      this.loadProjects();
-      this.loadAllWorkspaces();
-      this.expandedWorkspaces.add(this.workspaceId);
-    });
-  }
+ngOnInit() {
+
+  
+  this.authUserService.currentUser.pipe(
+    filter(user => {
+      console.log('🔍 Verificando usuario:', user);
+      return user !== null && user.id_usuario !== undefined;
+    }),
+    take(1)
+  ).subscribe(user => {
+    if (user && user.id_usuario) {
+      this.currentUserId = user.id_usuario;
+      this.currentUserName = user.username || 'Usuario';
+      
+      console.log('Usuario autenticado:', {
+        id: this.currentUserId,
+        nombre: this.currentUserName
+      });
+      
+      this.route.params.pipe(take(1)).subscribe(params => {
+        this.workspaceId = +params['id'];
+        console.log('Workspace ID de la ruta:', this.workspaceId);
+        
+        if (this.workspaceId && this.workspaceId > 0) {
+          this.loadWorkspace();
+          this.loadProjects();
+          this.loadAllWorkspaces();
+          this.expandedWorkspaces.add(this.workspaceId);
+          
+          console.log('Iniciando carga de datos para workspace:', this.workspaceId);
+        } else {
+          console.error('Workspace ID inválido:', this.workspaceId);
+          this.router.navigate(['/workspace']);
+        }
+      });
+    }
+  });
+}
+
   isWorkspaceCreator(workspaceIdToCheck: number): boolean {
     const workspace = this.allWorkspaces.find(w => w.id === workspaceIdToCheck);
     return workspace ? workspace.id_usuario === this.currentUserId : false;
   }
-  loadAllWorkspaces() {
-    this.workspaceService.getWorkspaces().subscribe({
-      next: (workspaces) => {
-        this.allWorkspaces = workspaces; 
-        console.log('Espacios cargados:', workspaces);
-      },
-      error: (error) => {
-        console.error('Error al cargar espacios:', error);
-        this.allWorkspaces = []; 
-      }
-    });
-  }
-
-  loadWorkspace() {
-    this.workspaceService.getWorkspaceById(this.workspaceId).subscribe({
-      next: (workspace) => {
-        this.workspace = workspace;
-      },
-      error: (error) => {
-        console.error('Error al cargar espacio:', error);
+loadAllWorkspaces() {
+  console.log('Cargando todos los workspaces del usuario');
+  
+  this.workspaceService.getWorkspaces().subscribe({
+    next: (workspaces) => {
+      console.log('Todos los workspaces cargados:', workspaces.length);
+      this.allWorkspaces = workspaces;
+      
+      workspaces.forEach(w => {
+        console.log(` ${w.nombre} (ID: ${w.id})`);
+      });
+    },
+    error: (error) => {
+      console.error(' Error al cargar workspaces:', error);
+      this.allWorkspaces = [];
+    }
+  });
+}
+loadWorkspace() {
+  console.log('Cargando workspace ID:', this.workspaceId);
+  
+  this.workspaceService.getWorkspaceById(this.workspaceId).subscribe({
+    next: (workspace) => {
+      console.log(' Workspace cargado exitosamente:', workspace);
+      this.workspace = workspace;
+    },
+    error: (error) => {
+      console.error('❌ Error al cargar workspace:', error);
+      console.error('❌ Status:', error.status);
+      console.error('❌ Mensaje:', error.message);
+      
+      // Muestra un mensaje al usuario
+      alert(`No se pudo cargar el espacio de trabajo: ${error.message || 'Error desconocido'}`);
+      
+      // Solo redirige si es un error 404 (no encontrado)
+      if (error.status === 404) {
         this.router.navigate(['/workspace']);
       }
-    });
-  }
+    }
+  });
+}
 
-  loadProjects() {
+
+loadProjects() {
+  console.log('📋 Cargando proyectos del workspace:', this.workspaceId);
+  
   this.workspaceService.getProjectsByWorkspaceId(this.workspaceId).subscribe({
-      next: (proyectos) => {
-        console.log('Proyectos recibidos:', proyectos); 
-        console.log('Primer proyecto:', proyectos[0]); 
-        
-        this.proyectos = proyectos;
-        this.workspaceProjects = proyectos;
-        this.isLoading = false;
-      },
-      error: (error) => {
-        console.error('Error al cargar proyectos:', error);
-        this.proyectos = [];
-        this.workspaceProjects = [];
-        this.isLoading = false;
+    next: (proyectos) => {
+      console.log('✅ Proyectos cargados:', proyectos.length);
+      console.log('📊 Proyectos:', proyectos);
+      
+      if (proyectos.length > 0) {
+        console.log('🔍 Primer proyecto:', proyectos[0]);
       }
-    });
-  }
+      
+      this.proyectos = proyectos;
+      this.workspaceProjects = proyectos;
+      this.isLoading = false;
+    },
+    error: (error) => {
+      console.error('❌ Error al cargar proyectos:', error);
+      this.proyectos = [];
+      this.workspaceProjects = [];
+      this.isLoading = false;
+    }
+  });
+}
 getProjectId(proyecto: Proyecto): number {
   return proyecto.id || proyecto.id_proyecto || 0;
 }
@@ -636,5 +699,32 @@ getProjectId(proyecto: Proyecto): number {
     this.closeUserMenu();
     this.router.navigate(['/profile']);
   }
+  showEditModal = false;
+
+user = {
+  id_usuario: this.currentUserId,
+  username: this.currentUserName,
+  email: ''
+};
+
+openEditProfile(): void {
+  this.showUserMenu = false;
+  this.user.id_usuario = this.currentUserId;
+  this.user.username = this.currentUserName;
+  this.user.email = this.authUserService.getCurrentUserEmail
+    ? this.authUserService.getCurrentUserEmail()
+    : this.user.email;
+  this.showEditModal = true;
+}
+
+closeEditModal(): void {
+  this.showEditModal = false;
+}
+
+onProfileUpdated(updated: any): void {
+  console.log('Perfil actualizado:', updated);
+  this.currentUserName = updated.username;
+}
+
   
 }

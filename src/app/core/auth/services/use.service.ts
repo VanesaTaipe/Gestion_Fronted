@@ -24,7 +24,6 @@ export class UserService {
     console.log('UserService inicializado');
     console.log('API URL:', environment.apiUrl);
     
-    // Intentar cargar usuario desde token guardado
     this.loadUserFromToken();
   }
   
@@ -34,10 +33,6 @@ export class UserService {
   return id ? parseInt(id, 10) : null;
   }
 
-
-  /**
-   * Cargar usuario desde token guardado en localStorage
-   */
   private loadUserFromToken(): void {
     const token = this.jwtService.getToken();
     if (token) {
@@ -46,7 +41,7 @@ export class UserService {
     this.getCurrentUser().subscribe({
       next: ({ user }) => {
         console.log('Usuario restaurado desde token:', user);
-        this.currentUserSubject.next(user); // ✅ fuerza a restaurar sesión
+        this.currentUserSubject.next(user); 
       },
       error: (err) => {
         console.error('Error al cargar usuario desde token:', err);
@@ -58,10 +53,6 @@ export class UserService {
     }
   }
 
-  /**
-   * LOGIN
-   * Backend: POST /api/users/login
-   */
   login(credentials: {
     correo: string;
     password: string;
@@ -97,22 +88,18 @@ export class UserService {
     
   }
 
-  /**
-   * REGISTRO
-   * Backend: POST /api/users
-   */
   register(credentials: {
     nombre: string;
     correo: string;
     password: string;
-    dni: string; //Nuevo campo: DNI
+    dni: string; 
   }): Observable<{ user: User }> {
     const registerData = {
       user: {
         nombre: credentials.nombre,
         correo: credentials.correo,
         password: credentials.password,
-        dni: credentials.dni //Nuevo campo: DNI
+        dni: credentials.dni 
       }
     };
 
@@ -137,8 +124,6 @@ export class UserService {
           console.error('Error en registro:', error);
           console.error('Status:', error.status);
           console.error('Mensaje completo:', error.error);
-          
-          // Log más detallado para debugging
           if (error.error) {
             console.error('Detalles del error:', JSON.stringify(error.error, null, 2));
           }
@@ -148,42 +133,33 @@ export class UserService {
       );
   }
 
-  /**
-   * LOGOUT
-   */
   logout(): void {
     console.log('Cerrando sesión...');
     this.purgeAuth();
     void this.router.navigate(["/login"]);
   }
 
-  /**
-   * OBTENER USUARIO ACTUAL
-   * Backend: GET /api/users/{id} 
-   */
   getCurrentUser(): Observable<{ user: User }> {
   const token = this.jwtService.getToken();
   const storedUser = this.currentUserSubject.value;
 
   if (!token) {
-    console.warn('⚠️ No hay token guardado, abortando carga de usuario');
+    console.warn('No hay token guardado, abortando carga de usuario');
     return throwError(() => new Error('No autenticado'));
   }
-
-  // Intentamos recuperar el ID del usuario actual
   const userId = storedUser?.id_usuario || this.getStoredUserId();
 
   if (!userId) {
-    console.error('⚠️ No se encontró id_usuario en memoria ni en storage');
+    console.error('No se encontró id_usuario en memoria ni en storage');
     return throwError(() => new Error('No autenticado'));
   }
 
   const url = `${environment.apiUrl}/users/${userId}`;
-  console.log('📡 Cargando usuario desde:', url);
+  console.log(' Cargando usuario desde:', url);
 
   return this.http.get<{ user: User }>(url).pipe(
     tap(({ user }) => {
-      console.log('✅ Usuario cargado:', user);
+      console.log(' Usuario cargado:', user);
       this.currentUserSubject.next(user);
     }),
     catchError(err => {
@@ -194,9 +170,6 @@ export class UserService {
   );
 }
 
-  /**
-   * ACTUALIZAR USUARIO
-   */
   update(user: Partial<User>): Observable<{ user: User }> {
     return this.http.put<{ user: User }>(`${environment.apiUrl}/user`, { user }).pipe(
       tap(({ user }) => {
@@ -205,10 +178,6 @@ export class UserService {
       }),
     );
   }
-
-  /**
-   * GUARDAR AUTENTICACIÓN
-   */
   setAuth(user: User): void {
     console.log('Guardando autenticación...');
     console.log('Usuario:', user);
@@ -226,32 +195,40 @@ export class UserService {
     this.currentUserSubject.next(user);
     console.log('Autenticación completada');
   }
-
-  /**
-   * LIMPIAR AUTENTICACIÓN
-   */
   purgeAuth(): void {
-    console.log('🧹 Limpiando autenticación...');
+    console.log('Limpiando autenticación...');
     this.jwtService.destroyToken();
     this.currentUserSubject.next(null);
   }
-
-  /**
-   * OBTENER ID DEL USUARIO ACTUAL (helper)
-   */
   getCurrentUserId(): number | null {
   const user = this.currentUserSubject.value;
 
   if (user?.id_usuario) {
     return user.id_usuario;
   }
-
-  // Si no hay usuario cargado (ej: tras F5), intenta leer del localStorage
   const storedId = localStorage.getItem('userId');
   if (storedId) {
     return parseInt(storedId, 10);
   }
 
   return null;
+}
+
+  getCurrentUserEmail(): string {
+  const user = this.currentUserSubject.value;
+  if (user?.email) return user.email;
+  if (user?.correo) return user.correo;
+
+  try {
+    const stored = localStorage.getItem('user');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return parsed.email || parsed.correo || '';
+    }
+  } catch {
+    return '';
+  }
+
+  return '';
 }
 }

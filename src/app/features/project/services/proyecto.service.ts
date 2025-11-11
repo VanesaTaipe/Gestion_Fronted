@@ -11,6 +11,7 @@ import { Proyecto } from '../models/proyecto.interfacce';
 })
 export class ProyectoService {
   private apiUrl = `${environment.apiBase}/proyectos`;
+   private apiUrls = `${environment.apiBase}/users`;
   private proyectosSubject = new BehaviorSubject<Proyecto[]>([]);
   public proyectos$ = this.proyectosSubject.asObservable();
   
@@ -194,6 +195,19 @@ agregarMiembro(projectId: number, miembroData: { id_usuario: number, id_rol: num
    */
   exists(id: number): Observable<boolean> {
     return this.http.get<boolean>(`${this.apiUrl}/${id}/exists`);
+  }
+  createTemporalUser(userData: { correo: string }): Observable<any> {
+    console.log('Creando usuario temporal:', userData);
+    
+    return this.http.post<any>(`${this.apiUrl}/temp`, userData).pipe(
+      tap(response => {
+        console.log('Usuario temporal creado:', response);
+      }),
+      catchError(error => {
+        console.error('Error creando usuario temporal:', error);
+        throw error;
+      })
+    );
   }
   
 }

@@ -24,54 +24,54 @@ import { WorkspaceService } from '../../workspace/services/workspace.service';
           </h2>
 
           <div class="space-y-2">
-            <div
-              *ngFor="let espacio of espacios"
-              [class.bg-gray-100]="selectedWorkspace?.id === espacio.id"
-              class="group cursor-pointer rounded-lg p-3 hover:bg-gray-100 transition">
-              
-              <div class="flex items-center justify-between mb-2">
+              <div
+                *ngFor="let espacio of espacios"
+                [class.bg-gray-100]="selectedWorkspace?.id === espacio.id"
+                class="group cursor-pointer rounded-lg p-3 hover:bg-gray-100 transition">
+                
+                <div class="flex items-center justify-between mb-2">
+                  <div 
+                    class="flex items-center gap-2 flex-1"
+                    (click)="selectWorkspace(espacio)">
+                    <span class="font-medium text-gray-800">
+                      {{ espacio.nombre }}
+                    </span>
+                    <button 
+                      (click)="toggleWorkspace(espacio.id); $event.stopPropagation()"
+                      class="text-gray-400">
+                      <svg 
+                        class="w-4 h-4 transition-transform"
+                        [class.rotate-180]="expandedWorkspaces.has(espacio.id)"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Submenu -->
                 <div 
-                  class="flex items-center gap-2 flex-1"
-                  (click)="selectWorkspace(espacio)">
-                  <span class="font-medium text-gray-800">
-                    {{ espacio.nombre }}
-                  </span>
-                  <button 
-                    (click)="toggleWorkspace(espacio.id); $event.stopPropagation()"
-                    class="text-gray-400">
-                    <svg 
-                      class="w-4 h-4 transition-transform"
-                      [class.rotate-180]="expandedWorkspaces.has(espacio.id)"
-                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                  *ngIf="expandedWorkspaces.has(espacio.id)"
+                  class="ml-4 mt-2 space-y-1 text-sm">
+                  <div 
+                    (click)="viewProjects(espacio.id)"
+                    class="flex items-center gap-2 p-2 rounded hover:bg-gray-200 cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
                     </svg>
-                  </button>
-                </div>
-              </div>
+                    Proyectos
+                  </div>
 
-              <!-- Submenu -->
-              <div 
-                *ngIf="expandedWorkspaces.has(espacio.id)"
-                class="ml-4 mt-2 space-y-1 text-sm">
-                <div 
-                  (click)="viewProjects(espacio.id)"
+                  <div (click)="openSettings($event)"
                   class="flex items-center gap-2 p-2 rounded hover:bg-gray-200 cursor-pointer">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
-                  </svg>
-                  Proyectos
-                </div>
-
-                <div (click)="openSettings($event)"
-                class="flex items-center gap-2 p-2 rounded hover:bg-gray-200 cursor-pointer">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                  </svg>
-                  Configuración
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    Configuración
+                  </div>
                 </div>
               </div>
-            </div>
           </div>
         </div>
 

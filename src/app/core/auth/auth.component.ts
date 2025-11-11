@@ -27,7 +27,7 @@ interface AuthForm {
 @Component({
   selector: "app-auth-page",
   templateUrl: "./auth.component.html",
-  imports: [CommonModule, ListErrorsComponent, ReactiveFormsModule,MatIconModule],
+  imports: [CommonModule, ListErrorsComponent, ReactiveFormsModule, MatIconModule],
   standalone: true
 })
 export default class AuthComponent implements OnInit {
@@ -39,7 +39,7 @@ export default class AuthComponent implements OnInit {
   showConfirmPassword = false;
   authForm: FormGroup<AuthForm>;
   destroyRef = inject(DestroyRef);
-    passwordStrength: PasswordStrength = {
+  passwordStrength: PasswordStrength = {
     hasExactLength: false, 
     hasUpperCase: false,
     hasLowerCase: false,
@@ -93,23 +93,18 @@ export default class AuthComponent implements OnInit {
           nonNullable: true,
         }),
       );
-      
-      this.authForm.get('password')?.setValidators([
+            this.authForm.get('password')?.setValidators([
         Validators.required,
         passwordStrengthValidator()
       ]);
       this.authForm.get('password')?.updateValueAndValidity();
-
       this.authForm.get('password')?.valueChanges.subscribe(password => {
         this.passwordStrength = getPasswordStrength(password);
       });
 
-
-      
       this.authForm.addValidators(this.passwordMatchValidator());
     }
   }
-
   passwordMatchValidator() {
     return (control: AbstractControl): ValidationErrors | null => {
       const password = control.get('password')?.value;
@@ -137,7 +132,8 @@ export default class AuthComponent implements OnInit {
   toggleConfirmPassword(): void {
     this.showConfirmPassword = !this.showConfirmPassword;
   }
-    getStrengthColor(): string {
+
+  getStrengthColor(): string {
     if (this.passwordStrength.strength < 40) return '#ef4444'; // Rojo
     if (this.passwordStrength.strength < 60) return '#f59e0b'; // Amarillo
     if (this.passwordStrength.strength < 80) return '#3b82f6'; // Azul
@@ -153,81 +149,125 @@ export default class AuthComponent implements OnInit {
   }
 
   submitForm(): void {
-    this.isSubmitting = true;
-    this.errors = { errors: {} };
+  this.isSubmitting = true;
+  this.errors = { errors: {} };
 
-    if (this.authType === "register") {
-      if (this.authForm.errors?.['passwordMismatch']) {
-        this.errors = { 
-          errors: { 
-            'Contraseñas': 'Las contraseñas no coinciden' 
-          } 
-        };
-        this.isSubmitting = false;
-        return;
-      }
-
-      const nombre = this.authForm.value.nombre?.trim();
-      const correo = this.authForm.value.correo?.trim();
-      const password = this.authForm.value.password;
-
-      if (!nombre || !correo || !password) {
-        this.errors = { 
-          errors: { 
-            'Campos': 'Todos los campos son obligatorios' 
-          } 
-        };
-        this.isSubmitting = false;
-        return;
-      }
-
-      console.log('Datos de registro:', { nombre, correo, passwordLength: password.length });
+  if (this.authType === "register") {
+    if (this.authForm.errors?.['passwordMismatch']) {
+      this.errors = { 
+        errors: { 
+          'Contraseñas': 'Las contraseñas no coinciden' 
+        } 
+      };
+      this.isSubmitting = false;
+      return;
     }
 
-    let observable =
-      this.authType === "login"
-        ? this.userService.login({
-            correo: this.authForm.value.correo!.trim(),
-            password: this.authForm.value.password!,
-          })
-        : this.userService.register({
-            nombre: this.authForm.value.nombre!.trim(),
-            correo: this.authForm.value.correo!.trim(),
-            password: this.authForm.value.password!,
-            dni: this.authForm.value.dni!.trim(), //Nuevo campo: DNI
-          });
+    const nombre = this.authForm.value.nombre?.trim();
+    const correo = this.authForm.value.correo?.trim();
+    const password = this.authForm.value.password;
 
-    observable.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => {
-        console.log('Autenticación exitosa');
-        void this.router.navigate(["/workspace"]);
-      },
-      error: (err) => {
-        console.error('Error de autenticación:', err);
-        
-        // Procesar errores 
-        if (err.error && err.error.errors) {
-          this.errors = err.error;
-        } else if (err.error && err.error.message) {
-          this.errors = { 
-            errors: { 
-              'Error': err.error.message 
-            } 
-          };
-        } else {
-          this.errors = { 
-            errors: { 
-              'Error': 'Ocurrió un error. Por favor intenta nuevamente.' 
-            } 
-          };
-        }
-        
-        this.isSubmitting = false;
-      },
-    });
+    if (!nombre || !correo || !password) {
+      this.errors = { 
+        errors: { 
+          'Campos': 'Todos los campos son obligatorios' 
+        } 
+      };
+      this.isSubmitting = false;
+      return;
+    }
+
+    console.log('Datos de registro:', { nombre, correo, passwordLength: password.length });
   }
-  goToForgotPassword(): void {
-  console.log('Navegando a forgot-password');
-  this.router.navigate(['/forgot-password']);
+
+  const correoRaw = this.authForm.get('correo')?.value || '';
+  const passwordRaw = this.authForm.get('password')?.value || '';
+  
+  const correo = correoRaw.trim();
+  const password = passwordRaw; 
+
+
+  if (!correo || !password) {
+    console.error('Validación falló: correo o password vacío');
+    this.errors = { 
+      errors: { 
+        'Error': 'Correo y contraseña son obligatorios' 
+      } 
+    };
+    this.isSubmitting = false;
+    return;
+  }
+
+  let observable;
+  
+  if (this.authType === "login") {
+    const loginData = {
+      correo: correo,
+      password: password
+    };
+    console.log('Enviando LOGIN:', { 
+      correo: loginData.correo, 
+      passwordLength: loginData.password.length 
+    });
+    observable = this.userService.login(loginData);
+  } else {
+    const nombreRaw = this.authForm.get('nombre')?.value || '';
+    const dniRaw = this.authForm.get('dni')?.value || '';
+    
+    const registerData = {
+      nombre: nombreRaw.trim(),
+      correo: correo,
+      password: password,
+      dni: dniRaw.trim()
+    };
+    console.log('Enviando REGISTER:', { 
+      nombre: registerData.nombre,
+      correo: registerData.correo, 
+      passwordLength: registerData.password.length,
+      dni: registerData.dni
+    });
+    observable = this.userService.register(registerData);
+  }
+
+  observable.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    next: () => {
+      console.log('Autenticación exitosa');
+      void this.router.navigate(["/workspace"]);
+    },
+    error: (err) => {
+      console.error(' Error de autenticación:', err);
+      console.error(' Status:', err.status);
+      console.error(' Error body:', err.error);
+      
+      if (err.error && err.error.errors) {
+        this.errors = err.error;
+      } else if (err.error && err.error.message) {
+        this.errors = { 
+          errors: { 
+            'Error': err.error.message 
+          } 
+        };
+      } else if (err.error && err.error.error) {
+        this.errors = { 
+          errors: { 
+            'Error': err.error.error 
+          } 
+        };
+      } else {
+        this.errors = { 
+          errors: { 
+            'Error': 'Ocurrió un error. Por favor intenta nuevamente.' 
+          } 
+        };
+      }
+      
+      this.isSubmitting = false;
+    },
+  });
 }
+
+  goToForgotPassword(): void {
+    console.log('Navegando a forgot-password');
+    this.router.navigate(['/forgot-password']);
+  }
 }

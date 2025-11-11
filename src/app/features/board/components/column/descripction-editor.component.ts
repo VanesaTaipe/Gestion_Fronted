@@ -315,4 +315,5 @@ export class DescriptionEditorComponent implements ControlValueAccessor {
 
     this.onContentChange();
   }
+
 }

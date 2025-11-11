@@ -143,7 +143,10 @@ getProjectsByWorkspaceId(workspaceId: number): Observable<any[]> {
     return this.http.get<any>(`${this.apiUrl}/${id}`, {
       headers: this.getHeaders()
     }).pipe(
-      map(response => response.data || response.espacio || response),
+      map(response => {
+      const workspace = response.data || response.espacio || response;
+      return workspace;
+    }),
       catchError(error => {
         console.error('Error al obtener espacio:', error);
         throw error;

@@ -1,20 +1,19 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output, OnInit, SimpleChange, SimpleChanges, OnChanges,ViewChild, ElementRef } from '@angular/core';
-import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule, Validators } from '@angular/forms';
-import { Card, Comentario, ArchivoAdjunto } from '../../models/board.model';
-import { BoardService } from '../../services/board.service';
-import { TaskService } from '../../services/task.service';
 import { HttpClient } from '@angular/common/http';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { environment } from '../../../../../environments/environment';
 import { UserService as AuthService } from '../../../../core/auth/services/use.service';
-import { User } from '../../../profile/models/user.interface';
+import { ArchivoAdjunto, Card, Comentario } from '../../models/board.model';
+import { BoardService } from '../../services/board.service';
+import { TaskService } from '../../services/task.service';
 
 @Component({
   selector: 'app-card-detail-modal',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, FormsModule],
   styleUrls: ['./card-detail.component.css'],
- template: `
+  template: `
   <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" 
        (click)="onBackdropClick($event)">
     <div class="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden shadow-2xl flex relative"
@@ -342,7 +341,7 @@ import { User } from '../../../profile/models/user.interface';
       <div class="w-80 bg-gray-50 border-l flex flex-col overflow-y-auto">
         <div class="p-5 space-y-4">
           
-          <!-- Prioridad -->
+        <!-- Prioridad -->
           <div>
             <label class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2 block">
               Prioridad
@@ -355,7 +354,7 @@ import { User } from '../../../profile/models/user.interface';
                 'text-red-700 bg-red-100 border-red-300 hover:bg-red-200': card.prioridad === 'alta',
                 'text-orange-700 bg-orange-100 border-orange-300 hover:bg-orange-200': card.prioridad === 'media',
                 'text-yellow-700 bg-yellow-100 border-yellow-300 hover:bg-yellow-200': card.prioridad === 'baja',
-                'text-gray-700 bg-gray-100 border-gray-300 hover:bg-gray-200': card.prioridad === 'No asignada'
+                'text-gray-700 bg-gray-100 border-gray-300 hover:bg-gray-200': card.prioridad === 'No asignada' || !card.prioridad
               }">
               <option value="No asignada">No asignada</option>
               <option value="baja">Baja</option>
@@ -572,17 +571,17 @@ import { User } from '../../../profile/models/user.interface';
   </div>
 `
 })
-export class CardDetailModalComponent implements OnInit,OnChanges {
+export class CardDetailModalComponent implements OnInit, OnChanges {
   @Input() card!: Card;
   @Input() columnName: string = '';
   @Input() isLeader: boolean = false;
   @Input() currentUserId!: number;
-  @Input() proyectoId!: number; 
+  @Input() proyectoId!: number;
   @Output() closeModal = new EventEmitter<void>();
   @Output() cardUpdated = new EventEmitter<Card>();
   @Output() cardDeleted = new EventEmitter<number>();
 
-@ViewChild('descTextarea') descTextarea?: ElementRef<HTMLTextAreaElement>;
+  @ViewChild('descTextarea') descTextarea?: ElementRef<HTMLTextAreaElement>;
 
   editingTitle = false;
   editingDescription = false;
@@ -591,44 +590,44 @@ export class CardDetailModalComponent implements OnInit,OnChanges {
   isSubmittingComment = false;
   searchUserTerm = '';
   editingAssignee = false;
-  editingCommentId: number | null = null;  
-  editingCommentText: string = '';     
+  editingCommentId: number | null = null;
+  editingCommentText: string = '';
 
   projectMembers: any[] = [];
   filteredProjectMembers: any[] = [];
   loadingUsers = false;
   private api = environment.apiBase;
   private _deletedMemberId?: number;
- 
-bulletTypes = [
-  { symbol: '•', name: 'Punto', type: 'bullet' },
-  { symbol: '■', name: 'Cuadrado', type: 'bullet' },
-  { symbol: '→', name: 'Flecha', type: 'bullet' },
-  { symbol: '[ ]', name: 'Checkbox sin marcar', type: 'checkbox' },
-  { symbol: '[x]', name: 'Checkbox marcado', type: 'checkbox' }
-] as const;
 
-selectedBullet = '•';
-selectedBulletType: 'bullet' | 'checkbox' = 'bullet';
-showBulletMenu = false;
-@Input() set deletedMemberId(userId: number | undefined) {
-  if (userId && this.card?.id_asignado === userId) {
-    console.log('🔔 Usuario asignado eliminado, actualizando card...');
-    
-    // Actualizar inmediatamente en el modal
-    this.card.id_asignado = undefined;
-    this.card.asignado_a = 'Sin asignar';
-    
-    console.log('✅ Card actualizada:', {
-      id_asignado: this.card.id_asignado,
-      asignado_a: this.card.asignado_a
-    });
-    
-    // Recargar lista de miembros
-    this.loadProjectMembers();
+  bulletTypes = [
+    { symbol: '•', name: 'Punto', type: 'bullet' },
+    { symbol: '■', name: 'Cuadrado', type: 'bullet' },
+    { symbol: '→', name: 'Flecha', type: 'bullet' },
+    { symbol: '[ ]', name: 'Checkbox sin marcar', type: 'checkbox' },
+    { symbol: '[x]', name: 'Checkbox marcado', type: 'checkbox' }
+  ] as const;
+
+  selectedBullet = '•';
+  selectedBulletType: 'bullet' | 'checkbox' = 'bullet';
+  showBulletMenu = false;
+  @Input() set deletedMemberId(userId: number | undefined) {
+    if (userId && this.card?.id_asignado === userId) {
+      console.log('🔔 Usuario asignado eliminado, actualizando card...');
+
+      // Actualizar inmediatamente en el modal
+      this.card.id_asignado = undefined;
+      this.card.asignado_a = 'Sin asignar';
+
+      console.log('✅ Card actualizada:', {
+        id_asignado: this.card.id_asignado,
+        asignado_a: this.card.asignado_a
+      });
+
+      // Recargar lista de miembros
+      this.loadProjectMembers();
+    }
+    this._deletedMemberId = userId;
   }
-  this._deletedMemberId = userId;
-}
 
   constructor(
     private fb: FormBuilder,
@@ -648,94 +647,94 @@ showBulletMenu = false;
   }
 
   ngOnInit() {
-  // ✅ CRÍTICO: Convertir isLeader a boolean
-  if (typeof this.isLeader !== 'boolean') {
-    console.warn('⚠️ isLeader no es boolean, convirtiendo...');
-    const originalValue = this.isLeader;
-    this.isLeader = this.isLeader === true || 
-                    this.isLeader === 'true' || 
-                    this.isLeader === 1 || 
-                    (this.isLeader as any) === '1';
-    console.log('🔄 isLeader convertido:', { antes: originalValue, despues: this.isLeader });
-  }
-  
-  // ✅ NUEVO: Cargar los datos completos de la tarjeta
-  console.log('📥 Cargando tarjeta completa:', this.card.id);
-  this.loadFullCard();
-  
-  // ✅ Normalizar fecha al cargar
-  if (this.card.fecha_vencimiento && !this.card.due_at) {
-    this.card.due_at = this.card.fecha_vencimiento;
-  }
-  
-  // Extraer solo la parte de fecha (quitar timestamp)
-  if (this.card.due_at && typeof this.card.due_at === 'string') {
-    this.card.due_at = this.card.due_at.split('T')[0];
-  }
-  
-  if (this.card.fecha_vencimiento && typeof this.card.fecha_vencimiento === 'string') {
-    this.card.fecha_vencimiento = this.card.fecha_vencimiento.split('T')[0];
-  }
-  
-  if (!this.card.comentarios) {
-    this.card.comentarios = [];
+    // ✅ CRÍTICO: Convertir isLeader a boolean
+    if (typeof this.isLeader !== 'boolean') {
+      console.warn('⚠️ isLeader no es boolean, convirtiendo...');
+      const originalValue = this.isLeader;
+      this.isLeader = this.isLeader === true ||
+        this.isLeader === 'true' ||
+        this.isLeader === 1 ||
+        (this.isLeader as any) === '1';
+      console.log('🔄 isLeader convertido:', { antes: originalValue, despues: this.isLeader });
+    }
+
+    // ✅ NUEVO: Cargar los datos completos de la tarjeta
+    console.log('📥 Cargando tarjeta completa:', this.card.id);
+    this.loadFullCard();
+
+    // ✅ Normalizar fecha al cargar
+    if (this.card.fecha_vencimiento && !this.card.due_at) {
+      this.card.due_at = this.card.fecha_vencimiento;
+    }
+
+    // Extraer solo la parte de fecha (quitar timestamp)
+    if (this.card.due_at && typeof this.card.due_at === 'string') {
+      this.card.due_at = this.card.due_at.split('T')[0];
+    }
+
+    if (this.card.fecha_vencimiento && typeof this.card.fecha_vencimiento === 'string') {
+      this.card.fecha_vencimiento = this.card.fecha_vencimiento.split('T')[0];
+    }
+
+    if (!this.card.comentarios) {
+      this.card.comentarios = [];
+    }
+
+    if (!this.card.archivos) {
+      this.card.archivos = [];
+    }
+
+    if (!this.currentUserId) {
+      this.currentUserId = this.authService.getCurrentUserId() || 0;
+    }
+
+    this.loadComments();
+    this.loadFiles();
+    this.loadProjectMembers();
   }
 
-  if (!this.card.archivos) {
-    this.card.archivos = [];
-  }
-  
-  if (!this.currentUserId) {
-    this.currentUserId = this.authService.getCurrentUserId() || 0;
-  }
-  
-  this.loadComments();
-  this.loadFiles();
-  this.loadProjectMembers();
-}
+  // ✅ NUEVO MÉTODO: Cargar la tarjeta completa desde el backend
+  loadFullCard() {
+    this.taskService.getCard(this.card.id).subscribe({
+      next: (cardData: any) => {
+        console.log('✅ Tarjeta completa cargada:', cardData);
 
-// ✅ NUEVO MÉTODO: Cargar la tarjeta completa desde el backend
-loadFullCard() {
-  this.taskService.getCard(this.card.id).subscribe({
-    next: (cardData: any) => {
-      console.log('✅ Tarjeta completa cargada:', cardData);
-      
-      // Actualizar la descripción
-      if (cardData.descripcion) {
-        this.card.descripcion = cardData.descripcion;
-        console.log('📝 Descripción cargada:', this.card.descripcion);
+        // Actualizar la descripción
+        if (cardData.descripcion) {
+          this.card.descripcion = cardData.descripcion;
+          console.log('📝 Descripción cargada:', this.card.descripcion);
+        }
+
+        // Actualizar otros campos si es necesario
+        this.card.title = cardData.titulo || cardData.title || this.card.title;
+        this.card.prioridad = cardData.prioridad || this.card.prioridad;
+        this.card.asignado_a = cardData.asignado_a || this.card.asignado_a;
+        this.card.id_asignado = cardData.id_asignado || this.card.id_asignado;
+      },
+      error: (e) => {
+        console.error('❌ Error cargando tarjeta completa:', e);
       }
-      
-      // Actualizar otros campos si es necesario
-      this.card.title = cardData.titulo || cardData.title || this.card.title;
-      this.card.prioridad = cardData.prioridad || this.card.prioridad;
-      this.card.asignado_a = cardData.asignado_a || this.card.asignado_a;
-      this.card.id_asignado = cardData.id_asignado || this.card.id_asignado;
-    },
-    error: (e) => {
-      console.error('❌ Error cargando tarjeta completa:', e);
-    }
-  });
-}
-  ngOnChanges(changes:SimpleChanges) {
-  // ✅ Detectar cuando la card cambia desde fuera (ej: miembro eliminado)
-  if (changes['card'] && !changes['card'].firstChange) {
-    const newCard = changes['card'].currentValue;
-    
-    console.log('🔄 Card actualizada desde fuera:', {
-      antes: changes['card'].previousValue?.asignado_a,
-      ahora: newCard?.asignado_a,
-      id_asignado_antes: changes['card'].previousValue?.id_asignado,
-      id_asignado_ahora: newCard?.id_asignado
     });
-    
-    // Si la tarea quedó sin asignar, recargar miembros
-    if (!newCard?.id_asignado && changes['card'].previousValue?.id_asignado) {
-      console.log('✅ Tarea desasignada, recargando miembros...');
-      this.loadProjectMembers();
+  }
+  ngOnChanges(changes: SimpleChanges) {
+    // ✅ Detectar cuando la card cambia desde fuera (ej: miembro eliminado)
+    if (changes['card'] && !changes['card'].firstChange) {
+      const newCard = changes['card'].currentValue;
+
+      console.log('🔄 Card actualizada desde fuera:', {
+        antes: changes['card'].previousValue?.asignado_a,
+        ahora: newCard?.asignado_a,
+        id_asignado_antes: changes['card'].previousValue?.id_asignado,
+        id_asignado_ahora: newCard?.id_asignado
+      });
+
+      // Si la tarea quedó sin asignar, recargar miembros
+      if (!newCard?.id_asignado && changes['card'].previousValue?.id_asignado) {
+        console.log('✅ Tarea desasignada, recargando miembros...');
+        this.loadProjectMembers();
+      }
     }
   }
-}
 
 
   // ✅ Método para formatear fecha
@@ -744,9 +743,9 @@ loadFullCard() {
       console.log('📅 No hay fecha para formatear');
       return '';
     }
-    
+
     const dateStr = this.card.due_at || this.card.fecha_vencimiento;
-    
+
     try {
       if (!dateStr) {
         console.log('📅 No hay fecha para formatear');
@@ -756,14 +755,14 @@ loadFullCard() {
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
-      
+
       const formatted = `${year}-${month}-${day}`;
-      
+
       console.log('📅 Fecha formateada:', {
         original: dateStr,
         formatted: formatted
       });
-      
+
       return formatted;
     } catch (e) {
       console.error('❌ Error formateando fecha:', e);
@@ -775,7 +774,7 @@ loadFullCard() {
   onDateChange(event: any) {
     const newDate = event.target.value;
     console.log('📅 Fecha cambiada a:', newDate);
-    
+
     if (newDate) {
       this.card.due_at = newDate;
       this.card.fecha_vencimiento = newDate;
@@ -783,7 +782,7 @@ loadFullCard() {
       this.card.due_at = undefined;
       this.card.fecha_vencimiento = undefined;
     }
-    
+
     console.log('📅 Fecha actualizada en el card:', {
       due_at: this.card.due_at,
       fecha_vencimiento: this.card.fecha_vencimiento
@@ -826,7 +825,7 @@ loadFullCard() {
 
   onSearchUser() {
     const term = this.searchUserTerm.toLowerCase();
-    
+
     if (!term) {
       this.filteredProjectMembers = this.projectMembers;
       return;
@@ -855,14 +854,14 @@ loadFullCard() {
       this.card.asignado_a = member.nombre || member.username || member.email;
       console.log('Asignando tarea a:', this.card.asignado_a);
     } else {
-      this.card.id_asignado = undefined; 
+      this.card.id_asignado = undefined;
       this.card.asignado_a = 'Sin asignar';
       console.log('Desasignando tarea');
     }
 
     this.editingAssignee = false;
     this.searchUserTerm = '';
-    
+
     this.taskService.updateCard(this.card).subscribe({
       next: () => {
         console.log('✅ Asignación actualizada correctamente');
@@ -881,12 +880,12 @@ loadFullCard() {
     const name = member.nombre || member.username || member.email || 'U';
     return name.charAt(0).toUpperCase();
   }
-  
+
   loadComments() {
     this.taskService.getComments(this.card.id).subscribe({
       next: (comentarios: any[]) => {
         console.log('Comentarios cargados:', comentarios);
-        
+
         this.card.comentarios = comentarios.map((c: any) => ({
           id: c.id_comentario || c.id,
           id_comentario: c.id_comentario || c.id,
@@ -900,7 +899,7 @@ loadFullCard() {
           minutos_desde_creacion: c.minutos_desde_creacion,
           status: c.status || '0'
         }));
-        
+
         this.card.comentarios?.forEach(c => {
           console.log(`Comentario ${c.id}: Usuario ${c.id_usuario}, Puede eliminar: ${this.canDeleteComment(c)}`);
         });
@@ -933,13 +932,13 @@ loadFullCard() {
     if (!this.card.archivos) {
       return [];
     }
-    
+
     const activos = this.card.archivos.filter(a => {
       const isActive = a.status !== '1' && a.status !== '1';
       console.log(`Archivo ${a.id} (${a.archivo_nombre}): status=${a.status}, activo=${isActive}`);
       return isActive;
     });
-    
+
     console.log(`Total archivos activos: ${activos.length}/${this.card.archivos.length}`);
     return activos;
   }
@@ -947,13 +946,13 @@ loadFullCard() {
   // ✅ Solo el autor puede editar su propio comentario
   canEditComment(comment: Comentario): boolean {
     const canEdit = comment.id_usuario === this.currentUserId;
-    
+
     console.log(`✏️ ¿Puede editar comentario ${this.getCommentId(comment)}?`, {
       comentarioAutor: comment.id_usuario,
       usuarioActual: this.currentUserId,
       resultado: canEdit
     });
-    
+
     return canEdit;
   }
 
@@ -966,23 +965,23 @@ loadFullCard() {
     console.log('Usuario Actual ID:', this.currentUserId);
     console.log('isLeader:', this.isLeader);
     console.log('tipo isLeader:', typeof this.isLeader);
-    
+
     // ✅ Convertir isLeader a boolean robustamente
-    const esLider = this.isLeader === true || 
-                    (this.isLeader as any) === '1';
-    
+    const esLider = this.isLeader === true ||
+      (this.isLeader as any) === '1';
+
     console.log('Es Líder (convertido):', esLider);
-    
+
     // Líder puede eliminar cualquier comentario
     if (esLider) {
       console.log('✅ PUEDE ELIMINAR (ES LÍDER)');
       return true;
     }
-    
+
     // Miembro solo puede eliminar sus propios comentarios
     const esAutor = comment.id_usuario === this.currentUserId;
     console.log(`${esAutor ? '✅' : '❌'} ${esAutor ? 'PUEDE' : 'NO PUEDE'} ELIMINAR (${esAutor ? 'ES AUTOR' : 'NO ES AUTOR'})`);
-    
+
     return esAutor;
   }
 
@@ -991,10 +990,10 @@ loadFullCard() {
     console.log('Comentario:', comment);
     console.log('ID (id_comentario):', comment.id_comentario);
     console.log('ID (id):', comment.id);
-    
-    this.editingCommentId = this.getCommentId(comment);  
+
+    this.editingCommentId = this.getCommentId(comment);
     this.editingCommentText = comment.contenido || comment.texto || '';
-    
+
     console.log('editingCommentId asignado:', this.editingCommentId);
     console.log('editingCommentText:', this.editingCommentText);
   }
@@ -1009,20 +1008,20 @@ loadFullCard() {
       alert('El comentario no puede estar vacío');
       return;
     }
-    
-    const commentId = this.getCommentId(comment); 
-    
+
+    const commentId = this.getCommentId(comment);
+
     this.taskService.updateComment(commentId, this.editingCommentText).subscribe({
       next: () => {
-        const index = this.card.comentarios?.findIndex(c => 
+        const index = this.card.comentarios?.findIndex(c =>
           this.getCommentId(c) === commentId
         );
-        
+
         if (index !== undefined && index >= 0 && this.card.comentarios) {
           this.card.comentarios[index].contenido = this.editingCommentText;
           this.card.comentarios[index].texto = this.editingCommentText;
         }
-        
+
         this.cancelEditComment();
       },
       error: (e) => {
@@ -1047,7 +1046,7 @@ loadFullCard() {
     this.taskService.deleteComment(commentId).subscribe({
       next: () => {
         if (this.card.comentarios) {
-          this.card.comentarios = this.card.comentarios.filter(c => 
+          this.card.comentarios = this.card.comentarios.filter(c =>
             (c.id_comentario || c.id) !== commentId
           );
           this.card.comentarios_count = this.getActiveComments().length;
@@ -1071,7 +1070,7 @@ loadFullCard() {
     }
 
     const currentUserId = this.currentUserId || this.authService.getCurrentUserId();
-    
+
     if (!currentUserId) {
       alert('Error: Usuario no autenticado');
       return;
@@ -1079,13 +1078,13 @@ loadFullCard() {
 
     this.isSubmittingComment = true;
     const contenido = this.commentForm.value.contenido.trim();
-    
+
     const comentarioData = {
       id_tarea: this.card.id,
       id_usuario: currentUserId,
       contenido: contenido
     };
-    
+
     console.log('Enviando comentario:', comentarioData);
 
     this.taskService.addComment(comentarioData).subscribe({
@@ -1094,16 +1093,16 @@ loadFullCard() {
         this.loadComments();
         this.commentForm.reset();
         this.isSubmittingComment = false;
-        
+
         if (this.card.comentarios_count !== undefined) {
           this.card.comentarios_count += 1;
         }
       },
       error: (e) => {
         console.error('Error agregando comentario:', e);
-        
+
         let errorMsg = 'No se pudo agregar el comentario';
-        
+
         if (e.error?.error) {
           errorMsg = e.error.error;
         } else if (e.status === 400) {
@@ -1111,7 +1110,7 @@ loadFullCard() {
         } else if (e.status === 401) {
           errorMsg = 'No estás autenticado. Por favor, inicia sesión nuevamente.';
         }
-        
+
         alert(errorMsg);
         this.isSubmittingComment = false;
       }
@@ -1120,7 +1119,7 @@ loadFullCard() {
 
   onFileSelected(event: any) {
     const file: File = event.target.files[0];
-    
+
     if (!file) {
       return;
     }
@@ -1135,7 +1134,7 @@ loadFullCard() {
     this.taskService.uploadFileToTask(this.card.id, file).subscribe({
       next: (archivo) => {
         console.log('Archivo subido:', archivo);
-        this.loadFiles(); 
+        this.loadFiles();
         event.target.value = '';
       },
       error: (e) => {
@@ -1205,7 +1204,7 @@ loadFullCard() {
     });
 
     this.cardUpdated.emit(this.card);
-    
+
     this.taskService.updateCard(this.card).subscribe({
       next: (updatedCard) => {
         console.log('✅ Tarjeta actualizada correctamente en BD:', updatedCard);
@@ -1216,101 +1215,101 @@ loadFullCard() {
       }
     });
   }
-hasChecklist(): boolean {
-  return this.card.descripcion?.includes('[ ]') || 
-         this.card.descripcion?.includes('[x]') || 
-         false;
-}
- getChecklistItems(): Array<{text: string, checked: boolean, lineIndex: number}> {
-  if (!this.card.descripcion) {
-    console.log('⚠️ No hay descripción');
-    return [];
+  hasChecklist(): boolean {
+    return this.card.descripcion?.includes('[ ]') ||
+      this.card.descripcion?.includes('[x]') ||
+      false;
   }
-  
-  const lines = this.card.descripcion.split('\n');
-  const items: Array<{text: string, checked: boolean, lineIndex: number}> = [];
-  
-  lines.forEach((line, index) => {
-    // Buscar [ ] (sin marcar) - case insensitive
-    const uncheckedMatch = line.match(/^\[ \]\s*(.+)$/i);
-    // Buscar [x] (marcado) - case insensitive
-    const checkedMatch = line.match(/^\[x\]\s*(.+)$/i);
-    
-    if (uncheckedMatch) {
-      items.push({ 
-        text: uncheckedMatch[1].trim(), 
-        checked: false,
-        lineIndex: index
-      });
-      console.log(`📋 Item sin marcar encontrado: "${uncheckedMatch[1].trim()}" en línea ${index}`);
-    } else if (checkedMatch) {
-      items.push({ 
-        text: checkedMatch[1].trim(), 
-        checked: true,
-        lineIndex: index
-      });
-      console.log(`✅ Item marcado encontrado: "${checkedMatch[1].trim()}" en línea ${index}`);
+  getChecklistItems(): Array<{ text: string, checked: boolean, lineIndex: number }> {
+    if (!this.card.descripcion) {
+      console.log('⚠️ No hay descripción');
+      return [];
     }
-  });
-  
-  console.log(`📊 Total items encontrados: ${items.length}`);
-  return items;
-} 
+
+    const lines = this.card.descripcion.split('\n');
+    const items: Array<{ text: string, checked: boolean, lineIndex: number }> = [];
+
+    lines.forEach((line, index) => {
+      // Buscar [ ] (sin marcar) - case insensitive
+      const uncheckedMatch = line.match(/^\[ \]\s*(.+)$/i);
+      // Buscar [x] (marcado) - case insensitive
+      const checkedMatch = line.match(/^\[x\]\s*(.+)$/i);
+
+      if (uncheckedMatch) {
+        items.push({
+          text: uncheckedMatch[1].trim(),
+          checked: false,
+          lineIndex: index
+        });
+        console.log(`📋 Item sin marcar encontrado: "${uncheckedMatch[1].trim()}" en línea ${index}`);
+      } else if (checkedMatch) {
+        items.push({
+          text: checkedMatch[1].trim(),
+          checked: true,
+          lineIndex: index
+        });
+        console.log(`✅ Item marcado encontrado: "${checkedMatch[1].trim()}" en línea ${index}`);
+      }
+    });
+
+    console.log(`📊 Total items encontrados: ${items.length}`);
+    return items;
+  }
 
 
 
-toggleChecklistItem(index: number, event?: Event) {
-  console.log('🔄 toggleChecklistItem llamado:', { index, event });
-  
-  // Prevenir propagación
-  if (event) {
-    event.stopPropagation();
-    event.preventDefault();
+  toggleChecklistItem(index: number, event?: Event) {
+    console.log('🔄 toggleChecklistItem llamado:', { index, event });
+
+    // Prevenir propagación
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+
+    const items = this.getChecklistItems();
+    console.log('📋 Items del checklist:', items);
+
+    if (index < 0 || index >= items.length) {
+      console.error('❌ Índice fuera de rango');
+      return;
+    }
+
+    const item = items[index];
+    console.log('📝 Item a modificar:', item);
+
+    if (!this.card.descripcion) {
+      console.error('❌ No hay descripción');
+      return;
+    }
+
+    const lines = this.card.descripcion.split('\n');
+    const lineIndex = item.lineIndex;
+    const currentLine = lines[lineIndex];
+
+    console.log('📄 Línea actual:', currentLine);
+
+    // Alternar el estado
+    if (item.checked) {
+      // Desmarcar: [x] → [ ]
+      lines[lineIndex] = currentLine.replace(/^\[x\]/i, '[ ]');
+      console.log('✅ Desmarcando...');
+    } else {
+      // Marcar: [ ] → [x]
+      lines[lineIndex] = currentLine.replace(/^\[ \]/i, '[x]');
+      console.log('✅ Marcando...');
+    }
+
+    console.log('📄 Nueva línea:', lines[lineIndex]);
+
+    // Actualizar la descripción
+    this.card.descripcion = lines.join('\n');
+
+    console.log('💾 Guardando cambios...');
+
+    // Forzar detección de cambios
+    this.saveCard();
   }
-  
-  const items = this.getChecklistItems();
-  console.log('📋 Items del checklist:', items);
-  
-  if (index < 0 || index >= items.length) {
-    console.error('❌ Índice fuera de rango');
-    return;
-  }
-  
-  const item = items[index];
-  console.log('📝 Item a modificar:', item);
-  
-  if (!this.card.descripcion) {
-    console.error('❌ No hay descripción');
-    return;
-  }
-  
-  const lines = this.card.descripcion.split('\n');
-  const lineIndex = item.lineIndex;
-  const currentLine = lines[lineIndex];
-  
-  console.log('📄 Línea actual:', currentLine);
-  
-  // Alternar el estado
-  if (item.checked) {
-    // Desmarcar: [x] → [ ]
-    lines[lineIndex] = currentLine.replace(/^\[x\]/i, '[ ]');
-    console.log('✅ Desmarcando...');
-  } else {
-    // Marcar: [ ] → [x]
-    lines[lineIndex] = currentLine.replace(/^\[ \]/i, '[x]');
-    console.log('✅ Marcando...');
-  }
-  
-  console.log('📄 Nueva línea:', lines[lineIndex]);
-  
-  // Actualizar la descripción
-  this.card.descripcion = lines.join('\n');
-  
-  console.log('💾 Guardando cambios...');
-  
-  // Forzar detección de cambios
-  this.saveCard();
-}
 
 
   deleteCard() {
@@ -1335,25 +1334,25 @@ toggleChecklistItem(index: number, event?: Event) {
     const d = new Date(date);
     const now = new Date();
     const diffInMs = now.getTime() - d.getTime();
-    
+
     const diffInSeconds = Math.floor(diffInMs / 1000);
     if (diffInSeconds < 60) {
-        if (diffInSeconds < 5) return 'hace un momento';
-        return `hace ${diffInSeconds} segundos`;
+      if (diffInSeconds < 5) return 'hace un momento';
+      return `hace ${diffInSeconds} segundos`;
     }
-    
+
     const diffInMinutes = Math.floor(diffInSeconds / 60);
     if (diffInMinutes < 60) {
-        if (diffInMinutes === 1) return 'hace 1 minuto';
-        return `hace ${diffInMinutes} minutos`;
+      if (diffInMinutes === 1) return 'hace 1 minuto';
+      return `hace ${diffInMinutes} minutos`;
     }
-    
+
     const diffInHours = Math.floor(diffInMinutes / 60);
     if (diffInHours < 24) {
-        if (diffInHours === 1) return 'hace 1 hora';
-        return `hace ${diffInHours} horas`;
+      if (diffInHours === 1) return 'hace 1 hora';
+      return `hace ${diffInHours} horas`;
     }
-    
+
     const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays === 1) return 'hace 1 día';
     return `hace ${diffInDays} días`;
@@ -1362,8 +1361,8 @@ toggleChecklistItem(index: number, event?: Event) {
   formatFullDate(date?: string): string {
     if (!date) return '';
     const d = new Date(date);
-    return d.toLocaleDateString('es-ES', { 
-      day: 'numeric', 
+    return d.toLocaleDateString('es-ES', {
+      day: 'numeric',
       month: 'long',
       year: 'numeric'
     });
@@ -1372,223 +1371,223 @@ toggleChecklistItem(index: number, event?: Event) {
   formatFileDate(date?: string): string {
     if (!date) return '';
     const d = new Date(date);
-    return d.toLocaleDateString('es-ES', { 
-      day: 'numeric', 
+    return d.toLocaleDateString('es-ES', {
+      day: 'numeric',
       month: 'short'
     });
   }
 
   // ✅ Verificar si el usuario asignado está fijo
   isAssigneeFixed(): boolean {
-    return !!this.card.id_asignado; 
+    return !!this.card.id_asignado;
   }
-applyFormat(command: string) {
-  document.execCommand(command, false, undefined);
-  
-  // Forzar LTR sin mover cursor
-  const editor = document.querySelector('.rich-text-editor') as HTMLElement;
-  if (editor) {
-    this.forceLTRWithoutMovingCursor(editor);
-  }
-}
-onDescriptionKeyDown(event: KeyboardEvent) {
-  if (event.key === 'Enter') {
-    const textarea = this.descTextarea?.nativeElement;
-    if (!textarea) return;
-    
-    const start = textarea.selectionStart;
-    const before = textarea.value.substring(0, start);
-    const after = textarea.value.substring(start);
-    
-    const lastLineStart = before.lastIndexOf('\n') + 1;
-    const currentLine = before.substring(lastLineStart);
-    
-    // Detectar viñetas normales
-    const bulletMatch = currentLine.match(/^([•■→]) /);
-    
-    // Detectar checkboxes
-    const checkboxMatch = currentLine.match(/^(\[ \]|\[x\]) /);
-    
-    if (bulletMatch) {
-      const bullet = bulletMatch[1];
-      
-      if (currentLine.trim() === bullet) {
-        event.preventDefault();
-        this.card.descripcion = before.substring(0, lastLineStart) + after;
-        
-        setTimeout(() => {
-          textarea.focus();
-          textarea.setSelectionRange(lastLineStart, lastLineStart);
-        }, 0);
-        return;
-      }
-      
-      event.preventDefault();
-      this.card.descripcion = before + '\n' + bullet + ' ' + after;
-      
-      setTimeout(() => {
-        textarea.focus();
-        const newPosition = start + 1 + bullet.length + 1;
-        textarea.setSelectionRange(newPosition, newPosition);
-      }, 0);
-    } else if (checkboxMatch) {
-      const checkbox = checkboxMatch[1];
-      
-      if (currentLine.trim() === checkbox) {
-        event.preventDefault();
-        this.card.descripcion = before.substring(0, lastLineStart) + after;
-        
-        setTimeout(() => {
-          textarea.focus();
-          textarea.setSelectionRange(lastLineStart, lastLineStart);
-        }, 0);
-        return;
-      }
-      
-      event.preventDefault();
-      this.card.descripcion = before + '\n[ ] ' + after;
-      
-      setTimeout(() => {
-        textarea.focus();
-        const newPosition = start + 1 + 4;
-        textarea.setSelectionRange(newPosition, newPosition);
-      }, 0);
+  applyFormat(command: string) {
+    document.execCommand(command, false, undefined);
+
+    // Forzar LTR sin mover cursor
+    const editor = document.querySelector('.rich-text-editor') as HTMLElement;
+    if (editor) {
+      this.forceLTRWithoutMovingCursor(editor);
     }
   }
-}
-onDescriptionInput(event: any) {
-  const editor = event.target as HTMLElement;
-  
-  // NO manipular el DOM, solo leer el contenido
-  const content = editor.innerHTML;
-  
-  // Limitar caracteres
-  if (content.length > 50000) {
-    alert('⚠️ La descripción no puede superar los 50,000 caracteres');
-    return;
-  }
-  
-  // Solo actualizar el modelo
-  this.card.descripcion = content;
-}
-private forceLTRWithoutMovingCursor(editor: HTMLElement) {
-  // Forzar en el editor principal SIN tocar el DOM
-  if (editor.style.direction !== 'ltr') {
-    editor.style.setProperty('direction', 'ltr', 'important');
-  }
-  if (editor.style.textAlign !== 'left') {
-    editor.style.setProperty('text-align', 'left', 'important');
-  }
-  if (editor.style.unicodeBidi !== 'embed') {
-    editor.style.setProperty('unicode-bidi', 'embed', 'important');
-  }
-  if (editor.getAttribute('dir') !== 'ltr') {
-    editor.setAttribute('dir', 'ltr');
-  }
-}
-private setCursorPosition(element: HTMLElement, position: number) {
-  const selection = window.getSelection();
-  const range = document.createRange();
-  
-  let currentPos = 0;
-  let found = false;
-  
-  const walk = (node: Node) => {
-    if (found) return;
-    
-    if (node.nodeType === Node.TEXT_NODE) {
-      const textLength = node.textContent?.length || 0;
-      if (currentPos + textLength >= position) {
-        range.setStart(node, position - currentPos);
-        range.setEnd(node, position - currentPos);
-        found = true;
-        return;
-      }
-      currentPos += textLength;
-    } else {
-      for (let i = 0; i < node.childNodes.length; i++) {
-        walk(node.childNodes[i]);
-        if (found) return;
+  onDescriptionKeyDown(event: KeyboardEvent) {
+    if (event.key === 'Enter') {
+      const textarea = this.descTextarea?.nativeElement;
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const before = textarea.value.substring(0, start);
+      const after = textarea.value.substring(start);
+
+      const lastLineStart = before.lastIndexOf('\n') + 1;
+      const currentLine = before.substring(lastLineStart);
+
+      // Detectar viñetas normales
+      const bulletMatch = currentLine.match(/^([•■→]) /);
+
+      // Detectar checkboxes
+      const checkboxMatch = currentLine.match(/^(\[ \]|\[x\]) /);
+
+      if (bulletMatch) {
+        const bullet = bulletMatch[1];
+
+        if (currentLine.trim() === bullet) {
+          event.preventDefault();
+          this.card.descripcion = before.substring(0, lastLineStart) + after;
+
+          setTimeout(() => {
+            textarea.focus();
+            textarea.setSelectionRange(lastLineStart, lastLineStart);
+          }, 0);
+          return;
+        }
+
+        event.preventDefault();
+        this.card.descripcion = before + '\n' + bullet + ' ' + after;
+
+        setTimeout(() => {
+          textarea.focus();
+          const newPosition = start + 1 + bullet.length + 1;
+          textarea.setSelectionRange(newPosition, newPosition);
+        }, 0);
+      } else if (checkboxMatch) {
+        const checkbox = checkboxMatch[1];
+
+        if (currentLine.trim() === checkbox) {
+          event.preventDefault();
+          this.card.descripcion = before.substring(0, lastLineStart) + after;
+
+          setTimeout(() => {
+            textarea.focus();
+            textarea.setSelectionRange(lastLineStart, lastLineStart);
+          }, 0);
+          return;
+        }
+
+        event.preventDefault();
+        this.card.descripcion = before + '\n[ ] ' + after;
+
+        setTimeout(() => {
+          textarea.focus();
+          const newPosition = start + 1 + 4;
+          textarea.setSelectionRange(newPosition, newPosition);
+        }, 0);
       }
     }
-  };
-  
-  walk(element);
-  
-  if (found && selection) {
-    selection.removeAllRanges();
-    selection.addRange(range);
   }
-}
+  onDescriptionInput(event: any) {
+    const editor = event.target as HTMLElement;
 
-onEditorFocus(event: any) {
-  //const editor = event.target as HTMLElement;
-  //this.forceLTRWithoutMovingCursor(editor);
-}
-
-onKeyDown(event: KeyboardEvent) {
-  // NO hacer nada especial, dejar que el navegador maneje todo naturalmente
-  // Solo verificar el límite de caracteres
-  const editor = event.target as HTMLElement;
-  
-  setTimeout(() => {
+    // NO manipular el DOM, solo leer el contenido
     const content = editor.innerHTML;
+
+    // Limitar caracteres
     if (content.length > 50000) {
-      alert('⚠️ Límite de caracteres alcanzado');
-      event.preventDefault();
+      alert('⚠️ La descripción no puede superar los 50,000 caracteres');
+      return;
     }
-  }, 0);
-}
+
+    // Solo actualizar el modelo
+    this.card.descripcion = content;
+  }
+  private forceLTRWithoutMovingCursor(editor: HTMLElement) {
+    // Forzar en el editor principal SIN tocar el DOM
+    if (editor.style.direction !== 'ltr') {
+      editor.style.setProperty('direction', 'ltr', 'important');
+    }
+    if (editor.style.textAlign !== 'left') {
+      editor.style.setProperty('text-align', 'left', 'important');
+    }
+    if (editor.style.unicodeBidi !== 'embed') {
+      editor.style.setProperty('unicode-bidi', 'embed', 'important');
+    }
+    if (editor.getAttribute('dir') !== 'ltr') {
+      editor.setAttribute('dir', 'ltr');
+    }
+  }
+  private setCursorPosition(element: HTMLElement, position: number) {
+    const selection = window.getSelection();
+    const range = document.createRange();
+
+    let currentPos = 0;
+    let found = false;
+
+    const walk = (node: Node) => {
+      if (found) return;
+
+      if (node.nodeType === Node.TEXT_NODE) {
+        const textLength = node.textContent?.length || 0;
+        if (currentPos + textLength >= position) {
+          range.setStart(node, position - currentPos);
+          range.setEnd(node, position - currentPos);
+          found = true;
+          return;
+        }
+        currentPos += textLength;
+      } else {
+        for (let i = 0; i < node.childNodes.length; i++) {
+          walk(node.childNodes[i]);
+          if (found) return;
+        }
+      }
+    };
+
+    walk(element);
+
+    if (found && selection) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  }
+
+  onEditorFocus(event: any) {
+    //const editor = event.target as HTMLElement;
+    //this.forceLTRWithoutMovingCursor(editor);
+  }
+
+  onKeyDown(event: KeyboardEvent) {
+    // NO hacer nada especial, dejar que el navegador maneje todo naturalmente
+    // Solo verificar el límite de caracteres
+    const editor = event.target as HTMLElement;
+
+    setTimeout(() => {
+      const content = editor.innerHTML;
+      if (content.length > 50000) {
+        alert('⚠️ Límite de caracteres alcanzado');
+        event.preventDefault();
+      }
+    }, 0);
+  }
 
 
   /**
  * Capturar cambios del editor
  */
 
-onPaste(event: ClipboardEvent) {
-  event.preventDefault();
-  
-  const text = event.clipboardData?.getData('text/plain') || '';
-  
-  // Insertar como texto plano (sin HTML)
-  const selection = window.getSelection();
-  if (selection && selection.rangeCount > 0) {
-    const range = selection.getRangeAt(0);
-    range.deleteContents();
-    range.insertNode(document.createTextNode(text));
-    
-    // Mover cursor al final del texto insertado
-    range.collapse(false);
-    selection.removeAllRanges();
-    selection.addRange(range);
+  onPaste(event: ClipboardEvent) {
+    event.preventDefault();
+
+    const text = event.clipboardData?.getData('text/plain') || '';
+
+    // Insertar como texto plano (sin HTML)
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(document.createTextNode(text));
+
+      // Mover cursor al final del texto insertado
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    const editor = event.target as HTMLElement;
+    this.card.descripcion = editor.textContent || '';
   }
-  
-  const editor = event.target as HTMLElement;
-  this.card.descripcion = editor.textContent || '';
-}
-cleanHTML(html: string): string {
-  if (!html) return '';
-  
-  const temp = document.createElement('div');
-  temp.innerHTML = html;
-  
-  // Forzar LTR en el contenedor temporal
-  temp.style.direction = 'ltr';
-  temp.setAttribute('dir', 'ltr');
-  
-  // Eliminar etiquetas no permitidas
-  const allowedTags = ['B', 'STRONG', 'U', 'BR', 'DIV', 'P', 'SPAN'];
-  this.removeUnallowedTags(temp, allowedTags);
-  
-  // Forzar LTR en todos los elementos resultantes
-  const allElements = temp.querySelectorAll('*');
-  allElements.forEach((el: Element) => {
-    el.setAttribute('dir', 'ltr');
-  });
-  
-  return temp.innerHTML;
-}
-   private removeUnallowedTags(element: HTMLElement, allowedTags: string[]) {
+  cleanHTML(html: string): string {
+    if (!html) return '';
+
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+
+    // Forzar LTR en el contenedor temporal
+    temp.style.direction = 'ltr';
+    temp.setAttribute('dir', 'ltr');
+
+    // Eliminar etiquetas no permitidas
+    const allowedTags = ['B', 'STRONG', 'U', 'BR', 'DIV', 'P', 'SPAN'];
+    this.removeUnallowedTags(temp, allowedTags);
+
+    // Forzar LTR en todos los elementos resultantes
+    const allElements = temp.querySelectorAll('*');
+    allElements.forEach((el: Element) => {
+      el.setAttribute('dir', 'ltr');
+    });
+
+    return temp.innerHTML;
+  }
+  private removeUnallowedTags(element: HTMLElement, allowedTags: string[]) {
     Array.from(element.children).forEach((child: Element) => {
       if (!allowedTags.includes(child.tagName)) {
         // Reemplazar la etiqueta por su contenido de texto
@@ -1601,189 +1600,188 @@ cleanHTML(html: string): string {
   }
 
 
-   onBeforeInput(event: any) {
-  // Interceptar ANTES de que se modifique el contenido
-  const editor = event.target as HTMLElement;
-  
-  // Si es un salto de línea, asegurarnos que sea LTR
-  if (event.inputType === 'insertParagraph' || event.inputType === 'insertLineBreak') {
-    // Dejar que el navegador lo maneje naturalmente
-    setTimeout(() => {
-      // Después de que se inserte, verificar que mantenga LTR
-      const allDivs = editor.querySelectorAll('div, p');
-      allDivs.forEach(el => {
-        if (!el.hasAttribute('dir')) {
-          el.setAttribute('dir', 'ltr');
-        }
-      });
-    }, 0);
-  }
-}
-// ✅ Abrir editor
-toggleDescriptionEdit() {
-  this.originalDescription = this.card.descripcion || '';
-  this.editingDescription = true;
-  
-  setTimeout(() => {
-    const textarea = this.descTextarea?.nativeElement;
-    if (textarea) {
-      textarea.focus();
-      const length = textarea.value.length;
-      textarea.setSelectionRange(length, length);
+  onBeforeInput(event: any) {
+    // Interceptar ANTES de que se modifique el contenido
+    const editor = event.target as HTMLElement;
+
+    // Si es un salto de línea, asegurarnos que sea LTR
+    if (event.inputType === 'insertParagraph' || event.inputType === 'insertLineBreak') {
+      // Dejar que el navegador lo maneje naturalmente
+      setTimeout(() => {
+        // Después de que se inserte, verificar que mantenga LTR
+        const allDivs = editor.querySelectorAll('div, p');
+        allDivs.forEach(el => {
+          if (!el.hasAttribute('dir')) {
+            el.setAttribute('dir', 'ltr');
+          }
+        });
+      }, 0);
     }
-  }, 100);
-}
+  }
+  // ✅ Abrir editor
+  toggleDescriptionEdit() {
+    this.originalDescription = this.card.descripcion || '';
+    this.editingDescription = true;
 
-// ✅ Insertar marcadores de formato
-insertMarkdown(marker: string) {
-  const textarea = this.descTextarea?.nativeElement;
-  if (!textarea) return;
-  
-  const start = textarea.selectionStart;
-  const end = textarea.selectionEnd;
-  const selectedText = textarea.value.substring(start, end);
-  const before = textarea.value.substring(0, start);
-  const after = textarea.value.substring(end);
-  
-  if (selectedText) {
-    // Si hay texto seleccionado, envolverlo
-    this.card.descripcion = before + marker + selectedText + marker + after;
+    setTimeout(() => {
+      const textarea = this.descTextarea?.nativeElement;
+      if (textarea) {
+        textarea.focus();
+        const length = textarea.value.length;
+        textarea.setSelectionRange(length, length);
+      }
+    }, 100);
+  }
+
+  // ✅ Insertar marcadores de formato
+  insertMarkdown(marker: string) {
+    const textarea = this.descTextarea?.nativeElement;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+    const before = textarea.value.substring(0, start);
+    const after = textarea.value.substring(end);
+
+    if (selectedText) {
+      // Si hay texto seleccionado, envolverlo
+      this.card.descripcion = before + marker + selectedText + marker + after;
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + marker.length, end + marker.length);
+      }, 0);
+    } else {
+      // Si no hay selección, insertar placeholder
+      this.card.descripcion = before + marker + 'texto' + marker + after;
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + marker.length, start + marker.length + 5);
+      }, 0);
+    }
+  }
+  selectBullet(symbol: string, type: 'bullet' | 'checkbox' = 'bullet') {
+    this.selectedBullet = symbol;
+    this.selectedBulletType = type;
+    this.showBulletMenu = false;
+    this.insertList();
+  }
+
+  insertList() {
+    const textarea = this.descTextarea?.nativeElement;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+    const before = textarea.value.substring(0, start);
+    const after = textarea.value.substring(end);
+
+    const lastNewline = before.lastIndexOf('\n');
+    const isStartOfLine = lastNewline === before.length - 1 || before === '';
+    const needsNewline = isStartOfLine ? '' : '\n';
+
+    if (selectedText) {
+      const lines = selectedText.split('\n');
+      const bulletedText = lines
+        .filter(line => line.trim())
+        .map(line => `${this.selectedBullet} ${line.trim()}`)
+        .join('\n');
+
+      this.card.descripcion = before + needsNewline + bulletedText + after;
+
+      setTimeout(() => {
+        textarea.focus();
+        const newPosition = start + needsNewline.length + bulletedText.length;
+        textarea.setSelectionRange(newPosition, newPosition);
+      }, 0);
+    } else {
+      this.card.descripcion = before + needsNewline + this.selectedBullet + ' ' + after;
+
+      setTimeout(() => {
+        textarea.focus();
+        const newPosition = start + needsNewline.length + this.selectedBullet.length + 1;
+        textarea.setSelectionRange(newPosition, newPosition);
+      }, 0);
+    }
+  }
+
+  onTab(event: Event) {
+    event.preventDefault();
+    const textarea = this.descTextarea?.nativeElement;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const before = textarea.value.substring(0, start);
+    const after = textarea.value.substring(start);
+
+    this.card.descripcion = before + '  ' + after;
+
     setTimeout(() => {
       textarea.focus();
-      textarea.setSelectionRange(start + marker.length, end + marker.length);
-    }, 0);
-  } else {
-    // Si no hay selección, insertar placeholder
-    this.card.descripcion = before + marker + 'texto' + marker + after;
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + marker.length, start + marker.length + 5);
+      textarea.setSelectionRange(start + 2, start + 2);
     }, 0);
   }
-}
-selectBullet(symbol: string, type: 'bullet' | 'checkbox' = 'bullet') {
-  this.selectedBullet = symbol;
-  this.selectedBulletType = type;
-  this.showBulletMenu = false;
-  this.insertList();
-}
-// ✅ Insertar viñeta
-insertList() {
-  const textarea = this.descTextarea?.nativeElement;
-  if (!textarea) return;
-  
-  const start = textarea.selectionStart;
-  const end = textarea.selectionEnd;
-  const selectedText = textarea.value.substring(start, end);
-  const before = textarea.value.substring(0, start);
-  const after = textarea.value.substring(end);
-  
-  const lastNewline = before.lastIndexOf('\n');
-  const isStartOfLine = lastNewline === before.length - 1 || before === '';
-  const needsNewline = isStartOfLine ? '' : '\n';
-  
-  if (selectedText) {
-    const lines = selectedText.split('\n');
-    const bulletedText = lines
-      .filter(line => line.trim())
-      .map(line => `${this.selectedBullet} ${line.trim()}`)
-      .join('\n');
-    
-    this.card.descripcion = before + needsNewline + bulletedText + after;
-    
-    setTimeout(() => {
-      textarea.focus();
-      const newPosition = start + needsNewline.length + bulletedText.length;
-      textarea.setSelectionRange(newPosition, newPosition);
-    }, 0);
-  } else {
-    this.card.descripcion = before + needsNewline + this.selectedBullet + ' ' + after;
-    
-    setTimeout(() => {
-      textarea.focus();
-      const newPosition = start + needsNewline.length + this.selectedBullet.length + 1;
-      textarea.setSelectionRange(newPosition, newPosition);
-    }, 0);
+
+
+  getFormattedDescription(): string {
+    if (!this.card.descripcion?.trim()) {
+      return '<span class="text-gray-400">Haz clic para agregar descripción</span>';
+    }
+
+    let formatted = this.card.descripcion
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/__(.+?)__/g, '<u>$1</u>')
+      // ✅ Convertir viñetas normales en <li>
+      .replace(/^([•■→]) (.+)$/gm, '<li data-bullet="$1">$2</li>')
+      // ✅ OCULTAR las líneas de checkbox (no mostrarlas como texto)
+      .replace(/^\[ \] .+$/gm, '')
+      .replace(/^\[x\] .+$/gm, '')
+      .replace(/\n/g, '<br>');
+
+    // Limpiar múltiples <br> seguidos que quedan al eliminar los checkboxes
+    formatted = formatted.replace(/(<br>){2,}/g, '<br>');
+
+    // Envolver <li> consecutivos en <ul>
+    formatted = formatted.replace(/(<li[^>]*>.*?<\/li>(<br>)?)+/g, (match) => {
+      return '<ul style="list-style: none; padding-left: 1.5rem; margin: 0.5rem 0;">' +
+        match.replace(/<br>/g, '').replace(/<li data-bullet="([^"]+)">(.*?)<\/li>/g,
+          '<li style="position: relative; padding-left: 0.5rem;"><span style="position: absolute; left: -1.5rem;">$1</span>$2</li>') +
+        '</ul>';
+    });
+
+    return formatted;
   }
-}
 
-// ✅ Manejar Tab
-onTab(event: Event) {
-  event.preventDefault();
-  const textarea = this.descTextarea?.nativeElement;
-  if (!textarea) return;
-  
-  const start = textarea.selectionStart;
-  const before = textarea.value.substring(0, start);
-  const after = textarea.value.substring(start);
-  
-  this.card.descripcion = before + '  ' + after;
-  
-  setTimeout(() => {
-    textarea.focus();
-    textarea.setSelectionRange(start + 2, start + 2);
-  }, 0);
-}
-
-// ✅ Formatear descripción para mostrar
-getFormattedDescription(): string {
-  if (!this.card.descripcion?.trim()) {
-    return '<span class="text-gray-400">Haz clic para agregar descripción</span>';
+  saveDescription() {
+    this.editingDescription = false;
+    this.saveCard();
   }
-  
-  let formatted = this.card.descripcion
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/__(.+?)__/g, '<u>$1</u>')
-    // ✅ Convertir viñetas normales en <li>
-    .replace(/^([•■→]) (.+)$/gm, '<li data-bullet="$1">$2</li>')
-    // ✅ OCULTAR las líneas de checkbox (no mostrarlas como texto)
-    .replace(/^\[ \] .+$/gm, '')
-    .replace(/^\[x\] .+$/gm, '')
-    .replace(/\n/g, '<br>');
-  
-  // Limpiar múltiples <br> seguidos que quedan al eliminar los checkboxes
-  formatted = formatted.replace(/(<br>){2,}/g, '<br>');
-  
-  // Envolver <li> consecutivos en <ul>
-  formatted = formatted.replace(/(<li[^>]*>.*?<\/li>(<br>)?)+/g, (match) => {
-    return '<ul style="list-style: none; padding-left: 1.5rem; margin: 0.5rem 0;">' + 
-           match.replace(/<br>/g, '').replace(/<li data-bullet="([^"]+)">(.*?)<\/li>/g, 
-             '<li style="position: relative; padding-left: 0.5rem;"><span style="position: absolute; left: -1.5rem;">$1</span>$2</li>') + 
-           '</ul>';
-  });
-  
-  return formatted;
-}
-// ✅ Guardar descripción
-saveDescription() {
-  this.editingDescription = false;
-  this.saveCard();
-}
 
-// ✅ Cancelar edición
-cancelDescriptionEdit() {
-  this.card.descripcion = this.originalDescription;
-  this.editingDescription = false;
-}
 
-// ✅ Longitud de descripción
-getDescriptionLength(): number {
-  return this.card.descripcion?.length || 0;
-}
-// ✅ AGREGAR estos métodos después de getChecklistItems()
+  cancelDescriptionEdit() {
+    this.card.descripcion = this.originalDescription;
+    this.editingDescription = false;
+  }
 
-getCheckedItemsCount(): number {
-  return this.getChecklistItems().filter(item => item.checked).length;
-}
 
-getChecklistProgress(): number {
-  const items = this.getChecklistItems();
-  if (items.length === 0) return 0;
-  return (this.getCheckedItemsCount() / items.length) * 100;
-}
+  getDescriptionLength(): number {
+    return this.card.descripcion?.length || 0;
+  }
+
+
+  getCheckedItemsCount(): number {
+    return this.getChecklistItems().filter(item => item.checked).length;
+  }
+
+  getChecklistProgress(): number {
+    const items = this.getChecklistItems();
+    if (items.length === 0) return 0;
+    return (this.getCheckedItemsCount() / items.length) * 100;
+  }
 
 }
 

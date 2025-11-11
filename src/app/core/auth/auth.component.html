@@ -3,7 +3,7 @@
   <div class="hidden lg:flex lg:w-1/2 bg-cover bg-center" 
        style="background-image: url('assets/im-re-lo.png');"></div>
 
-  <!-- Lado derecho - Formulario , NUEVO: overflow-y-auto -->
+  <!-- Lado derecho - Formulario con scroll -->
   <div class="w-full lg:w-1/2 bg-gray-50 flex flex-col items-center justify-start p-8 overflow-y-auto h-screen">
     <div class="w-full max-w-md">
       <!-- Logo -->
@@ -56,8 +56,7 @@
           </div>
         }
         
-
-        <!--  NUEVO: DNI - Solo en registro -->
+        <!-- DNI - Solo en registro -->
         @if (authType === "register") {
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -75,7 +74,6 @@
             </div>
           </div>
         }
-
 
         <!-- Correo electrónico -->
         <div>
@@ -112,12 +110,69 @@
               <mat-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
             </button>
           </div>
-          <div 
-            *ngIf="authForm.get('password')?.touched && authForm.get('password')?.invalid"
-            class="text-red-500 text-sm mt-1 ml-4">
-            La contraseña debe tener al menos 6 caracteres
+
+          <!-- Indicador de fortaleza - SOLO EN REGISTRO -->
+          @if (authType === "register" && authForm.get('password')?.value) {
+            <div class="mt-3 space-y-2">
+              <!-- Barra de progreso -->
+              <div class="flex items-center gap-2">
+                <div class="flex-1 bg-gray-200 rounded-full h-2">
+                  <div 
+                    class="h-2 rounded-full transition-all duration-300"
+                    [style.width.%]="passwordStrength.strength"
+                    [style.background-color]="getStrengthColor()">
+                  </div>
+                </div>
+                <span 
+                  class="text-xs font-medium"
+                  [style.color]="getStrengthColor()">
+                  {{ getStrengthText() }}
+                </span>
+              </div>
+              
+              <!-- Lista de requisitos -->
+              <div class="space-y-1 text-xs ml-4">
+                <div class="flex items-center gap-2" 
+                     [class.text-green-600]="passwordStrength.hasExactLength" 
+                     [class.text-gray-500]="!passwordStrength.hasExactLength">
+                  <mat-icon class="text-base">{{ passwordStrength.hasExactLength ? 'check_circle' : 'cancel' }}</mat-icon>
+                  <span>Exactamente 6 caracteres</span>
+                </div>
+                <div class="flex items-center gap-2" 
+                     [class.text-green-600]="passwordStrength.hasUpperCase" 
+                     [class.text-gray-500]="!passwordStrength.hasUpperCase">
+                  <mat-icon class="text-base">{{ passwordStrength.hasUpperCase ? 'check_circle' : 'cancel' }}</mat-icon>
+                  <span>Al menos una mayúscula</span>
+                </div>
+                <div class="flex items-center gap-2" 
+                     [class.text-green-600]="passwordStrength.hasLowerCase" 
+                     [class.text-gray-500]="!passwordStrength.hasLowerCase">
+                  <mat-icon class="text-base">{{ passwordStrength.hasLowerCase ? 'check_circle' : 'cancel' }}</mat-icon>
+                  <span>Al menos una minúscula</span>
+                </div>
+                <div class="flex items-center gap-2" 
+                     [class.text-green-600]="passwordStrength.hasNumber" 
+                     [class.text-gray-500]="!passwordStrength.hasNumber">
+                  <mat-icon class="text-base">{{ passwordStrength.hasNumber ? 'check_circle' : 'cancel' }}</mat-icon>
+                  <span>Al menos un número</span>
+                </div>
+                <div class="flex items-center gap-2" 
+                     [class.text-green-600]="passwordStrength.hasSpecialChar" 
+                     [class.text-gray-500]="!passwordStrength.hasSpecialChar">
+                  <mat-icon class="text-base">{{ passwordStrength.hasSpecialChar ? 'check_circle' : 'cancel' }}</mat-icon>
+                  <span>Al menos un carácter especial (!@#$%...)</span>
+                </div>
+              </div>
+            </div>
+          }
+
+          <!-- Error de contraseña -->
+            <div 
+              *ngIf="authForm.get('password')?.touched && authForm.get('password')?.invalid && authType === 'login'"
+              class="text-red-500 text-sm mt-1 ml-4">
+              La contraseña es requerida
+            </div>
           </div>
-        </div>
 
         <!-- Confirmar contraseña - Solo en registro -->
         @if (authType === "register") {

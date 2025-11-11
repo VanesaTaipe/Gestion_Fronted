@@ -12,7 +12,7 @@ import { Observable, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, map, startWith, switchMap } from 'rxjs/operators';
 import { environment } from '../../../../../../environments/environment';
 import { InviteMemberDialogComponent } from '../../../../project/components/invite-member-dialog/inivite-member-dialog.component';
-import { UserService } from '../../../../profile/services/user.service';
+import { UserService as ProfileUserService } from '../../../../profile/services/user.service';
 import { User } from '../../../../profile/models/user.interface';
 import { ProjectPermissionService } from '../../../services/project-permission.service';
 import { Router } from '@angular/router';
@@ -83,7 +83,7 @@ export class BoardSettingsComponent implements OnInit {
     private http: HttpClient,
     private fb: FormBuilder,
     private dialog: MatDialog,
-    private userService: UserService,
+    private profileUserService: ProfileUserService,
     private router: Router,
     private permissionService: ProjectPermissionService
   ) {
@@ -102,26 +102,24 @@ export class BoardSettingsComponent implements OnInit {
 
         const searchTerm = query?.trim() || '';
         if (searchTerm.length < 3) {
-          console.log('⏸️ Búsqueda detenida: mínimo 3 caracteres');
+          console.log('Búsqueda detenida: mínimo 3 caracteres');
           return of([]);
         }
 
-        console.log('🔍 Buscando usuarios con:', searchTerm);
+        console.log('Buscando usuarios con:', searchTerm);
         this.isSearchingUsers = true;
 
-        return this.userService.searchUsers(searchTerm).pipe(
+        return this.profileUserService.searchUsers(searchTerm).pipe(
           map((users: User[]) => {
-            // ✅ El servicio ya retorna User[] directamente, no { users: [...] }
-            console.log('📥 Usuarios recibidos en componente:', users);
+            console.log('Usuarios recibidos en componente:', users);
             
-            // Filtrar usuarios que ya son miembros
             const availableUsers = users.filter((user: User) =>
               !this.projectMembers.some(member => member.id_usuario === user.id_usuario)
             );
 
-            console.log('✅ Usuarios disponibles (no son miembros):', availableUsers.length);
+            console.log('Usuarios disponibles (no son miembros):', availableUsers.length);
 
-            // Ordenar alfabéticamente
+    
             const sortedUsers = availableUsers.sort((a: User, b: User) => {
               const nameA = (a.username || '').toLowerCase();
               const nameB = (b.username || '').toLowerCase();
@@ -132,7 +130,7 @@ export class BoardSettingsComponent implements OnInit {
             return sortedUsers;
           }),
           catchError(err => {
-            console.error('❌ Error en búsqueda:', err);
+            console.error('Error en búsqueda:', err);
             this.isSearchingUsers = false;
             return of([]);
           })
@@ -156,7 +154,7 @@ export class BoardSettingsComponent implements OnInit {
 
   addMemberFromSearch(user: User): void {
     if (this.projectMembers.length >= 30) {
-    alert('⚠️ Límite de 30 integrantes alcanzado');
+    alert('Límite de 30 integrantes alcanzado');
     return;
   }
     const username = user.username || user.email || 'Usuario';
@@ -185,7 +183,7 @@ export class BoardSettingsComponent implements OnInit {
 
   confirmarMiembro(miembro: MiembroPendiente): void {
     if (this.projectMembers.length >= 30) {
-    alert('⚠️ Límite de 30 integrantes alcanzado');
+    alert('Límite de 30 integrantes alcanzado');
     return;
   }
     const nuevoMiembro = {
@@ -195,7 +193,7 @@ export class BoardSettingsComponent implements OnInit {
 
     this.http.post(`${this.api}/proyectos/${this.proyectoId}/miembros`, nuevoMiembro).subscribe({
       next: () => {
-        const roleName = miembro.rol_temporal === 1 ? 'Líder' : 'Miembro';
+        const roleName = miembro.rol_temporal === 2 ? 'Miembro' : 'Líder';
         alert(`✓ ${miembro.username} agregado como ${roleName}`);
         this.miembrosPendientes = this.miembrosPendientes.filter(m => m.user.id_usuario !== miembro.user.id_usuario);
         this.loadProjectMembers();
@@ -306,7 +304,7 @@ export class BoardSettingsComponent implements OnInit {
         // 1. Actualizar lista de miembros
       this.projectMembers = this.projectMembers.filter(m => m.id_usuario !== usuarioId);
       
-      // 2. 🔄 Desasignar tareas del usuario eliminado
+      // 2. Desasignar tareas del usuario eliminado
       this.desasignarTareasDelUsuario(usuarioId, member.nombre);
     
       },
@@ -317,7 +315,7 @@ export class BoardSettingsComponent implements OnInit {
     });
   }
   private desasignarTareasDelUsuario(usuarioId: number, nombreUsuario: string) {
-  console.log(`🔍 Buscando tareas asignadas a ${nombreUsuario} (ID: ${usuarioId})`);
+  console.log(`Buscando tareas asignadas a ${nombreUsuario} (ID: ${usuarioId})`);
   
   // Obtener resumen de tareas del proyecto
   this.http.get(`${this.api}/proyectos/${this.proyectoId}/tareas/resumen`).subscribe({
@@ -333,7 +331,7 @@ export class BoardSettingsComponent implements OnInit {
         });
       });
       
-      console.log(`📋 Encontradas ${tareasAActualizar.length} tarea(s) asignadas a ${nombreUsuario}`);
+      console.log(`Encontradas ${tareasAActualizar.length} tarea(s) asignadas a ${nombreUsuario}`);
       
       if (tareasAActualizar.length === 0) {
         alert(`${nombreUsuario} eliminado del proyecto.`);
@@ -346,7 +344,7 @@ export class BoardSettingsComponent implements OnInit {
         this.http.put(`${this.api}/tareas/${tareaId}`, { id_asignado: null }).subscribe({
           next: () => {
             tareasActualizadas++;
-            console.log(`✅ Tarea ${tareaId} desasignada (${tareasActualizadas}/${tareasAActualizar.length})`);
+            console.log(`Tarea ${tareaId} desasignada (${tareasActualizadas}/${tareasAActualizar.length})`);
             
             // Cuando todas estén actualizadas, mostrar mensaje
             if (tareasActualizadas === tareasAActualizar.length) {
@@ -358,13 +356,13 @@ export class BoardSettingsComponent implements OnInit {
             }
           },
           error: (e) => {
-            console.error(`❌ Error desasignando tarea ${tareaId}:`, e);
+            console.error(`Error desasignando tarea ${tareaId}:`, e);
           }
         });
       });
     },
     error: (e) => {
-      console.error('❌ Error obteniendo tareas:', e);
+      console.error(' Error obteniendo tareas:', e);
       alert(`${nombreUsuario} eliminado, pero hubo un error al actualizar las tareas.`);
     }
   });
@@ -372,7 +370,7 @@ export class BoardSettingsComponent implements OnInit {
 
   openInviteDialog() {
     if (this.projectMembers.length >= 30) {
-    alert('⚠️ Límite de 30 integrantes alcanzado');
+    alert('Límite de 30 integrantes alcanzado');
     return;
   }
     const dialogRef = this.dialog.open(InviteMemberDialogComponent, {
@@ -406,14 +404,17 @@ export class BoardSettingsComponent implements OnInit {
 
     this.updatingProject = true;
     const data = {
+      proyecto: {
       nombre: this.projectForm.value.nombre,
       descripcion: this.projectForm.value.descripcion
+    }
     };
 
     this.http.put(`${this.api}/proyectos/${this.proyectoId}`, data).subscribe({
-      next: () => {
-        this.projectName = data.nombre;
-        this.projectDescription = data.descripcion;
+      next: (response:any) => {
+      const proyecto = response.proyecto?.data || response.proyecto;
+      this.projectName = proyecto.nombre;
+      this.projectDescription = proyecto.descripcion;
         this.editingProject = false;
         this.updatingProject = false;
         alert('Proyecto actualizado');

@@ -23,6 +23,7 @@ import { BoardSettingsComponent } from '../board/settings/board-settings.compone
 import { CardDetailModalComponent } from '../card/card-detail.component';
 import { ColumnComponent } from '../column/column.component';
 import { HeaderComponent } from '../header/header.component';
+import {AccessDeniedComponent} from './access-denied.component/access-denied.component.'; 
 
 @Component({
   selector: 'app-board',
@@ -36,6 +37,7 @@ import { HeaderComponent } from '../header/header.component';
     DragDropModule,
     BoardDashboardComponent,
     BoardSettingsComponent,
+    AccessDeniedComponent,
    
   ],
   templateUrl: './board.component.html',
@@ -70,19 +72,15 @@ currentUserName = '';
   activeView: 'board' | 'dashboard' | 'settings' = 'board';
   projectDescription: string = '';
   projectMembers: any[] = [];
-  
-  // Para gestionar columnas fijas
+    
   columnaConStatusEnProgreso?: Column;
   columnaConStatusFinalizado?: Column;
-
+  
   private location = inject(Location);
   private route = inject(ActivatedRoute);
   workspaceId?: number;
   lastDeletedMemberId?: number; 
-
-  
-  
-
+  accessDenied = false;
   constructor(
     private boardService: BoardService, 
     private fb: FormBuilder,
@@ -140,9 +138,8 @@ currentUserName = '';
       this.userRole = role;
       this.isLeader = this.permissionService.isLeader();
       this.isMember = this.permissionService.isMember();
-      
-      // ✅ AGREGAR ESTO
-      console.log('🔐 === PERMISOS CARGADOS EN BOARD ===');
+
+      console.log('=== PERMISOS CARGADOS EN BOARD ===');
       console.log('userRole:', role);
       console.log('isLeader:', this.isLeader);
       console.log('typeof isLeader:', typeof this.isLeader);
@@ -162,7 +159,7 @@ currentUserName = '';
     this.columnaConStatusEnProgreso = this.allColumns.find(c => c.status_fijas === '1');
     this.columnaConStatusFinalizado = this.allColumns.find(c => c.status_fijas === '2');
     
-    console.log('📌 Columnas fijas identificadas:', {
+    console.log(' Columnas fijas identificadas:', {
       enProgreso: this.columnaConStatusEnProgreso?.nombre,
       finalizado: this.columnaConStatusFinalizado?.nombre
     });
@@ -197,7 +194,11 @@ currentUserName = '';
       },
       error: (e) => {
         console.error('Error cargando proyecto:', e);
-  
+        if (e.status === 401) {
+        console.log('Acceso denegado al proyecto');
+        this.accessDenied = true;
+        return;
+      }
         if (!this.proyectoNombre) {
           this.proyectoNombre = `Proyecto ${this.proyectoId}`;
         }
@@ -208,15 +209,15 @@ currentUserName = '';
   }
 
   private loadColumns() {
-    console.log('🔍 === INICIANDO CARGA DE COLUMNAS ===');
+    console.log(' === INICIANDO CARGA DE COLUMNAS ===');
     console.log('URL:', `${environment.apiBase}/proyectos/${this.proyectoId}/columnas`);
     
     this.http.get<any>(`${environment.apiBase}/proyectos/${this.proyectoId}/columnas`).subscribe({
       next: (resColumnas) => {
-        console.log('📥 RESPUESTA COMPLETA del backend:', JSON.stringify(resColumnas, null, 2));
+        console.log('RESPUESTA COMPLETA del backend:', JSON.stringify(resColumnas, null, 2));
         
         const todasLasColumnas = resColumnas?.columnas?.data || resColumnas?.columnas || resColumnas?.data || [];
-        console.log('📊 Columnas extraídas:', todasLasColumnas);
+        console.log('Columnas extraídas:', todasLasColumnas);
         
          this.allColumns = todasLasColumnas.map((c: any, index: number) => {
           let colorFinal: string;
@@ -230,12 +231,12 @@ currentUserName = '';
             this.guardarColorColumna(c.id_columna ?? c.id, colorFinal);
   }
 
-          console.log(`📝 Columna "${c.nombre}" (ID: ${c.id_columna ?? c.id}):`, {
+          console.log(`Columna "${c.nombre}" (ID: ${c.id_columna ?? c.id}):`, {
             posicion: c.posicion,
             color_bd: c.color,
             color_asignado: colorFinal,
             tipo_columna: c.tipo_columna,
-            status_fijas: c.status_fijas,  // 👈 ESTO ES LO MÁS IMPORTANTE
+            status_fijas: c.status_fijas,  
             cantidad_tareas: c.tareas_count || c.cantidad_tareas || 0
           });
           
@@ -252,8 +253,8 @@ currentUserName = '';
           };
         });
         
-        console.log('✅ Columnas procesadas:', this.allColumns);
-        console.log('🔍 Verificando status_fijas de cada columna:');
+        console.log('Columnas procesadas:', this.allColumns);
+        console.log(' Verificando status_fijas de cada columna:');
         this.allColumns.forEach(col => {
           console.log(`  - ${col.nombre}: status_fijas = ${col.status_fijas}`);
         });
@@ -274,10 +275,10 @@ currentUserName = '';
 private guardarColorColumna(columnaId: number, color: string): void {
   this.boardService.updateColumn(columnaId, { color }).subscribe({
     next: () => {
-      console.log(`✅ Color guardado para columna ${columnaId}: ${color}`);
+      console.log(` Color guardado para columna ${columnaId}: ${color}`);
     },
     error: (e) => {
-      console.error(`❌ Error guardando color para columna ${columnaId}:`, e);
+      console.error(` Error guardando color para columna ${columnaId}:`, e);
     }
   });
 }
@@ -424,8 +425,8 @@ private createDefaultColumns() {
 openCardDetail(card: Card) {
   if (!card?.id) return;
 
-  // ✅ AGREGAR ESTO
-  console.log('🔓 === ABRIENDO MODAL DESDE BOARD ===');
+
+  console.log(' === ABRIENDO MODAL DESDE BOARD ===');
   console.log('currentUserId:', this.currentUserId);
   console.log('isLeader:', this.isLeader);
   console.log('typeof isLeader:', typeof this.isLeader);
@@ -495,27 +496,27 @@ openCardDetail(card: Card) {
     const color = this.colForm.value.color as string; 
     const status_fijas = this.colForm.value.status_fijas;
     
-    console.log('💾 Guardando cambios de columna:', { nombre, color, status_fijas });
+    console.log(' Guardando cambios de columna:', { nombre, color, status_fijas });
     
     if (this.editMode && this.editingColumn) {
       // Primero guardar nombre y color
       this.boardService.updateColumn(this.editingColumn.id, { nombre, color }).subscribe({
         next: () => {
-          console.log('✅ Nombre y color actualizados');
+          console.log(' Nombre y color actualizados');
           
           // Ahora guardar status_fijas si cambió
           if (this.editingColumn!.status_fijas !== status_fijas) {
-            console.log('📝 Status_fijas cambió, guardando...');
+            console.log('Status_fijas cambió, guardando...');
             this.guardarStatusFijas(status_fijas);
           } else {
-            console.log('ℹ️ Status_fijas sin cambios');
+            console.log('ℹStatus_fijas sin cambios');
             const tipo_columna = status_fijas ? 'fija' : 'normal';
             this.actualizarColumnaLocal(nombre, color, tipo_columna, status_fijas);
             this.identificarColumnasFijas();
           }
         },
         error: (e) => {
-          console.error('❌ Error actualizando columna:', e);
+          console.error(' Error actualizando columna:', e);
           alert(e?.error?.error ?? 'No se pudo actualizar');
         }
       });
@@ -581,7 +582,7 @@ openCardDetail(card: Card) {
       this.allColumns[allColIndex].status_fijas = status_fijas;
     }
     
-    console.log('✅ Columna actualizada localmente:', { nombre, tipo_columna, status_fijas });
+    console.log('Columna actualizada localmente:', { nombre, tipo_columna, status_fijas });
     this.cdr.detectChanges();
     this.closeAddColumn();
   }
@@ -604,8 +605,8 @@ openCardDetail(card: Card) {
     
     // Caso 2: Cambiar de un status_fijas a otro (ej: de '1' a '2' o viceversa)
     // REGLA DEL BACKEND: Solo bloquear si la columna YA ES FIJA y tiene tareas
-    // Columna Normal → Fija: ✅ Permitido aunque tenga tareas
-    // Columna Fija → Cambiar status_fijas: ❌ Bloqueado si tiene tareas
+    // Columna Normal → Fija: Permitido aunque tenga tareas
+    // Columna Fija → Cambiar status_fijas:  Bloqueado si tiene tareas
     if (esColumnaFija && tieneTareas) {
       return true; // Bloquear cambio en columnas fijas con tareas
     }
@@ -632,7 +633,7 @@ openCardDetail(card: Card) {
     const currentValue = this.colForm.get('status_fijas')?.value;
     const newValue = currentValue === status ? null : status;
     
-    console.log('🔄 Toggle status_fijas (solo visual):', {
+    console.log(' Toggle status_fijas (solo visual):', {
       columna: this.editingColumn.nombre,
       currentValue,
       newValue,
@@ -646,7 +647,7 @@ openCardDetail(card: Card) {
   guardarStatusFijas(newStatusFijas: '1' | '2' | null) {
     if (!this.editingColumn) return;
     
-    console.log('💾 Guardando status_fijas al hacer clic en Actualizar:', {
+    console.log(' Guardando status_fijas al hacer clic en Actualizar:', {
       columna_id: this.editingColumn.id,
       columna_nombre: this.editingColumn.nombre,
       status_fijas_anterior: this.editingColumn.status_fijas,
@@ -661,7 +662,7 @@ openCardDetail(card: Card) {
     
     this.boardService.gestionarTiposColumnas(this.proyectoId, columnasActualizar).subscribe({
       next: (response) => {
-        console.log('✅ Status_fijas guardado exitosamente:', response);
+        console.log(' Status_fijas guardado exitosamente:', response);
         
         // Actualizar estado local
         const nombre = this.editingColumn!.nombre || '';
@@ -673,11 +674,11 @@ openCardDetail(card: Card) {
         const mensaje = newStatusFijas === '1' ? 'Establecida como "En progreso"' :
                        newStatusFijas === '2' ? 'Establecida como "Finalizado"' :
                        'Convertida a columna normal';
-        console.log(`✅ ${mensaje}`);
+        console.log(` ${mensaje}`);
       },
       error: (e) => {
-        console.error('❌ Error guardando status_fijas:', e);
-        console.error('📋 Detalles del error:', {
+        console.error(' Error guardando status_fijas:', e);
+        console.error(' Detalles del error:', {
           status: e?.status,
           statusText: e?.statusText,
           error: e?.error,
@@ -831,11 +832,11 @@ openCardDetail(card: Card) {
   }
   
   onColumnDrop(event: CdkDragDrop<Column[]>): void {
-  console.log('🔵 DROP EJECUTADO');
+  console.log(' DROP EJECUTADO');
   
   // Validar permisos
   if (!this.isLeader) {
-    console.warn('❌ Sin permisos para reordenar columnas');
+    console.warn('Sin permisos para reordenar columnas');
     alert('Solo el líder puede reordenar columnas');
     return;
   }
@@ -845,21 +846,21 @@ openCardDetail(card: Card) {
 
   // Si no cambió de posición, no hacer nada
   if (prevIndex === currIndex) {
-    console.log('⚠️ Misma posición, no se actualiza');
+    console.log('Misma posición, no se actualiza');
     return;
   }
 
   if (!this.columns || this.columns.length === 0) {
-    console.warn('⚠️ No hay columnas para reordenar');
+    console.warn('No hay columnas para reordenar');
     return;
   }
 
-  console.log(`📦 Moviendo columna: posición ${prevIndex} → ${currIndex}`);
+  console.log(`Moviendo columna: posición ${prevIndex} → ${currIndex}`);
 
   // Mover en el array
   moveItemInArray(this.columns, prevIndex, currIndex);
 
-  // ✅ CRÍTICO: Actualizar el campo 'posicion' de TODAS las columnas
+  // CRÍTICO: Actualizar el campo 'posicion' de TODAS las columnas
   this.columns.forEach((col, index) => {
     col.posicion = index;
     console.log(`  ${col.nombre}: nueva posición = ${index}`);
@@ -871,7 +872,7 @@ openCardDetail(card: Card) {
     posicion: index
   }));
 
-  console.log('📤 Actualizando posiciones en backend...', updates);
+  console.log(' Actualizando posiciones en backend...', updates);
 
   // Actualizar de forma secuencial para evitar conflictos
   from(updates).pipe(
@@ -884,12 +885,12 @@ openCardDetail(card: Card) {
       // Progreso
     },
     error: (err) => {
-      console.error('❌ Error actualizando posiciones:', err);
+      console.error(' Error actualizando posiciones:', err);
       alert('Error al reordenar columnas. Recargando...');
       this.loadBoard();
     },
     complete: () => {
-      console.log('✅ Todas las posiciones actualizadas correctamente');
+      console.log(' Todas las posiciones actualizadas correctamente');
       
       // Actualizar también en allColumns
       if (this.allColumns && this.allColumns.length > 0) {
@@ -902,7 +903,7 @@ openCardDetail(card: Card) {
       }
       
       this.cdr.detectChanges();
-      console.log('✅ Orden final:', this.columns.map(c => `${c.nombre}:${c.posicion}`));
+      console.log('Orden final:', this.columns.map(c => `${c.nombre}:${c.posicion}`));
     }
   });
 }
@@ -926,10 +927,10 @@ onRoleChanged(newRoleId: number) {
   }
 }
 /**
- * 🔄 Actualizar tareas cuando se elimina un miembro
+ *  Actualizar tareas cuando se elimina un miembro
  */
 onMemberDeleted(usuarioId: number) {
-  console.log('🔄 Actualizando UI: miembro eliminado', usuarioId);
+  console.log(' Actualizando UI: miembro eliminado', usuarioId);
   
   // Actualizar todas las tarjetas que estaban asignadas al usuario
   this.columns.forEach(col => {
@@ -937,15 +938,15 @@ onMemberDeleted(usuarioId: number) {
       if (card.id_asignado === usuarioId) {
         card.id_asignado = undefined;
         card.asignado_a = 'Sin asignar';
-        console.log(`✅ Tarea ${card.id} actualizada en UI`);
+        console.log(` Tarea ${card.id} actualizada en UI`);
       }
     });
   });
   
-  // ✅ Guardar el ID para pasarlo a las columnas
+  //  Guardar el ID para pasarlo a las columnas
   this.lastDeletedMemberId = usuarioId;
   
-  // ✅ Resetear después de un momento para que el binding funcione
+  //  Resetear después de un momento para que el binding funcione
   setTimeout(() => {
     this.lastDeletedMemberId = undefined;
   }, 100);
@@ -953,4 +954,5 @@ onMemberDeleted(usuarioId: number) {
   // Forzar detección de cambios
   this.cdr.detectChanges();
 }
+
 }

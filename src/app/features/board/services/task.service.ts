@@ -410,7 +410,7 @@ export class TaskService {
     );
   }
 
-  // ✅ NUEVO: Eliminar comentario (soft delete)
+
   deleteComment(commentId: number): Observable<any> {
     console.log(`Eliminando comentario ${commentId}`);
     

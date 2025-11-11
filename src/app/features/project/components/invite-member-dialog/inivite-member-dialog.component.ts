@@ -10,7 +10,7 @@ import { MatRadioModule } from '@angular/material/radio';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { User } from '../../../profile/models/user.interface';
 import { UserService } from '../../../profile/services/user.service';
-import { getPasswordStrength, PasswordStrength } from '../../../../core/auth/validator/password-streangt.validator';
+import {  PasswordStrength } from '../../../../core/auth/validator/password-streangt.validator';
 interface DialogData {
   projectId: number;
   projectName: string;
@@ -18,7 +18,7 @@ interface DialogData {
 
 interface InviteResult {
   user: User;
-  rol: 'lider' | 'miembro';
+  rol: number;
   tempPassword?: string;
 }
 
@@ -96,7 +96,7 @@ interface InviteResult {
             <div class="form-group">
               <label class="field-label">Rol en el proyecto*</label>
               <mat-radio-group formControlName="rol" class="role-group">
-                <div class="role-option" [class.selected]="inviteForm.get('rol')?.value === 'lider'">
+                <div class="role-option" [class.selected]="inviteForm.get('rol')?.value === 1">
                   <mat-radio-button value="lider">
                     <div class="role-content">
                       <span class="role-name">Líder</span>
@@ -105,7 +105,7 @@ interface InviteResult {
                   </mat-radio-button>
                 </div>
                 
-                <div class="role-option" [class.selected]="inviteForm.get('rol')?.value === 'miembro'">
+                <div class="role-option" [class.selected]="inviteForm.get('rol')?.value ===2">
                   <mat-radio-button value="miembro">
                     <div class="role-content">
                       <span class="role-name">Miembro</span>
@@ -563,58 +563,13 @@ export class InviteMemberDialogComponent implements OnInit {
   ) {
     this.inviteForm = this.fb.group({
       correo: ['', [Validators.required, Validators.email]],
-      rol: ['miembro', [Validators.required]]
+      rol: ['null', [Validators.required]]
     });
   }
 
   ngOnInit(): void {
     console.log('Invitando miembro al proyecto:', this.data.projectName);
   }
-    private generateSecurePassword(): string {
-    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
-    const numbers = '0123456789';
-    const symbols = '!@#$%^&*';
-    const all = uppercase + lowercase + numbers + symbols;
-    
-    let password: string;
-    let attempts = 0;
-    const maxAttempts = 10;
-   
-    do {
-      const chars = [
-        uppercase[Math.floor(Math.random() * uppercase.length)],
-        lowercase[Math.floor(Math.random() * lowercase.length)],
-        numbers[Math.floor(Math.random() * numbers.length)],
-        symbols[Math.floor(Math.random() * symbols.length)],
-      ];
-      
-      // Completar con 2 caracteres aleatorios más
-      for (let i = 0; i < 2; i++) {
-        chars.push(all[Math.floor(Math.random() * all.length)]);
-      }
-      
-      // Mezclar
-      for (let i = chars.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [chars[i], chars[j]] = [chars[j], chars[i]];
-      }
-      
-      password = chars.join('');
-      attempts++;
-      
-      // 
-      const strength = getPasswordStrength(password);
-      
-      if (strength.strength === 100) {
-        break; // Contraseña válida
-      }
-      
-    } while (attempts < maxAttempts);
-    
-    return password;
-  }
-
 
   copyToClipboard(text: string, message: string): void {
     navigator.clipboard.writeText(text).then(() => {
@@ -641,13 +596,11 @@ export class InviteMemberDialogComponent implements OnInit {
 
   this.isInviting = true;
   const formData = this.inviteForm.value;
-  const generatedPassword = this.generateSecurePassword();
-  this.passwordStrengthInfo = getPasswordStrength(generatedPassword);
+  
 
 
   const tempUserData = { 
-    correo: formData.correo,
-    password: generatedPassword
+    correo: formData.correo
   };
 
   console.log('Creando usuario temporal con:', tempUserData);
@@ -674,7 +627,7 @@ export class InviteMemberDialogComponent implements OnInit {
         }
 
 
-      this.tempPasswordGenerated = generatedPassword;
+      this.tempPasswordGenerated =  response.user?.password || response.password || '';;
       
       this.createdUserData = {
         user: userData,

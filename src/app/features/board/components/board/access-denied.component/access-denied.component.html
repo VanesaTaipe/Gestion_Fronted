@@ -1,0 +1,81 @@
+<div class="access-denied-container">
+  <!-- Partículas de fondo decorativas -->
+  <div class="particles">
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+  </div>
+
+  <div class="access-denied-card">
+    <!-- Badge de estado -->
+    <div class="status-badge">
+      <span class="badge-dot"></span>
+      <span class="badge-text">Acceso Restringido</span>
+    </div>
+
+    <!-- Ícono animado con múltiples capas -->
+    <div class="icon-wrapper">
+      <div class="icon-bg-pulse"></div>
+      <div class="icon-container">
+        <div class="lock-body">
+          <i class="fas fa-lock"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Título con animación -->
+    <h1 class="main-title">
+      <span class="title-line">Acceso</span>
+      <span class="title-line title-line-emphasis">Denegado</span>
+    </h1>
+    
+    <!-- Línea divisoria animada -->
+    <div class="divider-wrapper">
+      <div class="divider"></div>
+    </div>
+    
+    <!-- Card de información -->
+    <div class="info-card">
+      <div class="info-icon">
+        <i class="fas fa-exclamation-circle"></i>
+      </div>
+      <div class="info-content">
+        <p class="message">
+          No tienes los <strong>permisos necesarios</strong> para acceder a este proyecto.
+        </p>
+        
+        <p class="sub-message">
+          Si crees que esto es un error, contacta al <span class="highlight">administrador del proyecto</span> para solicitar acceso.
+        </p>
+      </div>
+    </div>
+
+    <!-- Código de error destacado -->
+    <div class="error-badge-container">
+      <div class="error-badge">
+        <span class="error-icon">⚠️</span>
+        <span class="error-text">ERROR 403</span>
+        <span class="error-label">Forbidden</span>
+      </div>
+    </div>
+
+    <!-- Botones de acción -->
+    <div class="actions-container">
+      <button class="btn-back btn-primary" (click)="goBack()">
+        <span class="btn-icon">
+          <i class="fas fa-arrow-left"></i>
+        </span>
+        <span class="btn-text">Volver al Workspace</span>
+        <span class="btn-shine"></span>
+      </button>
+
+    </div>
+  </div>
+
+  <!-- Decoración de fondo -->
+  <div class="bg-decoration bg-decoration-1"></div>
+  <div class="bg-decoration bg-decoration-2"></div>
+  <div class="bg-decoration bg-decoration-3"></div>
+</div>

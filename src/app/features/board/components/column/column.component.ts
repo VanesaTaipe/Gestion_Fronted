@@ -635,5 +635,22 @@ updateSelectedCard(usuarioIdEliminado: number) {
     }
   }
 }
+getColumnEmoticon(): string {
+  if (!this.column?.status_fijas) return '';
+  switch(this.column.status_fijas) {
+    case '1': return '⏳';
+    case '2': return '✅';
+    default: return '';
+  }
+}
+
+getColumnStatusText(): string {
+  if (!this.column?.status_fijas) return '';
+  switch(this.column.status_fijas) {
+    case '1': return 'Columna fija: En progreso';
+    case '2': return 'Columna fija: Finalizado';
+    default: return '';
+  }
+}
   
 }

@@ -7,6 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { UserService as ProfileUserService } from '../features/profile/services/user.service';
+import { passwordStrengthValidator, getPasswordStrength, PasswordStrength } from './auth/validator/password-streangt.validator';
 
 @Component({
   selector: 'app-forgot-password',
@@ -144,14 +145,12 @@ import { UserService as ProfileUserService } from '../features/profile/services/
                 class="text-red-500 text-sm mt-1 ml-4">
                 El nombre debe tener al menos 3 caracteres
               </div>
-              <p class="text-xs text-gray-500 mt-1 ml-4">
-              </p>
             </div>
 
-            <!-- Campo DNI - Para lo usuarios temporales NUEVOOOO -->
+            <!-- Campo DNI - Para usuarios temporales (OBLIGATORIO para registro) -->
             <div *ngIf="isTemporalUser">
               <label class="block text-sm font-medium text-gray-700 mb-2">
-                Agregar tu DNI *
+                DNI *
               </label>
               <input
                 formControlName="dni"
@@ -162,8 +161,11 @@ import { UserService as ProfileUserService } from '../features/profile/services/
               <div 
                 *ngIf="updateForm.get('dni')?.touched && updateForm.get('dni')?.invalid"
                 class="text-red-500 text-sm mt-1 ml-4">
-                Ingresa un DNI válido de 8 dígitos
+                El DNI es obligatorio y debe tener 8 dígitos
               </div>
+              <p class="text-xs text-gray-500 mt-1 ml-4">
+                Tu DNI se guardará para futuras verificaciones de seguridad
+              </p>
             </div>
 
             <!-- Campo NUEVA CONTRASEÑA - Siempre visible -->
@@ -175,7 +177,7 @@ import { UserService as ProfileUserService } from '../features/profile/services/
                 <input
                   formControlName="newPassword"
                   [type]="showPassword ? 'text' : 'password'"
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="Debe cumplir con los requisitos"
                   class="w-full px-4 py-3 border-2 border-gray-300 rounded-full focus:border-[#40E0D0] focus:outline-none pr-12" />
                 <button
                   type="button"
@@ -184,10 +186,46 @@ import { UserService as ProfileUserService } from '../features/profile/services/
                   <mat-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
                 </button>
               </div>
-              <div 
-                *ngIf="updateForm.get('newPassword')?.touched && updateForm.get('newPassword')?.invalid"
-                class="text-red-500 text-sm mt-1 ml-4">
-                La contraseña debe tener al menos 6 caracteres
+              
+              <!-- Indicador de fortaleza de contraseña -->
+              <div *ngIf="updateForm.get('newPassword')?.value" class="mt-3 space-y-2">
+                <div class="flex items-center gap-2">
+                  <div class="flex-1 bg-gray-200 rounded-full h-2">
+                    <div 
+                      class="h-2 rounded-full transition-all duration-300"
+                      [style.width.%]="passwordStrength.strength"
+                      [style.background-color]="getStrengthColor()">
+                    </div>
+                  </div>
+                  <span 
+                    class="text-xs font-medium"
+                    [style.color]="getStrengthColor()">
+                    {{ getStrengthText() }}
+                  </span>
+                </div>
+                
+                <div class="space-y-1 text-xs ml-4">
+                  <div class="flex items-center gap-2" [class.text-green-600]="passwordStrength.hasExactLength" [class.text-gray-500]="!passwordStrength.hasExactLength">
+                    <mat-icon class="text-base">{{ passwordStrength.hasExactLength ? 'check_circle' : 'cancel' }}</mat-icon>
+                    <span>Exactamente 6 caracteres</span>
+                  </div>
+                  <div class="flex items-center gap-2" [class.text-green-600]="passwordStrength.hasUpperCase" [class.text-gray-500]="!passwordStrength.hasUpperCase">
+                    <mat-icon class="text-base">{{ passwordStrength.hasUpperCase ? 'check_circle' : 'cancel' }}</mat-icon>
+                    <span>Al menos una mayúscula</span>
+                  </div>
+                  <div class="flex items-center gap-2" [class.text-green-600]="passwordStrength.hasLowerCase" [class.text-gray-500]="!passwordStrength.hasLowerCase">
+                    <mat-icon class="text-base">{{ passwordStrength.hasLowerCase ? 'check_circle' : 'cancel' }}</mat-icon>
+                    <span>Al menos una minúscula</span>
+                  </div>
+                  <div class="flex items-center gap-2" [class.text-green-600]="passwordStrength.hasNumber" [class.text-gray-500]="!passwordStrength.hasNumber">
+                    <mat-icon class="text-base">{{ passwordStrength.hasNumber ? 'check_circle' : 'cancel' }}</mat-icon>
+                    <span>Al menos un número</span>
+                  </div>
+                  <div class="flex items-center gap-2" [class.text-green-600]="passwordStrength.hasSpecialChar" [class.text-gray-500]="!passwordStrength.hasSpecialChar">
+                    <mat-icon class="text-base">{{ passwordStrength.hasSpecialChar ? 'check_circle' : 'cancel' }}</mat-icon>
+                    <span>Al menos un carácter especial (!@#$%...)</span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -235,7 +273,7 @@ import { UserService as ProfileUserService } from '../features/profile/services/
               <div class="flex items-start gap-2">
                 <mat-icon class="text-blue-500 text-xl">info</mat-icon>
                 <p class="text-sm text-gray-700">
-                  <strong>Primera vez aquí:</strong> Completa tu nombre y crea una contraseña segura. Podrás iniciar sesión con estos datos.
+                  <strong>Primer registro completo:</strong> Ingresa tu nombre completo, DNI y crea una contraseña segura. Tu DNI se guardará para futuras verificaciones de seguridad. Una vez completado, tendrás una cuenta normal permanente.
                 </p>
               </div>
             </div>
@@ -299,24 +337,36 @@ export class ForgotPasswordComponent {
   foundUserEmail = '';
   foundUserName = '';
   isTemporalUser = false;
-  requireDni = false; //NUEVOOOO
+  requireDni = false;
   
   showPassword = false;
   showConfirmPassword = false;
+  passwordStrength: PasswordStrength = {
+    hasExactLength: false,
+    hasUpperCase: false,
+    hasLowerCase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+    strength: 0
+  };
 
   constructor() {
     this.searchForm = this.fb.group({
       correo: ['', [Validators.required, Validators.email]],
-      dni: [''] //NUEVOOOO
+      dni: ['']
     });
 
     this.updateForm = this.fb.group({
       nombre: [''], 
-      dni: ['',[Validators.pattern(/^\d{8}$/)]], //NUEVOOOO
-      newPassword: ['', [Validators.required, Validators.minLength(6)]],
+      dni: ['', [Validators.pattern(/^\d{8}$/)]],
+      newPassword: ['', [Validators.required, Validators.minLength(6), passwordStrengthValidator()]],
       confirmPassword: ['', [Validators.required, Validators.minLength(6)]]
     }, {
       validators: this.passwordMatchValidator
+    });
+
+    this.updateForm.get('newPassword')?.valueChanges.subscribe(password => {
+      this.passwordStrength = getPasswordStrength(password);
     });
   }
 
@@ -326,101 +376,110 @@ export class ForgotPasswordComponent {
     return password === confirmPassword ? null : { passwordMismatch: true };
   }
 
+  getStrengthColor(): string {
+    if (this.passwordStrength.strength < 40) return '#ef4444'; // Rojo
+    if (this.passwordStrength.strength < 60) return '#f59e0b'; // Amarillo
+    if (this.passwordStrength.strength < 80) return '#3b82f6'; // Azul
+    return '#10b981'; // Verde
+  }
+
+  getStrengthText(): string {
+    if (this.passwordStrength.strength === 0) return '';
+    if (this.passwordStrength.strength < 40) return 'Débil';
+    if (this.passwordStrength.strength < 60) return 'Media';
+    if (this.passwordStrength.strength < 80) return 'Fuerte';
+    return 'Muy fuerte';
+  }
+
   searchUser(): void {
     if (this.searchForm.get('correo')?.invalid) return;
 
-      this.isSearching = true;
-      this.errorMessage = '';
+    this.isSearching = true;
+    this.errorMessage = '';
 
-      const correo = this.searchForm.value.correo.trim();
-      const dni = this.searchForm.value.dni?.trim();
+    const correo = this.searchForm.value.correo.trim();
+    const dni = this.searchForm.value.dni?.trim();
 
-      console.log('Buscando usuario:', correo);
+    console.log('Buscando usuario:', correo);
 
-      this.userService.searchByEmail(correo).subscribe({
-        next: (response) => {
-          const user = response.user;
+    this.userService.searchByEmail(correo).subscribe({
+      next: (response) => {
+        const user = response.user;
 
-          this.foundUserEmail = user.correo;
-          this.foundUserName = user.nombre;
-          this.isTemporalUser = user.esTemporal;
+        this.foundUserEmail = user.correo;
+        this.foundUserName = user.nombre;
+        this.isTemporalUser = user.esTemporal;
 
-          console.log('Usuario encontrado:', user);
-          console.log('¿Es temporal?', this.isTemporalUser);
+        console.log('Usuario encontrado:', user);
+        console.log('¿Es temporal?', this.isTemporalUser);
 
-          const nombreControl = this.updateForm.get('nombre');
+        const nombreControl = this.updateForm.get('nombre');
+        const dniControl = this.updateForm.get('dni');
 
-          // Para Usuario Temporal
-          if (this.isTemporalUser) {
-            console.log('Usuario temporal - campo nombre y DNI requeridos en siguiente paso');
-            this.requireDni = false;
+        if (this.isTemporalUser) {
+          console.log('Usuario temporal - nombre y DNI OBLIGATORIOS (primer registro completo)');
+          this.requireDni = false;
 
-            if (!this.updateForm.get('dni')) {
-              this.updateForm.addControl(
-                'dni',
-                this.fb.control('', [Validators.required, Validators.pattern(/^\d{8}$/)])
-              );
-            }
+          nombreControl?.setValidators([Validators.required, Validators.minLength(3)]);
+          nombreControl?.setValue('');
+          nombreControl?.updateValueAndValidity();
 
-            nombreControl?.setValidators([Validators.required, Validators.minLength(3)]);
-            nombreControl?.setValue('');
+          dniControl?.setValidators([Validators.required, Validators.pattern(/^\d{8}$/)]);
+          dniControl?.updateValueAndValidity();
+          nombreControl?.updateValueAndValidity();
+
+          this.step = 'update';
+          this.isSearching = false;
+          return;
+        }
+
+        if (!this.requireDni) {
+          console.log('Mostrando campo DNI para validación...');
+          this.requireDni = true;
+
+          const searchDniControl = this.searchForm.get('dni');
+          searchDniControl?.setValidators([Validators.required, Validators.pattern(/^\d{8}$/)]);
+          searchDniControl?.updateValueAndValidity();
+
+          this.isSearching = false;
+          return;
+        }
+
+        if (!dni || !/^\d{8}$/.test(dni)) {
+          this.errorMessage = 'Debes ingresar un DNI válido.';
+          this.isSearching = false;
+          return;
+        }
+        this.userService.validateDni(correo, dni).subscribe({
+          next: (res) => {
+            console.log('DNI validado correctamente:', res.message);
+
+            nombreControl?.clearValidators();
+            nombreControl?.setValue(this.foundUserName);
             nombreControl?.updateValueAndValidity();
 
             this.step = 'update';
             this.isSearching = false;
-            return;
-          }
-
-          // Para los usuarios ya registrados
-          if (!this.requireDni) {
-            console.log('Mostrando campo DNI para validación...');
-            this.requireDni = true;
-
-            const dniControl = this.searchForm.get('dni');
-            dniControl?.setValidators([Validators.required, Validators.pattern(/^\d{8}$/)]);
-            dniControl?.updateValueAndValidity();
-
+          },
+          error: (error) => {
+            console.error('Error validando DNI:', error);
+            this.errorMessage = error.error?.error || 'El DNI no coincide con el registrado.';
             this.isSearching = false;
-            return;
           }
-
-          if (!dni || !/^\d{8}$/.test(dni)) {
-            this.errorMessage = 'Debes ingresar un DNI válido.';
-            this.isSearching = false;
-            return;
-          }
-
-          // Validacion del DNI
-          this.userService.validateDni(correo, dni).subscribe({
-            next: (res) => {
-              console.log('DNI validado correctamente:', res.message);
-
-              nombreControl?.clearValidators();
-              nombreControl?.setValue(this.foundUserName);
-              nombreControl?.updateValueAndValidity();
-
-              this.step = 'update';
-              this.isSearching = false;
-            },
-            error: (error) => {
-              console.error('Error validando DNI:', error);
-              this.errorMessage = error.error?.error || 'El DNI no coincide con el registrado.';
-              this.isSearching = false;
-            }
-          });
-        },
-        error: (error) => {
-          console.error('Error buscando usuario:', error);
-          this.errorMessage = error.error?.error || 'No se encontró una cuenta con ese correo.';
-          this.isSearching = false;
-        }
-      });
-    }
+        });
+      },
+      error: (error) => {
+        console.error('Error buscando usuario:', error);
+        this.errorMessage = error.error?.error || 'No se encontró una cuenta con ese correo.';
+        this.isSearching = false;
+      }
+    });
+  }
 
   updateUserInfo(): void {
     if (this.updateForm.invalid) {
-        console.warn('Formulario inválido');
-        return;
+      console.warn('Formulario inválido');
+      return;
     }
 
     this.isUpdating = true;
@@ -434,12 +493,11 @@ export class ForgotPasswordComponent {
     const dniRegistrado = this.searchForm.get('dni')?.value?.trim();
     const dni = this.isTemporalUser ? dniTemporal : dniRegistrado;
 
-    console.log('🛠 Iniciando actualización de usuario...');
+    console.log('Iniciando actualización de usuario...');
     console.log('Correo:', correo);
     console.log('DNI:', dni);
     console.log('¿Es temporal?', this.isTemporalUser);
 
-    //Validaciones básicas antes de enviar al backend
     if (!password || password.length < 6) {
       this.errorMessage = 'La contraseña debe tener al menos 6 caracteres.';
       this.isUpdating = false;
@@ -447,7 +505,7 @@ export class ForgotPasswordComponent {
     }
 
     if (!dni || !/^\d{8}$/.test(dni)) {
-      this.errorMessage = 'Debes ingresar un DNI válido de 8 dígitos.';
+      this.errorMessage = 'El DNI es obligatorio y debe tener 8 dígitos válidos.';
       this.isUpdating = false;
       return;
     }
@@ -458,10 +516,9 @@ export class ForgotPasswordComponent {
       return;
     }
 
-     //Body a enviar al backend NUEVOOO
     const updatePayload = {
       correo: correo,
-      dni: dni,
+      dni: dni, 
       esTemporal: this.isTemporalUser,
       user: {
         nombre: this.isTemporalUser ? nombre : undefined,
@@ -471,7 +528,6 @@ export class ForgotPasswordComponent {
 
     console.log('Datos a enviar al backend:', updatePayload);
 
-      
     this.userService.updateUserData(updatePayload).subscribe({
       next: (response) => {
         console.log('Usuario actualizado correctamente:', response);
@@ -491,7 +547,7 @@ export class ForgotPasswordComponent {
 
         this.errorMessage = mensaje;
         this.isUpdating = false;
-        this.updateForm.enable(); 
+        this.updateForm.enable();
       }
     });
   }

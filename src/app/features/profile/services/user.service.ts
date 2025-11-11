@@ -218,10 +218,6 @@ updateUser(userId: number, userData: { nombre?: string; password?: string; corre
       error: error.error
     }));
   }
-  
-    // ============================
-  // 🔹 NUEVAS FUNCIONES ACTUALES (recuperación de contraseña)
-  // ============================
 
   
    //Busca un usuario por correo electrónico.
@@ -279,8 +275,16 @@ updateUser(userId: number, userData: { nombre?: string; password?: string; corre
     );
   }
 
-
-
-
+  updateProfile(userId: number, data: { nombre: string; correo: string }) {
+  const url = `http://localhost:8000/api/profiles/updateProfile/${userId}`;
+  console.log('🔄 Actualizando perfil:', data);
+  return this.http.put(url, {user: data}).pipe(
+    tap((res) => console.log('✅ Perfil actualizado:', res)),
+    catchError((err) => {
+      console.error('❌ Error en updateProfile:', err);
+      return throwError(() => err);
+    })
+  );
+}
 
 }

@@ -65,7 +65,7 @@ import { passwordStrengthValidator, getPasswordStrength, PasswordStrength } from
               </div>
             </div>
 
-            <div *ngIf="requireDni">
+            <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">
                   DNI
               </label>
@@ -130,43 +130,6 @@ import { passwordStrengthValidator, getPasswordStrength, PasswordStrength } from
 
           <!-- Formulario de actualización -->
           <form [formGroup]="updateForm" (ngSubmit)="updateUserInfo()" class="space-y-6">
-            
-            <!-- Campo NOMBRE - Solo si es usuario temporal -->
-            <div *ngIf="isTemporalUser">
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Ingresa tu nombre *
-              </label>
-              <input
-                formControlName="nombre"
-                class="w-full px-4 py-3 border-2 border-gray-300 rounded-full focus:border-[#40E0D0] focus:outline-none"
-                type="text" />
-              <div 
-                *ngIf="updateForm.get('nombre')?.touched && updateForm.get('nombre')?.invalid"
-                class="text-red-500 text-sm mt-1 ml-4">
-                El nombre debe tener al menos 3 caracteres
-              </div>
-            </div>
-
-            <!-- Campo DNI - Para usuarios temporales (OBLIGATORIO para registro) -->
-            <div *ngIf="isTemporalUser">
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                DNI *
-              </label>
-              <input
-                formControlName="dni"
-                placeholder="8 dígitos"
-                maxlength="8"
-                class="w-full px-4 py-3 border-2 border-gray-300 rounded-full focus:border-[#40E0D0] focus:outline-none"
-                type="text" />
-              <div 
-                *ngIf="updateForm.get('dni')?.touched && updateForm.get('dni')?.invalid"
-                class="text-red-500 text-sm mt-1 ml-4">
-                El DNI es obligatorio y debe tener 8 dígitos
-              </div>
-              <p class="text-xs text-gray-500 mt-1 ml-4">
-                Tu DNI se guardará para futuras verificaciones de seguridad
-              </p>
-            </div>
 
             <!-- Campo NUEVA CONTRASEÑA - Siempre visible -->
             <div>
@@ -337,7 +300,7 @@ export class ForgotPasswordComponent {
   foundUserEmail = '';
   foundUserName = '';
   isTemporalUser = false;
-  requireDni = false;
+  requireDni = true; //Nuevooo Rodrigo SIEMPRE VA PEDIR DNI XD
   
   showPassword = false;
   showConfirmPassword = false;
@@ -391,166 +354,70 @@ export class ForgotPasswordComponent {
     return 'Muy fuerte';
   }
 
-  searchUser(): void {
-    if (this.searchForm.get('correo')?.invalid) return;
+  searchUser(): void { //Nuevo Rodrigoooo
+    if (this.searchForm.invalid) return;
 
     this.isSearching = true;
     this.errorMessage = '';
 
     const correo = this.searchForm.value.correo.trim();
-    const dni = this.searchForm.value.dni?.trim();
+    const dni = this.searchForm.value.dni.trim();
 
-    console.log('Buscando usuario:', correo);
+  
+    if (!/^\d{8}$/.test(dni)) {
+      this.errorMessage = 'Debes ingresar un DNI válido de 8 dígitos.';
+      this.isSearching = false;
+      return;
+    }
 
-    this.userService.searchByEmail(correo).subscribe({
-      next: (response) => {
-        const user = response.user;
+     // NUEVO: validar correo + DNI juntos
+    this.userService.validateDni(correo, dni).subscribe({ //Nuevooo Rodrigo 
 
-        this.foundUserEmail = user.correo;
-        this.foundUserName = user.nombre;
-        this.isTemporalUser = user.esTemporal;
+      next: (res: any) => {
+        const user = res.user ?? res;
 
-        console.log('Usuario encontrado:', user);
-        console.log('¿Es temporal?', this.isTemporalUser);
+        this.foundUserEmail = user.correo || correo ;
+        this.foundUserName = user.nombre || 'Cuenta verificada';
+        this.foundUserId = user.id;
 
-        const nombreControl = this.updateForm.get('nombre');
-        const dniControl = this.updateForm.get('dni');
-
-        if (this.isTemporalUser) {
-          console.log('Usuario temporal - nombre y DNI OBLIGATORIOS (primer registro completo)');
-          this.requireDni = false;
-
-          nombreControl?.setValidators([Validators.required, Validators.minLength(3)]);
-          nombreControl?.setValue('');
-          nombreControl?.updateValueAndValidity();
-
-          dniControl?.setValidators([Validators.required, Validators.pattern(/^\d{8}$/)]);
-          dniControl?.updateValueAndValidity();
-          nombreControl?.updateValueAndValidity();
-
-          this.step = 'update';
-          this.isSearching = false;
-          return;
-        }
-
-        if (!this.requireDni) {
-          console.log('Mostrando campo DNI para validación...');
-          this.requireDni = true;
-
-          const searchDniControl = this.searchForm.get('dni');
-          searchDniControl?.setValidators([Validators.required, Validators.pattern(/^\d{8}$/)]);
-          searchDniControl?.updateValueAndValidity();
-
-          this.isSearching = false;
-          return;
-        }
-
-        if (!dni || !/^\d{8}$/.test(dni)) {
-          this.errorMessage = 'Debes ingresar un DNI válido.';
-          this.isSearching = false;
-          return;
-        }
-        this.userService.validateDni(correo, dni).subscribe({
-          next: (res) => {
-            console.log('DNI validado correctamente:', res.message);
-
-            nombreControl?.clearValidators();
-            nombreControl?.setValue(this.foundUserName);
-            nombreControl?.updateValueAndValidity();
-
-            this.step = 'update';
-            this.isSearching = false;
-          },
-          error: (error) => {
-            console.error('Error validando DNI:', error);
-            this.errorMessage = error.error?.error || 'El DNI no coincide con el registrado.';
-            this.isSearching = false;
-          }
-        });
+        this.step = 'update';  // pasar a cambiar contraseña
+        this.isSearching = false;
       },
-      error: (error) => {
-        console.error('Error buscando usuario:', error);
-        this.errorMessage = error.error?.error || 'No se encontró una cuenta con ese correo.';
+      error: (err) => {
+        this.errorMessage = err.error?.error || 'Correo o DNI incorrecto.';
         this.isSearching = false;
       }
     });
   }
 
-  updateUserInfo(): void {
-    if (this.updateForm.invalid) {
-      console.warn('Formulario inválido');
-      return;
+  updateUserInfo(): void { //Nuevooo Actualizadooo Rodrigo
+  if (this.updateForm.invalid) return;
+
+  this.isUpdating = true;
+  this.errorMessage = '';
+
+
+  const payload = {
+    user: {
+      correo: this.foundUserEmail,
+      password: this.updateForm.value.newPassword
     }
+  };
 
-    this.isUpdating = true;
-    this.errorMessage = '';
-
-    const password = this.updateForm.value.newPassword;
-    const nombre = this.updateForm.value.nombre?.trim();
-    const correo = this.foundUserEmail;
-
-    const dniTemporal = this.updateForm.get('dni')?.value?.trim();
-    const dniRegistrado = this.searchForm.get('dni')?.value?.trim();
-    const dni = this.isTemporalUser ? dniTemporal : dniRegistrado;
-
-    console.log('Iniciando actualización de usuario...');
-    console.log('Correo:', correo);
-    console.log('DNI:', dni);
-    console.log('¿Es temporal?', this.isTemporalUser);
-
-    if (!password || password.length < 6) {
-      this.errorMessage = 'La contraseña debe tener al menos 6 caracteres.';
+  
+  this.userService.updatePasswordByEmail(payload).subscribe({ //NuevoServicio :D Rodrigo
+    next: () => {
+      this.step = 'success';
       this.isUpdating = false;
-      return;
-    }
-
-    if (!dni || !/^\d{8}$/.test(dni)) {
-      this.errorMessage = 'El DNI es obligatorio y debe tener 8 dígitos válidos.';
+      this.updateForm.reset();
+      this.searchForm.reset();
+    },
+    error: (err) => {
+      this.errorMessage = err.error?.error || 'Error al actualizar la contraseña.';
       this.isUpdating = false;
-      return;
     }
-
-    if (this.isTemporalUser && (!nombre || nombre.length < 3)) {
-      this.errorMessage = 'El nombre debe tener al menos 3 caracteres.';
-      this.isUpdating = false;
-      return;
-    }
-
-    const updatePayload = {
-      correo: correo,
-      dni: dni, 
-      esTemporal: this.isTemporalUser,
-      user: {
-        nombre: this.isTemporalUser ? nombre : undefined,
-        password: password
-      }
-    };
-
-    console.log('Datos a enviar al backend:', updatePayload);
-
-    this.userService.updateUserData(updatePayload).subscribe({
-      next: (response) => {
-        console.log('Usuario actualizado correctamente:', response);
-        this.step = 'success';
-        this.isUpdating = false;
-        this.updateForm.reset();
-        this.searchForm.reset();
-      },
-      error: (error) => {
-        console.error('Error al actualizar:', error);
-
-        let mensaje = 'Error al guardar los cambios.';
-        if (error.status === 404) mensaje = 'Usuario no encontrado.';
-        else if (error.status === 422) mensaje = 'Datos inválidos. Verifica la información ingresada.';
-        else if (error.status === 403) mensaje = 'El DNI o el tipo de usuario no coincide con el registrado.';
-        else if (error.error?.error) mensaje = error.error.error;
-
-        this.errorMessage = mensaje;
-        this.isUpdating = false;
-        this.updateForm.enable();
-      }
-    });
-  }
+  });
+}
 
   goToLogin(): void {
     this.router.navigate(['/login']);

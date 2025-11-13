@@ -238,10 +238,10 @@ updateUser(userId: number, userData: { nombre?: string; password?: string; corre
 
   /**
    * Valida si el DNI ingresado coincide con el registrado.
-   * Ruta: POST /api/users/validate-dni
+   * Ruta: POST /api/users/validate-dni-correo
    */
   validateDni(correo: string, dni: string): Observable<any> {
-    const url = `${environment.apiUrl}/users/validate-dni`;
+    const url = `${environment.apiUrl}/users/validate-dni-correo`; //Ruta actualizada NUEVOOO Rodrigo
     console.log(`🆔 Validando DNI para ${correo}: ${dni}`);
 
     return this.http.post(url, { correo, dni }).pipe(
@@ -257,7 +257,7 @@ updateUser(userId: number, userData: { nombre?: string; password?: string; corre
    * Actualiza datos del usuario (temporal o registrado).
    * Ruta: PUT /api/users/update
    */
-  updateUserData(data: {
+  updateUserData(data: { //Nuevo Rodrigo
     correo: string;
     dni: string;
     esTemporal: boolean;
@@ -267,24 +267,45 @@ updateUser(userId: number, userData: { nombre?: string; password?: string; corre
     console.log('🛠 Enviando actualización de usuario:', JSON.stringify(data, null, 2));
 
     return this.http.put(url, data).pipe(
-      tap(response => console.log('✅ Respuesta de actualización:', response)),
+      tap(response => console.log(' Respuesta de actualización:', response)),
       catchError(error => {
-        console.error('❌ Error al actualizar usuario:', error);
+        console.error('Error al actualizar usuario:', error);
         return throwError(() => error);
       })
     );
   }
 
   updateProfile(userId: number, data: { nombre: string; correo: string }) {
-  const url = `http://localhost:8000/api/profiles/updateProfile/${userId}`;
-  console.log('🔄 Actualizando perfil:', data);
+  const url = `http://localhost:8000/api/perfil/updatePerfil/${userId}`; //Nueva ruta
+  console.log('Actualizando perfil:', data);
   return this.http.put(url, {user: data}).pipe(
-    tap((res) => console.log('✅ Perfil actualizado:', res)),
+    tap((res) => console.log('Perfil actualizado:', res)),
     catchError((err) => {
-      console.error('❌ Error en updateProfile:', err);
+      console.error('Error en updateProfile:', err);
       return throwError(() => err);
     })
   );
 }
+
+
+updatePasswordByEmail(data: {  //Nueva funcion para actualizar contraseña y no afectar a la funcion updateUserData
+  user: { 
+    correo: string; 
+    password: string; 
+  } 
+}): Observable<any> {
+  const url = `${environment.apiUrl}/users/update`;
+  console.log('🛠 Enviando actualización de contraseña:', JSON.stringify(data, null, 2));
+
+  return this.http.put(url, data).pipe(
+    tap(res => console.log('✅ Respuesta actualización contraseña:', res)),
+    catchError(err => {
+      console.error('❌ Error al actualizar contraseña:', err);
+      return throwError(() => err);
+    })
+  );
+}
+
+
 
 }

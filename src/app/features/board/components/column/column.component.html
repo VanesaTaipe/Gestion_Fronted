@@ -98,7 +98,9 @@
       (click)="AbrirTarea()">
       <img src="assets/add.png" alt="" class="w-4 h-4 mr-1" />
       <span>
-        {{ column.cards && column.cards.length >= 20 ? '¡Límite alcanzado (20/20)!' : 'Añade una tarjeta' }}
+        {{ column.cards && column.cards.length >= getMaxCards() 
+      ? '¡Límite alcanzado (' + column.cards.length + '/' + getMaxCards() + ')!' 
+      : 'Añade una tarjeta' }}
       </span>
     </button>
   </div>

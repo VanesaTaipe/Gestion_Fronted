@@ -652,5 +652,8 @@ getColumnStatusText(): string {
     default: return '';
   }
 }
+getMaxCards():number{
+  return this.column.status_fijas ? 200 : 20;
+}
   
 }

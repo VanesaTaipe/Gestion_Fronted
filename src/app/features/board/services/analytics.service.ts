@@ -1,12 +1,10 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, interval, BehaviorSubject } from 'rxjs';
-import { switchMap, tap, catchError } from 'rxjs/operators';
-import { of } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { Observable, interval, switchMap, startWith } from 'rxjs';
 
 export interface Metricas {
-  cycle_time_promedio: number;
-  lead_time_promedio: number;
+  cycle_time_promedio: number;  // En DÍAS
+  lead_time_promedio: number;   // En DÍAS
   tareas_completadas: number;
   tareas_en_progreso: number;
   tareas_pendientes: number;
@@ -19,139 +17,95 @@ export interface Metricas {
   rendimiento_porcentaje: number;
 }
 
-export interface BurndownData {
-  progreso_diario: ProgresoDiario[];
-  linea_ideal: LineaIdeal[];
-
+export interface ColumnaSnapshot {
+  id_columna: number;
+  nombre: string;
+  cantidad: number;
+  status_fijas: string | null;
 }
 
-export interface ProgresoDiario {
-  dia: number;
+export interface Snapshot {
   fecha: string;
-  dias_restantes: number;
-  tareas_completadas_dia: number;
-
+  columnas: ColumnaSnapshot[];
 }
 
-export interface LineaIdeal {
-  dia: number;
-  dias_restantes: number;
+export interface ColumnaInfo {
+  id: number;
+  nombre: string;
+  orden: number;
+  status_fijas: string | null;
 }
 
-@Injectable({ providedIn: 'root' })
+export interface CFDData {
+  snapshots: Snapshot[];
+  columnas: ColumnaInfo[];
+  fecha_inicio: string;
+  fecha_fin: string;
+  total_tareas_analizadas: number;
+  nota?: string;
+  mensaje?: string;
+}
+
+// Mantener por compatibilidad (deprecated)
+export interface BurndownData {
+  linea_ideal: Array<{dia: number, dias_restantes: number}>;
+  progreso_diario: Array<{dia: number, dias_restantes: number, fecha: string, tareas_completadas_dia: number}>;
+}
+
+@Injectable({
+  providedIn: 'root'
+})
 export class AnalyticsService {
-  private analyticsApi = 'http://localhost:8001';
-
-  private metricasSubject = new BehaviorSubject<Metricas | null>(null);
-  public metricas$ = this.metricasSubject.asObservable();
-
-
-  private burndownSubject = new BehaviorSubject<BurndownData | null>(null);
-  public burndown$ = this.burndownSubject.asObservable();
+  private apiUrl = 'http://localhost:8001';
 
   constructor(private http: HttpClient) {}
 
   /**
-   * Obtiene métricas del servidor
-   * @param proyectoId ID del proyecto
+   * Obtiene las métricas generales del proyecto
+   * NOTA: cycle_time_promedio y lead_time_promedio vienen en DÍAS
    */
-  getMetricas(proyectoId: number): Observable<Metricas> {
-    const url = `${this.analyticsApi}/proyectos/${proyectoId}/metricas`;
-    console.log(` Solicitando métricas para proyecto ${proyectoId}:`, url);
-    
-    return this.http.get<Metricas>(url).pipe(
-      tap((data) => {
-        console.log('Métricas recibidas:', data);
-        this.metricasSubject.next(data); 
-      }),
-      catchError((error) => {
-        console.error(' Error obteniendo métricas:', error);
-        return of(null as any);
-      })
-    );
+ getMetricas(projectId: number): Observable<Metricas> {
+    return this.http.get<Metricas>(`${this.apiUrl}/proyectos/${projectId}/metricas`);
+  }
+
+  getCFDData(projectId: number, dias: number = 30): Observable<CFDData> {
+    return this.http.get<CFDData>(`${this.apiUrl}/proyectos/${projectId}/cfd?dias=${dias}`);
   }
 
   /**
-   * Obtiene datos para el burndown chart
-   * @param proyectoId ID del proyecto
+   * Obtiene métricas generales + CFD en una sola llamada
    */
-  getBurndownData(proyectoId: number): Observable<BurndownData> {
-    const url = `${this.analyticsApi}/proyectos/${proyectoId}/burndown`;
-    console.log(` Solicitando burndown para proyecto ${proyectoId}:`, url);
-    
-    return this.http.get<BurndownData>(url).pipe(
-      tap((data) => {
-        console.log(' Burndown data recibida:', data);
-        this.burndownSubject.next(data); 
-      }),
-      catchError((error) => {
-        console.error('Error obteniendo burndown:', error);
-        return of(null as any);
-      })
-    );
+  getMetricasAgiles(projectId: number): Observable<{
+    metricas_generales: Metricas;
+    cumulative_flow_diagram: CFDData;
+  }> {
+    return this.http.get<any>(`${this.apiUrl}/proyectos/${projectId}/metricas-agiles`);
   }
 
   /**
-   * 
-   * @param proyectoId ID del proyecto
-   * @param intervalMs Intervalo en milisegundos (default 5000ms = 5seg)
+   * Refresca las métricas manualmente
    */
-  startAutoRefresh(proyectoId: number, intervalMs: number = 5000): Observable<Metricas> {
-    console.log(`Auto-refresh iniciado para proyecto ${proyectoId} cada ${intervalMs}ms`);
-    
+  refreshMetricas(projectId: number): Observable<Metricas> {
+    return this.getMetricas(projectId);
+  }
+
+  /**
+   * Auto-refresh de métricas cada X milisegundos
+   */
+  startAutoRefresh(projectId: number, intervalMs: number = 30000): Observable<Metricas> {
     return interval(intervalMs).pipe(
-      switchMap(() => this.getMetricas(proyectoId)),
-      catchError((error) => {
-        console.error(' Error en auto-refresh:', error);
-        return of(null as any);
-      })
+      startWith(0),
+      switchMap(() => this.getMetricas(projectId))
     );
   }
 
   /**
-
-   * @param proyectoId ID del proyecto
-   * @param intervalMs Intervalo en milisegundos (default 30000ms = 30seg)
+   * @deprecated Usa getCFDData() en su lugar
+   * Mantenido por compatibilidad con código antiguo
    */
-  startBurndownAutoRefresh(proyectoId: number, intervalMs: number = 30000): Observable<BurndownData> {
-    console.log(` Auto-refresh burndown iniciado para proyecto ${proyectoId} cada ${intervalMs}ms`);
-    
-    return interval(intervalMs).pipe(
-      switchMap(() => this.getBurndownData(proyectoId)),
-      catchError((error) => {
-        console.error('Error en auto-refresh burndown:', error);
-        return of(null as any);
-      })
-    );
-  }
-
-  /**
-   * Obtener métricas en caché (última obtenida)
-   */
-  getMetricasCache(): Metricas | null {
-    return this.metricasSubject.value;
-  }
-
-  /**
-   * Obtener burndown data en caché (última obtenida)
-   */
-  getBurndownDataCache(): BurndownData | null {
-    return this.burndownSubject.value;
-  }
-
-  /**
-   * Forzar actualización inmediata de métricas
-   */
-  refreshMetricas(proyectoId: number): Observable<Metricas> {
-    console.log(` Refrescando métricas manualmente para proyecto ${proyectoId}`);
-    return this.getMetricas(proyectoId);
-  }
-
-  /**
-   * Forzar actualización inmediata de burndown
-   */
-  refreshBurndown(proyectoId: number): Observable<BurndownData> {
-    console.log(` Refrescando burndown manualmente para proyecto ${proyectoId}`);
-    return this.getBurndownData(proyectoId);
+  getBurndownData(projectId: number): Observable<any> {
+    console.warn('getBurndownData() está deprecated. Usa getCFDData() en su lugar.');
+    // Retornar CFD como fallback
+    return this.getCFDData(projectId, 30);
   }
 }

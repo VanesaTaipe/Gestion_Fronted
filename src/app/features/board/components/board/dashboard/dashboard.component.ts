@@ -1,17 +1,30 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnInit, OnDestroy, ViewChild, ElementRef ,AfterViewInit} from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { Column } from '../../../models/board.model';
-import { AnalyticsService, Metricas, BurndownData } from '../../../services/analytics.service';
+import { AnalyticsService, Metricas, CFDData } from '../../../services/analytics.service';
 import { Subscription } from 'rxjs';
-import { Chart, ChartConfiguration, registerables, TooltipItem, ChartTypeRegistry } from 'chart.js';
+import { Chart, ChartConfiguration, registerables, TooltipItem } from 'chart.js';
+
 Chart.register(...registerables);
+
+// Interfaz para los snapshots del CFD
+interface ColumnaSnapshot {
+  id_columna: number;
+  nombre: string;
+  cantidad: number;
+  status_fijas: string | null;
+}
+
+interface Snapshot {
+  fecha: string;
+  columnas: ColumnaSnapshot[];
+}
+
 @Component({
   selector: 'app-board-dashboard',
   standalone: true,
   imports: [CommonModule],
-  // En dashboard.component.ts - actualiza el template
-
-template: `
+  template: `
   <div class="max-w-7xl mx-auto p-6">
     <div class="flex justify-between items-center mb-8">
       <h2 class="text-3xl font-bold text-gray-900">Dashboard</h2>
@@ -109,31 +122,39 @@ template: `
           <p class="text-xs text-gray-500 mt-2">Completadas después de la fecha límite</p>
         </div>
       </div>
-    </div>
     
     <!-- Burndown Chart y Métricas -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- BURNDOWN CHART -->
-      <div class="bg-white rounded-2xl shadow-lg p-6" style="border: 2px solid #c1cdd8; border-radius: 15px;" >
+      <div class="bg-white rounded-2xl shadow-lg p-6" style="border: 2px solid #c1cdd8; border-radius: 15px;">
         <div class="flex justify-between items-center mb-6">
-          <h3 class="text-xl font-semibold text-gray-800">Burndown Chart</h3>
+          <div>
+            <h3 class="text-xl font-semibold text-gray-800">Cumulative Flow Diagram</h3>
+            <p class="text-xs text-gray-500 mt-1">Últimos {{ diasCFD }} días - Workflow Stages</p>
+          </div>
+          
+          <!-- Selector de período -->
+          <div class="flex gap-1">
+            <button 
+              *ngFor="let d of periodosDisponibles"
+              (click)="cambiarPeriodoCFD(d)"
+              [class]="d === diasCFD ? 'bg-cyan-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+              class="px-3 py-1 rounded text-xs font-medium transition-colors">
+              {{ d }}d
+            </button>
+          </div>
         </div>
 
-        <!-- Canvas para el gráfico -->
+        <!-- Canvas para el gráfico CFD -->
         <div class="relative h-80 mb-4">
-          <canvas #burndownCanvas></canvas>
+          <canvas #cfdCanvas></canvas>
         </div>
 
-        <!-- Leyenda -->
-        <div class="flex justify-center gap-6 mb-4 text-sm">
-          <div class="flex items-center gap-2">
-            <div class="w-4 h-0.5 bg-blue-500" style="border: 2px dashed rgb(59, 130, 246);"></div>
-            <span class="text-gray-600">Línea Ideal</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <div class="w-4 h-1 bg-red-500 rounded"></div>
-            <span class="text-gray-600">Progreso Real</span>
-          </div>
+        <!-- Nota informativa -->
+        <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <p class="text-xs text-blue-800">
+            <strong>💡 Cómo interpretar:</strong> Las bandas muestran el trabajo acumulado en cada etapa. 
+            Una banda que se ensancha indica un cuello de botella.
+          </p>
         </div>
       </div>
 
@@ -142,19 +163,19 @@ template: `
         <!-- Cycle Time -->
         <div class="bg-white rounded-2xl shadow-lg p-6" style="border: 2px solid #c1cdd8; border-radius: 15px;">
           <h4 class="text-sm font-semibold text-gray-700 mb-2">Cycle Time Promedio</h4>
-          <div class="text-3xl font-bold text-cyan-500 mb-2">{{ metricas.cycle_time_promedio }} Horas</div>
+          <div class="text-3xl font-bold text-cyan-500 mb-2">{{ metricas.cycle_time_promedio }} Días</div>
           <p class="text-xs text-gray-500">Tiempo desde "En Progreso" hasta "Finalizado"</p>
         </div>
         
         <!-- Lead Time -->
         <div class="bg-white rounded-2xl shadow-lg p-6" style="border: 2px solid #c1cdd8; border-radius: 15px;">
           <h4 class="text-sm font-semibold text-gray-700 mb-2">Lead Time Promedio</h4>
-          <div class="text-3xl font-bold text-purple-500 mb-2">{{ metricas.lead_time_promedio }} Horas</div>
+          <div class="text-3xl font-bold text-purple-500 mb-2">{{ metricas.lead_time_promedio }} Días</div>
           <p class="text-xs text-gray-500">Tiempo desde creación hasta completado</p>
         </div>
       </div>
     </div>
-  
+  </div>
 `,
   styles: [`
     :host {
@@ -163,10 +184,13 @@ template: `
     }
   `]
 })
-export class BoardDashboardComponent implements OnInit, OnDestroy {
+export class BoardDashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   @Input() proyectoId!: number;
   @Input() columns: Column[] = [];
-  @ViewChild('burndownCanvas', { static: false }) canvasRef!: ElementRef<HTMLCanvasElement>;
+  
+  // ✅ CORRECCIÓN 1: Cambiar nombre de ViewChild para que coincida con el template
+  @ViewChild('cfdCanvas', { static: false }) cfdCanvasRef!: ElementRef<HTMLCanvasElement>;
+  
   metricas: Metricas = {
     cycle_time_promedio: 0,
     lead_time_promedio: 0,
@@ -181,16 +205,31 @@ export class BoardDashboardComponent implements OnInit, OnDestroy {
     miembros_activos: 0,
     rendimiento_porcentaje: 0
   };
-  burndownData?: BurndownData;
-  burndownChart?:Chart;
+  
+  cfdData?: CFDData;
+  cfdChart?: Chart;
+  diasCFD: number = 30;
+  periodosDisponibles: number[] = [ 30];
 
   lastUpdate: Date = new Date();
   private refreshSubscription?: Subscription;
-   private burndownSubscription?: Subscription;
+  private cfdSubscription?: Subscription;
 
   get completionPercentage(): number {
     return Math.min(100, Math.round(this.metricas.rendimiento_porcentaje));
   }
+  
+  private readonly COLORES_CFD = [
+    { color: 'rgb(33, 150, 243)', alpha: 0.85 },    // Azul claro (Done)
+    { color: 'rgb(3, 169, 244)', alpha: 0.85 },     // Cyan (Ready for Delivery)
+    { color: 'rgb(156, 204, 101)', alpha: 0.85 },   // Verde lima (Follow up)
+    { color: 'rgb(255, 167, 38)', alpha: 0.85 },    // Naranja (In Progress)
+    { color: 'rgb(41, 182, 246)', alpha: 0.85 },    // Cyan más claro (Ready for Review)
+    { color: 'rgb(255, 238, 88)', alpha: 0.85 },    // Amarillo (Peer Review)
+    { color: 'rgb(239, 83, 80)', alpha: 0.85 },     // Rojo (Waiting on Link)
+    { color: 'rgb(129, 199, 132)', alpha: 0.85 },   // Verde (Ready for Delivery alt)
+    { color: 'rgb(66, 165, 245)', alpha: 0.85 },    // Azul (Conceptual)
+  ];
 
   get totalTareas(): number {
     return this.metricas.total_tareas;
@@ -207,11 +246,12 @@ export class BoardDashboardComponent implements OnInit, OnDestroy {
   constructor(private analyticsService: AnalyticsService) {}
 
   ngOnInit() {
-    console.log("Dashboard iniciando - Proyecto ID:", this.proyectoId);
+    console.log("📊 Dashboard iniciando - Proyecto ID:", this.proyectoId);
     this.loadMetricas();
-    this.loadBurndownData();
+    this.loadCFDData();
     
-    this.refreshSubscription = this.analyticsService.startAutoRefresh(this.proyectoId, 5000)
+    // Auto-refresh cada 30 segundos (aumentado de 5 segundos para no sobrecargar)
+    this.refreshSubscription = this.analyticsService.startAutoRefresh(this.proyectoId, 30000)
       .subscribe({
         next: (data) => {
           if (data) {
@@ -220,168 +260,188 @@ export class BoardDashboardComponent implements OnInit, OnDestroy {
           }
         },
         error: (err) => {
-          console.error('Error en auto-refresh:', err);
+          console.error('❌ Error en auto-refresh:', err);
         }
       });
   }
+
   ngAfterViewInit() {
-    if (this.burndownData) {
-      setTimeout(() => this.createBurndownChart(), 100);
+    if (this.cfdData) {
+      setTimeout(() => this.createCFDChart(), 100);
     }
   }
 
   ngOnDestroy() {
     if (this.refreshSubscription) {
       this.refreshSubscription.unsubscribe();
-      console.log("Auto-refresh detenido");
+      console.log("🛑 Auto-refresh detenido");
     }
-    if (this.burndownSubscription) {
-      this.burndownSubscription.unsubscribe();
+    if (this.cfdSubscription) {
+      this.cfdSubscription.unsubscribe();
     }
-    if (this.burndownChart) {
-      this.burndownChart.destroy();
+    if (this.cfdChart) {
+      this.cfdChart.destroy();
     }
   }
 
   private loadMetricas() {
     this.analyticsService.getMetricas(this.proyectoId).subscribe({
       next: (data) => {
-        console.log(' Métricas recibidas del backend:', data);
+        console.log('📈 Métricas recibidas:', data);
         this.metricas = data;
         this.lastUpdate = new Date();
       },
       error: (err) => {
-        console.error('Error cargando métricas:', err);
+        console.error('❌ Error cargando métricas:', err);
       }
     });
   }
-  private loadBurndownData() {
-    this.burndownSubscription = this.analyticsService.getBurndownData(this.proyectoId).subscribe({
+
+  private loadCFDData() {
+    this.cfdSubscription = this.analyticsService.getCFDData(this.proyectoId, this.diasCFD).subscribe({
       next: (data) => {
-        console.log('📈 Datos de burndown recibidos:', data);
-        this.burndownData = data;
-        if (this.canvasRef) {
-          this.createBurndownChart();
+        console.log('📊 Datos CFD recibidos:', data);
+        this.cfdData = data;
+        if (this.cfdCanvasRef) {
+          this.createCFDChart();
         }
       },
       error: (err) => {
-        console.error('Error cargando burndown:', err);
+        console.error('❌ Error cargando CFD:', err);
       }
     });
   }
-   private createBurndownChart() {
-    if (!this.burndownData || !this.canvasRef) {
-      console.warn('No hay datos de burndown o canvas disponible');
+
+  private createCFDChart() {
+    if (!this.cfdData || !this.cfdCanvasRef || !this.cfdData.snapshots || this.cfdData.snapshots.length === 0) {
+      console.warn('⚠️ No hay datos de CFD o canvas disponible');
       return;
     }
 
     // Destruir gráfico anterior si existe
-    if (this.burndownChart) {
-      this.burndownChart.destroy();
+    if (this.cfdChart) {
+      this.cfdChart.destroy();
     }
 
-    const ctx = this.canvasRef.nativeElement.getContext('2d');
+    const ctx = this.cfdCanvasRef.nativeElement.getContext('2d');
     if (!ctx) return;
 
-    // Preparar datos para la línea ideal
-    const lineaIdealData = this.burndownData.linea_ideal.map(item => ({
-      x: item.dia,
-      y: item.dias_restantes
-    }));
+    // ✅ CORRECCIÓN 2: Agregar tipo explícito al parámetro 's'
+    const labels = this.cfdData.snapshots.map((s: Snapshot) => {
+      const fecha = new Date(s.fecha);
+      return fecha.toLocaleDateString('es-ES', { month: '2-digit', day: '2-digit' });
+    });
 
-    // Preparar datos para la línea real
-    const lineaRealData = this.burndownData.progreso_diario.map(item => ({
-      x: item.dia,
-      y: item.dias_restantes
-    }));
+    // Preparar datasets - IMPORTANTE: En orden inverso para que se apilen correctamente
+    const columnas = [...this.cfdData.columnas].reverse();
+    const datasets = columnas.map((columna, index) => {
+      const color = this.COLORES_CFD[index % this.COLORES_CFD.length];
+      
+      // ✅ CORRECCIÓN 3: Agregar tipos explícitos a 'snapshot' y 'c'
+      const data = this.cfdData!.snapshots.map((snapshot: Snapshot) => {
+        // Buscar la columna en este snapshot
+        const col = snapshot.columnas.find((c: ColumnaSnapshot) => c.id_columna === columna.id);
+        return col ? col.cantidad : 0;
+      });
+
+      return {
+        label: columna.nombre,
+        data: data,
+        backgroundColor: color.color.replace('rgb', 'rgba').replace(')', `, ${color.alpha})`),
+        borderColor: color.color,
+        borderWidth: 0.5,
+        fill: true,
+        tension: 0.4,  // Curva suave
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        pointHoverBackgroundColor: color.color,
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 2
+      };
+    });
 
     const config: ChartConfiguration = {
       type: 'line',
       data: {
-        datasets: [
-          {
-            label: 'Ideal',
-            data: lineaIdealData,
-            borderColor: 'rgb(59, 130, 246)', // blue-500
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            borderWidth: 2,
-            borderDash: [5, 5], // Línea punteada
-            pointRadius: 0,
-            tension: 0 // Línea recta
-          },
-          {
-            label: 'Real',
-            data: lineaRealData,
-            borderColor: 'rgb(239, 68, 68)', // red-500
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            borderWidth: 3,
-            pointRadius: 4,
-            pointBackgroundColor: 'rgb(239, 68, 68)',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            tension: 0.2 // Curva suave
-          }
-        ]
+        labels: labels,
+        datasets: datasets
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
           legend: {
-            display: false
+            display: true,
+            position: 'right',
+            labels: {
+              boxWidth: 12,
+              padding: 8,
+              font: { size: 10 },
+              usePointStyle: true,
+              pointStyle: 'rect'
+            }
           },
           tooltip: {
             mode: 'index',
             intersect: false,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            padding: 12,
+            titleFont: { size: 13, weight: 'bold' },
+            bodyFont: { size: 12 },
             callbacks: {
-              title: (tooltipItems: TooltipItem<keyof ChartTypeRegistry>[]) => {
-                const dia = tooltipItems[0].parsed.x;
-                const diaData = this.burndownData?.progreso_diario.find(d => d.dia === dia);
-                const fecha = diaData?.fecha;
-                return `Día ${dia}${fecha ? ' (' + fecha + ')' : ''}`;
+              title: (tooltipItems) => {
+                const index = tooltipItems[0].dataIndex;
+                const snapshot = this.cfdData!.snapshots[index];
+                return `📅 ${snapshot.fecha}`;
               },
-              label: (context: TooltipItem<keyof ChartTypeRegistry>) => {
+              label: (context) => {
                 const label = context.dataset.label || '';
-                const value = context.parsed.y?.toFixed(2);
-                const dia = context.parsed.x;
-                
-                // Si es la línea real, mostrar info adicional
-                if (label === 'Real') {
-                  const diaData = this.burndownData?.progreso_diario.find(d => d.dia === dia);
-                  if (diaData && diaData.tareas_completadas_dia > 0) {
-                    return `${label}: ${value} días (${diaData.tareas_completadas_dia} tareas completadas)`;
-                  }
-                }
-                
-                return `${label}: ${value} días`;
+                const value = context.parsed.y;
+                return `  ${label}: ${value} tareas`;
+              },
+              footer: (tooltipItems) => {
+                // ✅ CORRECCIÓN 4: Validar que item.parsed.y no sea null
+                const total = tooltipItems.reduce((sum, item) => {
+                  const value = item.parsed.y ?? 0;  // Usar 0 si es null
+                  return sum + value;
+                }, 0);
+                return `\nTotal: ${total} tareas`;
               }
             }
           }
         },
         scales: {
           x: {
-            type: 'linear',
+            stacked: true, 
             title: {
               display: true,
-              text: 'Iteration Timeline (días)',
-              font: { size: 14 }
+              text: 'Fecha',
+              font: { size: 11 }
             },
             grid: {
-              display: true,
-              color: 'rgba(0, 0, 0, 0.05)'
+              display: false
             },
-            ticks: { stepSize: 1 }
+            ticks: {
+              maxRotation: 45,
+              minRotation: 45,
+              font: { size: 9 }
+            }
           },
           y: {
+            stacked: true,  
             title: {
               display: true,
-              text: 'Sum of Task Estimates (días)',
-              font: { size: 14 }
+              text: 'Work Items',
+              font: { size: 11 }
             },
             beginAtZero: true,
             grid: {
               display: true,
               color: 'rgba(0, 0, 0, 0.05)'
+            },
+            ticks: {
+              font: { size: 10 },
+              stepSize: 5
             }
           }
         },
@@ -393,26 +453,32 @@ export class BoardDashboardComponent implements OnInit, OnDestroy {
       }
     };
 
-    this.burndownChart = new Chart(ctx, config);
+    this.cfdChart = new Chart(ctx, config);
   }
+
+  cambiarPeriodoCFD(dias: number) {
+    if (this.diasCFD !== dias) {
+      this.diasCFD = dias;
+      this.loadCFDData();
+    }
+  }
+
   refreshMetricas() {
-    console.log('Refrescando métricas manualmente...');
+    console.log('🔄 Refrescando métricas manualmente...');
     this.analyticsService.refreshMetricas(this.proyectoId).subscribe({
       next: (data) => {
         if (data) {
           this.metricas = data;
           this.lastUpdate = new Date();
-          console.log('Métricas refrescadas');
+          console.log('✅ Métricas refrescadas');
         }
       },
       error: (err) => {
-        console.error('Error refrescando:', err);
+        console.error('❌ Error refrescando:', err);
       }
     });
- 
- }
-  refreshBurndown() {
-    console.log('Refrescando burndown chart...');
-    this.loadBurndownData();
+    
+    // Refrescar también CFD
+    this.loadCFDData();
   }
 }

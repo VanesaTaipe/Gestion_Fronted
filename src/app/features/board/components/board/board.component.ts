@@ -196,16 +196,19 @@ currentUserName = '';
         console.error('Error cargando proyecto:', e);
         if (e.status === 401) {
         console.log('Acceso denegado al proyecto');
-        this.accessDenied = true;
-        return;
-      }
-        if (!this.proyectoNombre) {
-          this.proyectoNombre = `Proyecto ${this.proyectoId}`;
+         this.accessDenied = true;
+         this.cdr.detectChanges();
+         console.log(' Componente AccessDenied activado');
+  
+      return;
+    }
+    if (!this.proyectoNombre) {
+      this.proyectoNombre = `Proyecto ${this.proyectoId}`;
+    }
+    
+    this.loadColumns();
         }
-        
-        this.loadColumns();
-      }
-    });
+      });
   }
 
   private loadColumns() {
@@ -954,5 +957,8 @@ onMemberDeleted(usuarioId: number) {
   // Forzar detección de cambios
   this.cdr.detectChanges();
 }
-
+handleAccessDeniedGoBack(): void {
+  console.log('Regresando al workspace desde access denied');
+  this.router.navigate(['/workspaces']);
+}
 }

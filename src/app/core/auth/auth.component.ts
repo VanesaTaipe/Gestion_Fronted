@@ -151,6 +151,87 @@ export default class AuthComponent implements OnInit {
   submitForm(): void {
   this.isSubmitting = true;
   this.errors = { errors: {} };
+  
+  if (this.authType === 'completar') { 
+
+  const correoUsuario = this.userService.getCurrentUserEmail();
+
+  if (!correoUsuario) {
+    console.error("No se pudo obtener el correo del usuario actual."); 
+    this.isSubmitting = false;
+    return;
+  }
+
+
+
+  if (this.authForm.value.password !== this.authForm.value.confirmPassword) { 
+    this.errors = { errors: { 'Contraseña': 'Las contraseñas no coinciden' } };
+    this.isSubmitting = false;
+    return;
+  }
+
+
+  if (!/^\d{8}$/.test(this.authForm.value.dni || '')) {
+    this.errors = { errors: { 'DNI': 'El DNI debe tener exactamente 8 dígitos.' } }; 
+    this.isSubmitting = false;
+  return;
+  }
+
+
+  this.authForm.get('password')?.setValidators([ 
+        passwordStrengthValidator()
+    ]);
+    this.authForm.get('password')?.updateValueAndValidity();
+
+    this.authForm.get('password')?.valueChanges.subscribe(password => {
+        this.passwordStrength = getPasswordStrength(password);
+    });
+
+
+
+  const payload = {
+    user: {
+      correo: correoUsuario,
+      nombre: this.authForm.value.nombre,
+      dni: this.authForm.value.dni,
+      password: this.authForm.value.password
+    }
+  };
+
+  console.log("Enviando actualización de usuario temporal:", payload);
+
+  this.userService.updateTemporalUser(payload).subscribe({
+    next: (res) => {
+
+      const user = res?.user;
+
+      if (user?.token){ // Nuevooo
+        this.userService.setAuth(user); //Guardamos el token
+        console.log('token guardado')
+      } else {
+        console.warn('no llego token')
+      }
+
+      console.log("Usuario temporal actualizado correctamente.");
+      this.isSubmitting = false;
+      this.router.navigate(['/workspace']);    
+    },
+    error: (err) => {
+      console.error("Error actualizando usuario temporal:", err);
+
+      if (err.error && err.error.errors) {
+        this.errors = err.error;
+      } else {
+        this.errors = { errors: { Error: 'No se pudo actualizar el usuario temporal.' } };
+      }
+
+      this.isSubmitting = false;
+    }
+  });
+
+  return; 
+}
+
 
   if (this.authType === "register") {
     if (this.authForm.errors?.['passwordMismatch']) {
@@ -230,7 +311,70 @@ export default class AuthComponent implements OnInit {
   }
 
   observable.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-    next: () => {
+    next: (res) => {
+
+      const user: any = res?.user; 
+      if (this.authType === 'login' && user) {
+        const esTemporal = user.esTemporal === true;
+
+        if (esTemporal) {
+          console.log('Usuario temporal detectado desde login');
+
+          // Guardas al usuario actual como ya haces normalmente
+          this.userService.setAuth(user);
+
+          // Cambias el tipo de formulario xd
+          this.authType = 'completar';
+          this.title = 'Completa tu perfil';
+          this.isSubmitting = false;
+
+          this.authForm.get('password')?.setValue('');
+
+          if (!this.authForm.get('nombre')) {
+            this.authForm.addControl(
+              'nombre',
+              new FormControl('', {
+                validators: [Validators.required, Validators.minLength(1), Validators.maxLength(25)],
+                nonNullable: true,
+              }),
+            );
+          }
+
+          if (!this.authForm.get('dni')) {
+            this.authForm.addControl(
+              'dni',
+              new FormControl('', {
+                validators: [Validators.required, Validators.pattern(/^\d{8}$/)],
+                nonNullable: true,
+              }),
+            );
+          }
+
+          if (!this.authForm.get('confirmPassword')) {
+            this.authForm.addControl(
+              'confirmPassword',
+              new FormControl('', {
+                validators: [Validators.required],
+                nonNullable: true,
+              }),
+            );
+          }
+
+          // Ajustar validadores de password 
+          this.authForm.get('password')?.setValidators([
+            Validators.required,
+            Validators.minLength(6),
+          ]);
+          this.authForm.get('password')?.updateValueAndValidity();
+          this.authForm.get('password')?.valueChanges.subscribe(password => {
+            this.passwordStrength = getPasswordStrength(password);
+          });
+          //  cambiamos el formulario
+          return;
+
+        }
+      }
+
       console.log('Autenticación exitosa');
       void this.router.navigate(["/workspace"]);
     },

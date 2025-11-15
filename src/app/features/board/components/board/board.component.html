@@ -2,8 +2,9 @@
  
 <app-access-denied 
   *ngIf="accessDenied"
-  (onGoBack)="goBackToWorkspace()">
+  (onGoBack)="handleAccessDeniedGoBack()">
 </app-access-denied>
+
   <!-- Sidebar izquierdo -->
     <aside  *ngIf="!accessDenied"class="w-64 bg-white shadow-md flex flex-col">
       <div class="p-4 flex justify-center border-b">

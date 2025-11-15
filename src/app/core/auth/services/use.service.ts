@@ -231,4 +231,30 @@ export class UserService {
 
   return '';
 }
+
+
+updateTemporalUser(payload: any): Observable<any> { 
+  const url = `${environment.apiUrl}/users/actualizarTemporal`;
+
+  return this.http.put(url, payload).pipe(
+    tap(res => {
+      console.log("Respuesta actualización usuario temporal:", res);
+    }),
+    catchError(err => {
+      console.error("Error actualización usuario temporal:", err);
+      return throwError(() => err);
+    })
+  );
+}
+
+
+updateUserData(payload: any): Observable<any> {  
+  return this.http.put(
+    `${environment.apiUrl}/users/update`,
+    payload,
+    { headers: { skip: 'true' } } 
+  );
+}
+
+
 }

@@ -13,8 +13,8 @@ import { ProyectoService } from '../../../project/services/proyecto.service';
 import { Espacio } from '../../models/espacio.interface';
 import { WorkspaceService } from '../../services/workspace.service';
 import { CreateWorkspaceDialogComponent } from '../create-workspace-dialog.component/create-workspace-dialog.compent';
-import { filter, take } from 'rxjs';
-@Component({
+import { filter, take, switchMap, catchError, retry } from 'rxjs';
+import { combineLatest, of } from 'rxjs';@Component({
   selector: 'app-workspace-detail',
   standalone: true,
   imports: [CommonModule, MatButtonModule, MatCardModule, MatIconModule,EditProfileModalComponent],
@@ -444,11 +444,9 @@ export class WorkspaceDetailComponent implements OnInit {
   readonly MAX_WORKSPACES = 3;
 
 ngOnInit() {
-
-  
   this.authUserService.currentUser.pipe(
     filter(user => {
-      console.log('🔍 Verificando usuario:', user);
+      console.log('Verificando usuario:', user);
       return user !== null && user.id_usuario !== undefined;
     }),
     take(1)
@@ -461,16 +459,30 @@ ngOnInit() {
         id: this.currentUserId,
         nombre: this.currentUserName
       });
-      
-      this.route.params.pipe(take(1)).subscribe(params => {
+
+      combineLatest([
+        this.route.params,
+        this.route.queryParams
+      ]).pipe(take(1)).subscribe(([params, queryParams]) => {
         this.workspaceId = +params['id'];
+        const shouldReload = queryParams['reload'] === 'true';
+        
         console.log('Workspace ID de la ruta:', this.workspaceId);
+        console.log(' Debe recargar:', shouldReload);
         
         if (this.workspaceId && this.workspaceId > 0) {
           this.loadWorkspace();
-          this.loadProjects();
+          this.loadProjects(true); 
           this.loadAllWorkspaces();
           this.expandedWorkspaces.add(this.workspaceId);
+
+          if (shouldReload) {
+            this.router.navigate([], {
+              relativeTo: this.route,
+              queryParams: {},
+              replaceUrl: true
+            });
+          }
           
           console.log('Iniciando carga de datos para workspace:', this.workspaceId);
         } else {
@@ -513,14 +525,12 @@ loadWorkspace() {
       this.workspace = workspace;
     },
     error: (error) => {
-      console.error('❌ Error al cargar workspace:', error);
-      console.error('❌ Status:', error.status);
-      console.error('❌ Mensaje:', error.message);
-      
-      // Muestra un mensaje al usuario
+      console.error(' Error al cargar workspace:', error);
+      console.error(' Status:', error.status);
+      console.error(' Mensaje:', error.message);
+
       alert(`No se pudo cargar el espacio de trabajo: ${error.message || 'Error desconocido'}`);
       
-      // Solo redirige si es un error 404 (no encontrado)
       if (error.status === 404) {
         this.router.navigate(['/workspace']);
       }
@@ -528,25 +538,29 @@ loadWorkspace() {
   });
 }
 
-
-loadProjects() {
-  console.log('📋 Cargando proyectos del workspace:', this.workspaceId);
+loadProjects(forceReload: boolean = false) {
+  console.log('Cargando proyectos del workspace:', this.workspaceId, 
+              forceReload ? '(RECARGA FORZADA)' : '');
   
-  this.workspaceService.getProjectsByWorkspaceId(this.workspaceId).subscribe({
+  this.isLoading = true;
+  
+  this.workspaceService.getProjectsByWorkspaceId(this.workspaceId, forceReload).pipe(
+    retry(1),
+    catchError(error => {
+      console.error(' Error al cargar proyectos:', error);
+      return of([]);
+    })
+  ).subscribe({
     next: (proyectos) => {
-      console.log('✅ Proyectos cargados:', proyectos.length);
-      console.log('📊 Proyectos:', proyectos);
-      
-      if (proyectos.length > 0) {
-        console.log('🔍 Primer proyecto:', proyectos[0]);
-      }
+      console.log(' Proyectos cargados:', proyectos.length);
+      console.log('Proyectos:', proyectos);
       
       this.proyectos = proyectos;
       this.workspaceProjects = proyectos;
       this.isLoading = false;
     },
     error: (error) => {
-      console.error('❌ Error al cargar proyectos:', error);
+      console.error(' Error final al cargar proyectos:', error);
       this.proyectos = [];
       this.workspaceProjects = [];
       this.isLoading = false;

@@ -98,20 +98,27 @@ export class WorkspaceService {
   /**
  * Obtener proyectos de un workspace filtrados por usuario
  */
-getProjectsByWorkspaceId(workspaceId: number): Observable<any[]> {
+getProjectsByWorkspaceId(workspaceId: number, forceReload: boolean = false): Observable<any[]> {
   return this.getCurrentUserId().pipe(
     switchMap(userId => {
-      const url = `${this.apiUrl}/${workspaceId}/proyectos?id_usuario=${userId}`;
+      const timestamp = forceReload ? `&_t=${Date.now()}` : '';
+      const url = `${this.apiUrl}/${workspaceId}/proyectos?id_usuario=${userId}${timestamp}`;
+      
       console.log('📡 Obteniendo proyectos desde:', url);
+      console.log('🔄 Recarga forzada:', forceReload);
       
       return this.http.get<any>(url).pipe(
         map(response => {
           console.log('Respuesta proyectos raw:', response);
           
-          const proyectos = response.proyecto || response.data || response.proyectos;
+          const proyectos = response?.Proyectos || 
+                           response?.proyectos || 
+                           response?.proyecto || 
+                           response?.data || 
+                           [];
           
           if (!Array.isArray(proyectos)) {
-            console.warn('No se encontraron proyectos');
+            console.warn('No se encontraron proyectos o formato inválido');
             return [];
           }
 

@@ -10,6 +10,7 @@ import { CommonModule } from '@angular/common';
 })
 export class HeaderComponent {
   @Input() title: string = 'Nombre de Tablero';
+  @Input() showNewColumn: boolean = true;
   @Output() newColumn = new EventEmitter<void>();
   @Output() backClicked = new EventEmitter<void>();
 

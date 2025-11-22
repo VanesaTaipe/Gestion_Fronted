@@ -75,6 +75,7 @@
       <!-- Header -->
       <app-header 
         [title]="proyectoNombre || board?.nombre || 'Tablero'"
+        [showNewColumn]="activeView === 'board'"
         (newColumn)="openAddColumn()">
       </app-header>
 

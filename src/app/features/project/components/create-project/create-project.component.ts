@@ -740,6 +740,9 @@ mat-dialog-content::-webkit-scrollbar-thumb {
   `]
 })
 export class CreateProjectDialogComponent implements OnInit {
+
+  private readonly MAXIMO_LIDERES = 2;
+
   projectForm: FormGroup;
   isCreating = false;
   isSearchingUsers = false;
@@ -857,7 +860,17 @@ export class CreateProjectDialogComponent implements OnInit {
   }
 
   toggleRole(memberData: MemberWithRole): void {
-    memberData.rol = memberData.rol === 'lider' ? 'miembro' : 'lider';
+    // Si intenta pasar de miembro → líder
+    if (memberData.rol === 'miembro') {
+      if (this.totalLideres() >= this.MAXIMO_LIDERES) {
+        alert('Solo puede haber como máximo 2 líderes en el proyecto (incluyéndote a ti).');
+        return;
+      }
+      memberData.rol = 'lider';
+    } else {
+      // Líder → miembro siempre permitido
+      memberData.rol = 'miembro';
+    }
     console.log('Rol cambiado:', memberData.user.username, '→', memberData.rol);
   }
 
@@ -887,6 +900,16 @@ export class CreateProjectDialogComponent implements OnInit {
         username: result.user.username || result.user.email?.split('@')[0] || 'Usuario',
         email: result.user.email
       };
+      
+      const rolSolicitado = result.rol === 'lider' ? 'lider' : 'miembro';
+
+      let rolFinal: 'lider' | 'miembro' = rolSolicitado;
+
+      // Si se pidió líder, validamos el límite
+      if (rolSolicitado === 'lider' && this.totalLideres() >= this.MAXIMO_LIDERES) {
+        alert('No puedes añadir más líderes. Este usuario se añadirá como miembro.');
+        rolFinal = 'miembro';
+      }
 
       const newMember: MemberWithRole = {
         user: user,
@@ -1035,5 +1058,16 @@ private finalizarCreacionProyecto(projectId: number, proyectoData: any): void {
     console.error('Error en navegación:', error);
   });
 }
+
+
+ private contarLideresSeleccionados(): number {
+    return this.selectedMembers.filter(m => m.rol === 'lider').length;
+  }
+
+  /** total de líderes = creador (1) + líderes adicionales en el diálogo */
+  private totalLideres(): number {
+    return 1 + this.contarLideresSeleccionados();
+  }
+
 
 }

@@ -130,6 +130,7 @@ import { WorkspaceService } from '../services/workspace.service';
       padding: 2rem;
       max-width: 900px;
       margin: 0 auto;
+      overflow-y:auto;
     }
 
     .settings-header {

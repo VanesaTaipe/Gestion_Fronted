@@ -5,6 +5,7 @@
 
 
   <button
+    *ngIf="showNewColumn"
     class="bg-cyan-500 hover:bg-cyan-600 text-white font-semibold px-4 py-2 rounded-md flex items-center gap-1 shadow"
     (click)="newColumn.emit()">
     <img src="assets/add-white.png" alt="add icon" class="w-4 h-4">

@@ -4,7 +4,7 @@ def print_directory_tree(start_path, indent=""):
     try:
         for item in os.listdir(start_path):
             if item in [".angular", ".vscode", "node_modules"]:
-                continue  # Ignorar las carpetas especificadas
+                continue  
             item_path = os.path.join(start_path, item)
             print(f"{indent}- {item}")
             if os.path.isdir(item_path):
@@ -13,6 +13,6 @@ def print_directory_tree(start_path, indent=""):
         print(f"{indent}- [Permission Denied]")
 
 if __name__ == "__main__":
-    start_directory = "."  # Cambia "." por el directorio que quieras explorar
+    start_directory = "." 
     print(f"Directory tree for: {os.path.abspath(start_directory)}")
     print_directory_tree(start_directory)

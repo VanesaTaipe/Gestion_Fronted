@@ -277,17 +277,17 @@ export class ProjectPermissionService {
     console.log('[ProjectPermission] 📤 Saliendo del proyecto:', { projectId, userId });
 
     return this.http.delete(
-      `${this.api}/proyectos/${projectId}/miembros/${userId}`,
+      `${this.api}/proyectos/${projectId}/abandonar`,
       {
         headers: { 'Accept': 'application/json' }
       }
     ).pipe(
       tap(() => {
-        console.log('[ProjectPermission] ✅ Usuario salió del proyecto');
-        this.clearRole(); // Limpiar rol al salir
+        console.log('[ProjectPermission]  Usuario salió del proyecto');
+        this.clearRole(); 
       }),
       catchError(err => {
-        console.error('[ProjectPermission] ❌ Error saliendo del proyecto:', err);
+        console.error('[ProjectPermission]  Error saliendo del proyecto:', err);
         return throwError(() => err);
       })
     );

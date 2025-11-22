@@ -310,12 +310,13 @@ onDocumentClick(event: MouseEvent) {
   }
   
   if (!mismaLista) {
-    const columnaDestino = event.container.data;
-    if (columnaDestino.length >= 20) {
-      alert('Esta columna ya tiene 20 tarjetas (límite máximo). No se puede agregar más.');
-      return;
-    }
+  const columnaDestino = event.container.data;
+  const maxCards = this.getMaxCards();  
+  if (columnaDestino.length >= maxCards) {
+    alert(`Esta columna ya tiene ${maxCards} tarjetas (límite máximo). No se puede agregar más.`);
+    return;
   }
+}
   if (mismaLista) {
     moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
     const items = event.container.data.map((c, i) => ({ id: c.id, position: i + 1 }));
@@ -397,7 +398,8 @@ private getColumnIdFromContainer(container: any): number {
 
 
   AbrirTarea() {
-    if (this.column.cards && this.column.cards.length >= 20) {
+    const maxCards = this.getMaxCards(); 
+    if (this.column.cards && this.column.cards.length >= maxCards) {
     return;
   }
     this.closeCardDetail()
@@ -445,8 +447,9 @@ private getColumnIdFromContainer(container: any): number {
     return;
   }
   
-  if (this.column.cards && this.column.cards.length >= 20) {
-    alert('Esta columna ya tiene 20 tareas (límite máximo).');
+  const maxCards = this.getMaxCards();  
+  if (this.column.cards && this.column.cards.length >= maxCards) {
+    alert(`Esta columna ya tiene ${maxCards} tareas (límite máximo).`);
     return;
   }
   

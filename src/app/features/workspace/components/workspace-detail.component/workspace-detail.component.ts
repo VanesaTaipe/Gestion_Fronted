@@ -14,7 +14,9 @@ import { Espacio } from '../../models/espacio.interface';
 import { WorkspaceService } from '../../services/workspace.service';
 import { CreateWorkspaceDialogComponent } from '../create-workspace-dialog.component/create-workspace-dialog.compent';
 import { filter, take, switchMap, catchError, retry } from 'rxjs';
-import { combineLatest, of } from 'rxjs';@Component({
+import { combineLatest, of } from 'rxjs';
+
+@Component({
   selector: 'app-workspace-detail',
   standalone: true,
   imports: [CommonModule, MatButtonModule, MatCardModule, MatIconModule,EditProfileModalComponent],
@@ -443,54 +445,58 @@ export class WorkspaceDetailComponent implements OnInit {
    showLimitAlert: boolean = false;
   readonly MAX_WORKSPACES = 3;
 
+
 ngOnInit() {
   this.authUserService.currentUser.pipe(
     filter(user => {
       console.log('Verificando usuario:', user);
       return user !== null && user.id_usuario !== undefined;
     }),
-    take(1)
-  ).subscribe(user => {
-    if (user && user.id_usuario) {
-      this.currentUserId = user.id_usuario;
-      this.currentUserName = user.username || 'Usuario';
+    take(1),
+    switchMap(user => {
+      if (user && user.id_usuario) {
+        this.currentUserId = user.id_usuario;
+        this.currentUserName = user.username || 'Usuario';
+        
+        console.log('Usuario autenticado:', {
+          id: this.currentUserId,
+          nombre: this.currentUserName
+        });
+
       
-      console.log('Usuario autenticado:', {
-        id: this.currentUserId,
-        nombre: this.currentUserName
-      });
-
-      combineLatest([
-        this.route.params,
-        this.route.queryParams
-      ]).pipe(take(1)).subscribe(([params, queryParams]) => {
-        this.workspaceId = +params['id'];
-        const shouldReload = queryParams['reload'] === 'true';
-        
-        console.log('Workspace ID de la ruta:', this.workspaceId);
-        console.log(' Debe recargar:', shouldReload);
-        
-        if (this.workspaceId && this.workspaceId > 0) {
-          this.loadWorkspace();
-          this.loadProjects(true); 
-          this.loadAllWorkspaces();
-          this.expandedWorkspaces.add(this.workspaceId);
-
-          if (shouldReload) {
-            this.router.navigate([], {
-              relativeTo: this.route,
-              queryParams: {},
-              replaceUrl: true
-            });
-          }
-          
-          console.log('Iniciando carga de datos para workspace:', this.workspaceId);
-        } else {
-          console.error('Workspace ID inválido:', this.workspaceId);
-          this.router.navigate(['/workspace']);
-        }
-      });
+        return this.route.params;
+      }
+      return of(null);
+    })
+  ).subscribe(params => {
+    if (!params) {
+      this.router.navigate(['/workspace']);
+      return;
     }
+
+    this.workspaceId = +params['id'];
+    
+    console.log('Workspace ID de la ruta:', this.workspaceId);
+    
+    if (!this.workspaceId || this.workspaceId <= 0) {
+      console.error('Workspace ID inválido:', this.workspaceId);
+      this.router.navigate(['/workspace']);
+      return;
+    }
+
+    this.proyectos = [];
+    this.workspace = null;
+    this.workspaceProjects = [];
+    this.isLoading = true;
+    this.expandedWorkspaces.clear();
+    this.expandedWorkspaces.add(this.workspaceId);
+    
+    console.log('Iniciando carga de datos para workspace:', this.workspaceId);
+    
+    // Cargar datos en paralelo
+    this.loadWorkspace();
+    this.loadAllWorkspaces();
+    this.loadProjects(false);
   });
 }
 
@@ -498,6 +504,7 @@ ngOnInit() {
     const workspace = this.allWorkspaces.find(w => w.id === workspaceIdToCheck);
     return workspace ? workspace.id_usuario === this.currentUserId : false;
   }
+
 loadAllWorkspaces() {
   console.log('Cargando todos los workspaces del usuario');
   
@@ -516,6 +523,7 @@ loadAllWorkspaces() {
     }
   });
 }
+
 loadWorkspace() {
   console.log('Cargando workspace ID:', this.workspaceId);
   
@@ -567,10 +575,13 @@ loadProjects(forceReload: boolean = false) {
     }
   });
 }
+
 getProjectId(proyecto: Proyecto): number {
   return proyecto.id || proyecto.id_proyecto || 0;
 }
+
   selectWorkspace(workspaceId: number) {
+    console.log('Seleccionando workspace:', workspaceId);
     this.router.navigate(['/workspace', workspaceId]);
   }
 
@@ -581,6 +592,7 @@ getProjectId(proyecto: Proyecto): number {
       this.expandedWorkspaces.add(workspaceId);
     }
   }
+
   openSettings(event: Event, workspaceId: number): void {
   event.stopPropagation();
   event.preventDefault();
@@ -590,6 +602,7 @@ getProjectId(proyecto: Proyecto): number {
     }
   this.router.navigate(['/workspace-settings', workspaceId]); 
 }
+
   openCreateWorkspaceDialog(): void {
     if (this.allWorkspaces.length >= this.MAX_WORKSPACES) {
       console.log('Límite de espacios alcanzado');
@@ -691,7 +704,8 @@ getProjectId(proyecto: Proyecto): number {
       return 'nunca';
     }
   }
-   toggleUserMenu(): void {
+
+  toggleUserMenu(): void {
     this.showUserMenu = !this.showUserMenu;
   }
 
@@ -705,6 +719,7 @@ getProjectId(proyecto: Proyecto): number {
       this.router.navigate(['/login']);
     }
   }
+
   closeLimitAlert(): void {
     this.showLimitAlert = false;
   }
@@ -713,32 +728,31 @@ getProjectId(proyecto: Proyecto): number {
     this.closeUserMenu();
     this.router.navigate(['/profile']);
   }
+
   showEditModal = false;
 
-user = {
-  id_usuario: this.currentUserId,
-  username: this.currentUserName,
-  email: ''
-};
+  user = {
+    id_usuario: this.currentUserId,
+    username: this.currentUserName,
+    email: ''
+  };
 
-openEditProfile(): void {
-  this.showUserMenu = false;
-  this.user.id_usuario = this.currentUserId;
-  this.user.username = this.currentUserName;
-  this.user.email = this.authUserService.getCurrentUserEmail
-    ? this.authUserService.getCurrentUserEmail()
-    : this.user.email;
-  this.showEditModal = true;
-}
+  openEditProfile(): void {
+    this.showUserMenu = false;
+    this.user.id_usuario = this.currentUserId;
+    this.user.username = this.currentUserName;
+    this.user.email = this.authUserService.getCurrentUserEmail
+      ? this.authUserService.getCurrentUserEmail()
+      : this.user.email;
+    this.showEditModal = true;
+  }
 
-closeEditModal(): void {
-  this.showEditModal = false;
-}
+  closeEditModal(): void {
+    this.showEditModal = false;
+  }
 
-onProfileUpdated(updated: any): void {
-  console.log('Perfil actualizado:', updated);
-  this.currentUserName = updated.username;
-}
-
-  
+  onProfileUpdated(updated: any): void {
+    console.log('Perfil actualizado:', updated);
+    this.currentUserName = updated.username;
+  }
 }

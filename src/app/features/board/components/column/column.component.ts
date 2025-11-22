@@ -68,14 +68,14 @@ export class ColumnComponent {
 
 @Input() set deletedMemberId(id: number | undefined) {
   if (id) {
-    console.log('🔔 Column: miembro eliminado', id);
+    console.log(' Column: miembro eliminado', id);
     
     // Actualizar todas las tarjetas de esta columna
     this.column.cards.forEach(card => {
       if (card.id_asignado === id) {
         card.id_asignado = undefined;
         card.asignado_a = 'Sin asignar';
-        console.log(`✅ Card ${card.id} actualizada en columna`);
+        console.log(`Card ${card.id} actualizada en columna`);
       }
     });
     
@@ -272,7 +272,7 @@ onDocumentClick(event: MouseEvent) {
     const statusFijasOrigen = previousColumn.status_fijas ? String(previousColumn.status_fijas) : '';
     const statusFijasDestino = this.column.status_fijas ? String(this.column.status_fijas) : '';
     
-    console.log('🔍 Verificando bloqueo:', {
+    console.log(' Verificando bloqueo:', {
       columnaOrigen: previousColumn.nombre,
       columnaDestino: this.column.nombre,
       status_fijas_origen_raw: previousColumn.status_fijas,
@@ -289,24 +289,24 @@ onDocumentClick(event: MouseEvent) {
     
     // Regla 1: No se puede mover DESDE una columna Finalizado (2)
     if (statusFijasOrigen === '2') {
-      console.log('🚫 BLOQUEADO: No se puede mover tarjetas desde una columna Finalizada (status_fijas: 2)');
+      console.log(' BLOQUEADO: No se puede mover tarjetas desde una columna Finalizada (status_fijas: 2)');
       return;
     }
     
     // Regla 2: Desde "En Progreso" (1) solo se puede mover a "Finalizado" (2)
     // NO puede volver a Normal
     if (statusFijasOrigen === '1' && statusFijasDestino !== '2') {
-      console.log('🚫 BLOQUEADO: Desde "En Progreso" solo puedes mover a "Finalizado", no a Normal');
+      console.log(' BLOQUEADO: Desde "En Progreso" solo puedes mover a "Finalizado", no a Normal');
       return;
     }
     
     // Regla 3: Desde columna Normal puede ir a Normal o En Progreso, pero NO a Finalizado
     if (statusFijasOrigen === '' && statusFijasDestino === '2') {
-      console.log('🚫 BLOQUEADO: Desde columna Normal no puedes saltar directamente a "Finalizado"');
+      console.log(' BLOQUEADO: Desde columna Normal no puedes saltar directamente a "Finalizado"');
       return;
     }
     
-    console.log('✅ PERMITIDO: El movimiento cumple las reglas del flujo Kanban');
+    console.log('PERMITIDO: El movimiento cumple las reglas del flujo Kanban');
   }
   
   if (!mismaLista) {

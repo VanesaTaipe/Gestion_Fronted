@@ -865,14 +865,14 @@ openCardDetail(card: Card) {
 
   // CRÍTICO: Actualizar el campo 'posicion' de TODAS las columnas
   this.columns.forEach((col, index) => {
-    col.posicion = index;
+    col.posicion = index+1;
     console.log(`  ${col.nombre}: nueva posición = ${index}`);
   });
 
   // Crear array de updates
   const updates = this.columns.map((col, index) => ({
     id: col.id,
-    posicion: index
+    posicion: index+1
   }));
 
   console.log(' Actualizando posiciones en backend...', updates);

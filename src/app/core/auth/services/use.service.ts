@@ -255,6 +255,8 @@ updateUserData(payload: any): Observable<any> {
     { headers: { skip: 'true' } } 
   );
 }
-
+getToken(): string | null {
+  return this.jwtService.getToken();
+}
 
 }

@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient,HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { forkJoin, map, Observable, of, throwError } from 'rxjs';
 import { catchError, switchMap, tap } from 'rxjs/operators';
@@ -152,51 +152,78 @@ export class TaskService {
     );
   }
 
-  uploadFileToTask(taskId: number, file: File): Observable<ArchivoAdjunto> {
-    const formData = new FormData();
-
-    formData.append('archivo', file);
-    formData.append('archivo[id_tarea]', taskId.toString());
-    
-    console.log('Subiendo archivo:', {
-      nombre: file.name,
-      tamaño: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
-      tipo: file.type,
-      tareaId: taskId
-    });
-    
-    return this.http.post<any>(`${this.api}/archivos`, formData).pipe(
-      map((res: any) => {
-        console.log('Respuesta del servidor:', res);
-        
-        const archivoData = res?.archivo?.data ?? res?.archivo ?? res;
-        
-        const archivo: ArchivoAdjunto = {
-          id: archivoData.id,
-          id_tarea: archivoData.id_tarea,
-          archivo_nombre: archivoData.archivo_nombre,
-          archivo_ruta: archivoData.archivo_ruta,
-          status: archivoData.status
-        };
-        
-        console.log('Archivo procesado:', archivo);
-        return archivo;
-      }),
-      catchError(err => {
-        console.error('Error subiendo archivo:', err);
-        
-        if (err.status === 400 && err.error?.error?.includes('límite')) {
-          throw new Error('Límite de 3 archivos alcanzado');
-        }
-        
-        if (err.status === 422) {
-          throw new Error('Datos de validación incorrectos');
-        }
-        
-        throw new Error(err.error?.error || 'Error al subir el archivo');
-      })
-    );
+uploadFileToTask(taskId: number, file: File): Observable<ArchivoAdjunto> {
+  const formData = new FormData();
+  formData.append('archivo', file);
+  formData.append('archivo[id_tarea]', taskId.toString());
+  
+  const token = this.authService.getToken();
+  console.log('🔑 Token:', token ? 'PRESENTE ✅' : 'AUSENTE ❌');
+  console.log('📦 FormData keys:', Array.from(formData.keys()));
+  
+  if (!token) {
+    console.error(' No hay token de autenticación');
+    return throwError(() => new Error('No estás autenticado. Inicia sesión nuevamente.'));
   }
+
+  const headers = new HttpHeaders({
+    'Authorization': `Token ${token}`
+  });
+  
+  console.log('Subiendo archivo:', {
+    nombre: file.name,
+    tamaño: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+    tipo: file.type,
+    tareaId: taskId,
+    tieneToken: !!token
+  });
+  
+  
+  return this.http.post<any>(`${this.api}/archivos`, formData, { headers }).pipe(
+    map((res: any) => {
+      console.log(' Respuesta del servidor:', res);
+      
+      const archivoData = res?.archivo?.data ?? res?.archivo ?? res;
+      
+      const archivo: ArchivoAdjunto = {
+        id: archivoData.id,
+        id_tarea: archivoData.id_tarea,
+        archivo_nombre: archivoData.archivo_nombre,
+        archivo_ruta: archivoData.archivo_ruta,
+        status: archivoData.status
+      };
+      
+      console.log('📎 Archivo procesado:', archivo);
+      return archivo;
+    }),
+    catchError(err => {
+      console.error('❌ Error subiendo archivo:', err);
+      let errorMessage = 'Error al subir el archivo';
+      
+      if (err.status === 0) {
+        errorMessage = 'No se pudo conectar con el servidor. Verifica tu conexión.';
+      } else if (err.status === 401) {
+        errorMessage = 'No estás autenticado. Inicia sesión nuevamente.';
+      } else if (err.status === 403) {
+        errorMessage = 'No tienes permisos para realizar esta acción.';
+      } else if (err.status === 400) {
+        errorMessage = err.error?.error || 'Límite de 3 imágenes alcanzado';
+      } else if (err.status === 422) {
+        if (err.error?.detalle) {
+          errorMessage = err.error.detalle;
+        } else {
+          errorMessage = err.error?.error || 'Tipo de archivo no permitido. Solo se permiten imágenes PNG, JPEG y JPG';
+        }
+      } else if (err.status === 500) {
+        errorMessage = err.error?.error || 'Error del servidor al procesar el archivo';
+      } else {
+        errorMessage = err.error?.error || err.error?.detalle || 'Error desconocido al subir el archivo';
+      }
+      
+      throw new Error(errorMessage);
+    })
+  );
+}
 
   moveCard(taskId: number | string, toColumnId: number | string, toIndex1Based: number): Observable<any> {
     console.log('🔄 Moviendo tarjeta:', { taskId, toColumnId, position: toIndex1Based });

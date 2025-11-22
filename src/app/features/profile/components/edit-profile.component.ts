@@ -22,6 +22,7 @@ export class EditProfileModalComponent implements OnInit {
   isLoading = false;
   message = '';
 
+  isErrorMessage = false;
   ngOnInit() {
     this.form = this.fb.group({
       username: [this.user?.username || '', [Validators.required, Validators.minLength(3)]],
@@ -31,6 +32,8 @@ export class EditProfileModalComponent implements OnInit {
 
   onSave() {
     if (this.form.invalid) return;
+    this.message = '';
+    this.isErrorMessage = false;
 
     this.isLoading = true;
     const payload = {
@@ -41,6 +44,7 @@ export class EditProfileModalComponent implements OnInit {
     this.userService.updateProfile(this.user.id_usuario, payload).subscribe({
       next: (res: any) => {
         this.message = res.message || 'Perfil actualizado correctamente.';
+         this.isErrorMessage = false;
         this.isLoading = false;
         this.updated.emit(res.user);
         this.close.emit();
@@ -49,6 +53,13 @@ export class EditProfileModalComponent implements OnInit {
         console.error('❌ Error al actualizar perfil:', err);
         this.message = 'Error al actualizar el perfil.';
         this.isLoading = false;
+        this.isErrorMessage = true;
+        const correoErrors = err.error?.errors?.correo;
+        if (err.status === 422 && Array.isArray(correoErrors) && correoErrors.length > 0) {
+          this.message = correoErrors[0];
+        } else {
+          this.message = 'Error al actualizar el perfil. Inténtalo de nuevo.';
+        }
       },
     });
   }

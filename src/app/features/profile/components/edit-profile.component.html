@@ -17,8 +17,11 @@
         class="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4 focus:ring focus:ring-cyan-200"
       />
 
-      <div *ngIf="message" class="text-center text-sm text-green-600 mb-2">
-        {{ message }}
+      <div
+              *ngIf="message"
+              class="text-center text-sm mb-2"
+              [ngClass]="isErrorMessage ? 'text-red-600' : 'text-green-600'">
+              {{ message }}
       </div>
 
       <div class="flex justify-end gap-3">

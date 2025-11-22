@@ -4,7 +4,7 @@ import { Component, ElementRef, EventEmitter, Input, OnChanges, OnInit, Output, 
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { environment } from '../../../../../environments/environment';
 import { UserService as AuthService } from '../../../../core/auth/services/use.service';
-import { ArchivoAdjunto, Card, Comentario } from '../../models/board.model';
+import { ArchivoAdjunto, Card, CartaPrioridad, Comentario } from '../../models/board.model';
 import { BoardService } from '../../services/board.service';
 import { TaskService } from '../../services/task.service';
 
@@ -658,9 +658,13 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
       console.log('🔄 isLeader convertido:', { antes: originalValue, despues: this.isLeader });
     }
 
+    
     // ✅ NUEVO: Cargar los datos completos de la tarjeta
     console.log('📥 Cargando tarjeta completa:', this.card.id);
     this.loadFullCard();
+
+    // ✅ NORMALIZAR PRIORIDAD ANTES DE CUALQUIER COSA
+    this.normalizePriority();
 
     // ✅ Normalizar fecha al cargar
     if (this.card.fecha_vencimiento && !this.card.due_at) {
@@ -710,6 +714,7 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
         this.card.prioridad = cardData.prioridad || this.card.prioridad;
         this.card.asignado_a = cardData.asignado_a || this.card.asignado_a;
         this.card.id_asignado = cardData.id_asignado || this.card.id_asignado;
+        this.normalizePriority();
       },
       error: (e) => {
         console.error('❌ Error cargando tarjeta completa:', e);
@@ -1381,6 +1386,42 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
   isAssigneeFixed(): boolean {
     return !!this.card.id_asignado;
   }
+
+  // ✅ NUEVO MÉTODO: Normalizar prioridad (con tipo CartaPrioridad)
+  private normalizePriority() {
+    console.log('🔄 Normalizando prioridad:', this.card.prioridad);
+    
+    if (!this.card.prioridad) {
+      this.card.prioridad = 'No asignada';
+      return;
+    }
+
+    const prioridad = this.card.prioridad.toString().toLowerCase().trim();
+    
+    // Mapear valores posibles a los valores válidos de CartaPrioridad
+    let normalizedPriority: CartaPrioridad;
+    
+    if (prioridad === 'alta' || prioridad === 'high') {
+      normalizedPriority = 'alta';
+    } else if (prioridad === 'media' || prioridad === 'medium') {
+      normalizedPriority = 'media';
+    } else if (prioridad === 'baja' || prioridad === 'low') {
+      normalizedPriority = 'baja';
+    } else if (prioridad === 'no asignada' || prioridad === 'sin prioridad') {
+      normalizedPriority = 'No asignada';
+    } else {
+      // Valor por defecto para cualquier otro caso
+      normalizedPriority = 'No asignada';
+    }
+
+    this.card.prioridad = normalizedPriority;
+    
+    console.log('✅ Prioridad normalizada:', {
+      original: this.card.prioridad,
+      normalizada: normalizedPriority
+    });
+  }
+
   applyFormat(command: string) {
     document.execCommand(command, false, undefined);
 
@@ -1784,7 +1825,3 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
   }
 
 }
-
-
-
-

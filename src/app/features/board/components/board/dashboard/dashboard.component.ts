@@ -111,10 +111,10 @@ Chart.register(...registerables);
       </div>
     </div>
     
-    <!-- CFD Chart y Métricas -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- CFD Chart -->
-      <div class="bg-white rounded-2xl shadow-lg p-6" style="border: 2px solid #c1cdd8;">
+    <!-- CFD Chart con métricas al costado -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <!-- CFD Chart - Ocupa 3 columnas (75% del ancho) -->
+      <div class="lg:col-span-3 bg-white rounded-2xl shadow-lg p-6" style="border: 2px solid #c1cdd8;">
         <div class="flex flex-col gap-4 mb-6">
           <div>
             <h3 class="text-xl font-semibold text-gray-800">Diagrama de Flujo Acumulado</h3>
@@ -159,8 +159,8 @@ Chart.register(...registerables);
         </div>
       </div>
 
-      <!-- Métricas de tiempo -->
-      <div class="space-y-6">
+      <!-- Métricas de tiempo AL COSTADO - Ocupa 1 columna (25% del ancho) -->
+      <div class="lg:col-span-1 space-y-6">
         <!-- Cycle Time -->
         <div class="bg-white rounded-2xl shadow-lg p-6" style="border: 2px solid #c1cdd8;">
           <h4 class="text-sm font-semibold text-gray-700 mb-2">Tiempo de Ciclo Promedio</h4>
@@ -223,17 +223,16 @@ export class BoardDashboardComponent implements OnInit, OnDestroy, AfterViewInit
     return Math.min(100, Math.round(this.metricas.rendimiento_porcentaje));
   }
   
-  // Paleta de colores distinguibles
   private readonly COLORES_CFD = [
-    { color: 'rgb(34, 197, 94)', alpha: 0.85 },    // Verde
-    { color: 'rgb(59, 130, 246)', alpha: 0.85 },   // Azul
-    { color: 'rgb(251, 146, 60)', alpha: 0.85 },   // Naranja
-    { color: 'rgb(168, 85, 247)', alpha: 0.85 },   // Púrpura
-    { color: 'rgb(236, 72, 153)', alpha: 0.85 },   // Rosa
-    { color: 'rgb(14, 165, 233)', alpha: 0.85 },   // Cyan
-    { color: 'rgb(234, 179, 8)', alpha: 0.85 },    // Amarillo
-    { color: 'rgb(239, 68, 68)', alpha: 0.85 },    // Rojo
-    { color: 'rgb(107, 114, 128)', alpha: 0.85 },  // Gris
+    { color: 'rgb(34, 197, 94)', alpha: 0.85 },
+    { color: 'rgb(59, 130, 246)', alpha: 0.85 },
+    { color: 'rgb(251, 146, 60)', alpha: 0.85 },
+    { color: 'rgb(168, 85, 247)', alpha: 0.85 },
+    { color: 'rgb(236, 72, 153)', alpha: 0.85 },
+    { color: 'rgb(14, 165, 233)', alpha: 0.85 },
+    { color: 'rgb(234, 179, 8)', alpha: 0.85 },
+    { color: 'rgb(239, 68, 68)', alpha: 0.85 },
+    { color: 'rgb(107, 114, 128)', alpha: 0.85 },
   ];
 
   constructor(private analyticsService: AnalyticsService) {}
@@ -275,19 +274,13 @@ export class BoardDashboardComponent implements OnInit, OnDestroy, AfterViewInit
     }
   }
 
-  // ✅ NUEVA FUNCIÓN: Formatear días (backend ya envía en días)
+  // ✅ Formatear días - SIEMPRE EN DÍAS
   formatDays(days: number): string {
     if (days === 0) {
       return '0 días';
     }
     
-    // Si es menos de 1 día, mostrar en horas
-    if (days < 1) {
-      const hours = Math.round(days * 24);
-      return `${hours} ${hours === 1 ? 'hora' : 'horas'}`;
-    }
-    
-    // Si tiene decimales, mostrar con 1 decimal
+    // SIEMPRE mostrar en días, con 1 decimal si no es entero
     if (days % 1 !== 0) {
       return `${days.toFixed(1)} días`;
     }

@@ -2,7 +2,24 @@
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "dist/frontend/browser",
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "headers": [
+    {
+      "source": "/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, s-maxage=3600"
+        }
+      ]
+    }
+  ],
   "routes": [
+    {
+      "src": "^/(?!.*\\.).*$",
+      "dest": "/index.html"
+    },
     {
       "src": "/.*",
       "dest": "/index.html"

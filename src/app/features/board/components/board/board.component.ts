@@ -44,6 +44,7 @@ import {AccessDeniedComponent} from './access-denied.component/access-denied.com
   styleUrls: ['./board.component.css'],
 })
 export class BoardComponent {
+  accessDenied=false;
   board?: Board;
   columns: Column[] = []; 
   allColumns: Column[] = [];
@@ -80,7 +81,6 @@ currentUserName = '';
   private route = inject(ActivatedRoute);
   workspaceId?: number;
   lastDeletedMemberId?: number; 
-  accessDenied = false;
   constructor(
     private boardService: BoardService, 
     private fb: FormBuilder,
@@ -149,11 +149,12 @@ currentUserName = '';
     },
     error: (e) => {
       console.error('Error cargando permisos:', e);
-      alert('No tienes acceso a este proyecto');
-      this.router.navigate(['/workspace', this.workspaceId]);
+      this.accessDenied = true;
+      //this.router.navigate(['/workspace', this.workspaceId]);
     }
   });
 }
+
 
   private identificarColumnasFijas() {
     this.columnaConStatusEnProgreso = this.allColumns.find(c => c.status_fijas === '1');

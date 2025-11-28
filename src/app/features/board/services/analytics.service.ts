@@ -1,6 +1,6 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, interval, startWith, switchMap } from 'rxjs';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable, interval, switchMap, startWith } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 export interface Metricas {
@@ -60,7 +60,7 @@ export interface CFDData {
 export class AnalyticsService {
   private apiUrl = 'http://localhost:8001';
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient) {}
 
   getMetricas(projectId: number): Observable<Metricas> {
     return this.http.get<Metricas>(`${this.apiUrl}/proyectos/${projectId}/metricas`);
@@ -93,7 +93,7 @@ export class AnalyticsService {
 
   private transformCFDResponse(response: CFDBackendResponse): CFDData {
     console.log('🔄 Iniciando transformación de CFD...');
-
+    
     // Validación de datos
     if (!response || !response.data || response.data.length === 0) {
       console.warn('⚠️ Backend devolvió data vacía o undefined');
@@ -127,7 +127,7 @@ export class AnalyticsService {
     // Transformar cada día
     const snapshots: Snapshot[] = response.data.map((dayData, dayIndex) => {
       console.log(`  📅 Día ${dayIndex + 1} (${dayData.date}):`, dayData.counts);
-
+      
       const columnasSnapshot: ColumnaSnapshot[] = response.columns.map(col => {
         const cantidad = dayData.counts[col.id.toString()] || 0;
         return {

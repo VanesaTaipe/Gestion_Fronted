@@ -75,7 +75,7 @@ export class TaskService {
       return throwError(() => new Error('La prioridad es obligatoria'));
     }
 
-    const body: any = {
+    const tareaData: any = {
       id_proyecto: Number(p.id_proyecto),
       id_columna: Number(p.id_columna),
       titulo: p.titulo,
@@ -87,13 +87,20 @@ export class TaskService {
     };
 
     const dueMySQL = this.toMySQLDateTime(p.due_at);
-    if (dueMySQL) body.due_at = dueMySQL;
+    if (dueMySQL) tareaData.due_at = dueMySQL;
     
-    if (p.id_asignado != null) body.id_asignado = Number(p.id_asignado);
+    if (p.id_asignado != null) tareaData.id_asignado = Number(p.id_asignado);
 
+    
+    const body = tareaData ;
+     const token = this.authService.getToken();
+    const headers = new HttpHeaders({
+        'Authorization': `Token ${token}`,  
+        'Content-Type': 'application/json'
+    });
     console.log('POST /tareas:', body);
 
-    return this.http.post(`${this.api}/tareas`, body).pipe(
+    return this.http.post(`${this.api}/tareas`, body,{headers}).pipe(
       switchMap((res: any) => {
         console.log('Tarea creada:', res);
         
@@ -108,7 +115,7 @@ export class TaskService {
           id: taskId,
           id_columna: t.id_columna ?? Number(p.id_columna),
           title: t.titulo ?? p.titulo,
-          descripcion: t.descripcion ?? body.descripcion,
+          descripcion: t.descripcion ?? tareaData.descripcion,
           id_asignado: t.id_asignado ?? p.id_asignado,
           asignado_a: '',
           due_at: t.due_at ?? dueMySQL,
@@ -282,35 +289,35 @@ uploadFileToTask(taskId: number, file: File): Observable<ArchivoAdjunto> {
     );
   }
 
-  updateCard(card: Card): Observable<any> {
-    const body: any = {
-      titulo: card.title,
-      descripcion: card.descripcion,
-      prioridad: card.prioridad
-    };
+  updateCard(card: Card, fieldsToUpdate?: Partial<Card>): Observable<any> {
+  const body: any = fieldsToUpdate || {
+    titulo: card.title,
+    descripcion: card.descripcion,
+    prioridad: card.prioridad
+  };
 
-    // Solo incluir due_at si existe
+  if (!fieldsToUpdate) {
     if (card.due_at) {
       body.due_at = card.due_at;
     } else if (card.fecha_vencimiento) {
       body.due_at = card.fecha_vencimiento;
     }
 
-    // Solo incluir id_asignado si existe (no permitir cambiarlo a null una vez asignado)
     if (card.id_asignado !== undefined && card.id_asignado !== null) {
       body.id_asignado = card.id_asignado;
     }
-
-    console.log('Actualizando tarjeta:', body);
-
-    return this.http.put(`${this.api}/tareas/${card.id}`, body).pipe(
-      tap(res => console.log('Tarjeta actualizada:', res)),
-      catchError(err => {
-        console.error('Error actualizando tarjeta:', err);
-        return throwError(() => err);
-      })
-    );
   }
+
+  console.log('Actualizando tarjeta:', body);
+
+  return this.http.put(`${this.api}/tareas/${card.id}`, body).pipe(
+    tap(res => console.log('Tarjeta actualizada:', res)),
+    catchError(err => {
+      console.error('Error actualizando tarjeta:', err);
+      return throwError(() => err);
+    })
+  );
+}
 
   getTaskFilesComplete(tareaId: number): Observable<ArchivoAdjunto[]> {
     console.log(`GET archivos completos para tarea ${tareaId}`);
@@ -565,7 +572,7 @@ getCard(cardId: number): Observable<any> {
         id: cardData.id_tarea || cardData.id,
         titulo: cardData.titulo,
         title: cardData.titulo,
-        descripcion: cardData.descripcion, // ✅ Incluir descripción con HTML
+        descripcion: cardData.descripcion, 
         prioridad: cardData.prioridad,
         id_asignado: cardData.id_asignado,
         asignado_a: cardData.asignado_a || cardData.asignado?.nombre || 'Sin asignar',

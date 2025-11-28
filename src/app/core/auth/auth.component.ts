@@ -6,6 +6,7 @@ import {
   ReactiveFormsModule,
   AbstractControl,
   ValidationErrors,
+  FormsModule,
 } from "@angular/forms";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import { ListErrorsComponent } from "./model/list-errors.component";
@@ -27,12 +28,13 @@ interface AuthForm {
 @Component({
   selector: "app-auth-page",
   templateUrl: "./auth.component.html",
-  imports: [CommonModule, ListErrorsComponent, ReactiveFormsModule, MatIconModule],
+  imports: [CommonModule, ListErrorsComponent, ReactiveFormsModule, MatIconModule,FormsModule],
   standalone: true
 })
 export default class AuthComponent implements OnInit {
   authType = "";
   title = "";
+  rememberMe=false; 
   errors: Errors = { errors: {} };
   isSubmitting = false;
   showPassword = false;
@@ -45,8 +47,10 @@ export default class AuthComponent implements OnInit {
     hasLowerCase: false,
     hasNumber: false,
     hasSpecialChar: false,
-    strength: 0
-  };
+    strength: 0,
+
+  }
+  ;
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -68,7 +72,10 @@ export default class AuthComponent implements OnInit {
   ngOnInit(): void {
     this.authType = this.route.snapshot.url.at(-1)!.path;
     this.title = this.authType === "login" ? "Iniciar Sesión" : "Regístrate";
-    
+     if (this.authType === "login") {
+    this.loadRememberedEmail();
+  }
+  
     if (this.authType === "register") {
       this.authForm.addControl(
         "nombre",
@@ -128,6 +135,7 @@ export default class AuthComponent implements OnInit {
   togglePassword(): void {
     this.showPassword = !this.showPassword;
   }
+ 
 
   toggleConfirmPassword(): void {
     this.showConfirmPassword = !this.showConfirmPassword;
@@ -313,7 +321,11 @@ export default class AuthComponent implements OnInit {
   observable.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
     next: (res) => {
 
-      const user: any = res?.user; 
+      const user: any = res?.user;
+       if (this.authType === 'login') {
+      this.handleRememberMe(correo);
+    }
+     
       if (this.authType === 'login' && user) {
         const esTemporal = user.esTemporal === true;
 
@@ -376,13 +388,25 @@ export default class AuthComponent implements OnInit {
       }
 
       console.log('Autenticación exitosa');
-      void this.router.navigate(["/workspace"]);
+      if (this.authType === 'login') {
+  const passwordField = document.getElementById('user-password') as HTMLInputElement;
+  if (passwordField) {
+    passwordField.type = 'password';
+  }
+}
+    
+      setTimeout(() => {
+  void this.router.navigate(["/workspace"]);
+}, 150);
     },
     error: (err) => {
       console.error(' Error de autenticación:', err);
       console.error(' Status:', err.status);
       console.error(' Error body:', err.error);
-      
+      if (this.authType === 'login') {
+      localStorage.removeItem('rememberedEmail');
+      this.rememberMe = false;
+    }
       if (err.error && err.error.errors) {
         this.errors = err.error;
       } else if (err.error && err.error.message) {
@@ -414,4 +438,25 @@ export default class AuthComponent implements OnInit {
     console.log('Navegando a forgot-password');
     this.router.navigate(['/forgot-password']);
   }
+loadRememberedEmail(): void {
+  const savedEmail = localStorage.getItem('rememberedEmail');
+  
+  if (savedEmail) {
+    this.authForm.patchValue({
+      correo: savedEmail
+    });
+    this.rememberMe = true;
+    console.log('✅ Email cargado:', savedEmail);
+  }
 }
+handleRememberMe(email: string): void {
+  if (this.rememberMe) {
+    localStorage.setItem('rememberedEmail', email);
+    console.log('✅ Email guardado:', email);
+  } else {
+    localStorage.removeItem('rememberedEmail');
+    console.log('🗑️ Email eliminado');
+  }
+}
+}
+

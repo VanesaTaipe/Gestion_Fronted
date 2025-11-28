@@ -843,43 +843,70 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
     );
   }
 
-  assignUser(member: any | null) {
-    // ✅ Validación: No permitir cambiar si ya está asignado
-    if (this.isAssigneeFixed()) {
-      alert('No se puede cambiar el usuario asignado una vez que la tarea ha sido asignada');
-      this.editingAssignee = false;
-      return;
-    }
-
-    const previousAssignee = this.card.asignado_a;
-    const previousId = this.card.id_asignado;
-
-    if (member) {
-      this.card.id_asignado = member.id_usuario;
-      this.card.asignado_a = member.nombre || member.username || member.email;
-      console.log('Asignando tarea a:', this.card.asignado_a);
-    } else {
-      this.card.id_asignado = undefined;
-      this.card.asignado_a = 'Sin asignar';
-      console.log('Desasignando tarea');
-    }
-
+ assignUser(member: any | null) {
+  // ✅ Validación: No permitir cambiar si ya está asignado
+  if (this.isAssigneeFixed()) {
+    alert('No se puede cambiar el usuario asignado una vez que la tarea ha sido asignada');
     this.editingAssignee = false;
-    this.searchUserTerm = '';
-
-    this.taskService.updateCard(this.card).subscribe({
-      next: () => {
-        console.log('✅ Asignación actualizada correctamente');
-        this.cardUpdated.emit(this.card);
-      },
-      error: (e) => {
-        console.error('❌ Error actualizando asignación:', e);
-        this.card.asignado_a = previousAssignee;
-        this.card.id_asignado = previousId;
-        alert('Error al actualizar la asignación. Por favor, intenta nuevamente.');
-      }
-    });
+    return;
   }
+
+  const previousAssignee = this.card.asignado_a;
+  const previousId = this.card.id_asignado;
+
+  if (member) {
+    this.card.id_asignado = member.id_usuario;
+    this.card.asignado_a = member.nombre || member.username || member.email;
+    console.log('✅ Asignando tarea a:', this.card.asignado_a);
+  } else {
+    this.card.id_asignado = undefined;
+    this.card.asignado_a = 'Sin asignar';
+    console.log('❌ Desasignando tarea');
+  }
+
+  this.editingAssignee = false;
+  this.searchUserTerm = '';
+
+  // ✅ SOLO enviar id_asignado
+  this.taskService.updateCard(this.card, { id_asignado: this.card.id_asignado }).subscribe({
+    next: () => {
+      console.log('✅ Asignación actualizada correctamente');
+      
+      // ✅ NUEVO: Recargar la tarjeta completa desde el backend
+      this.taskService.getCard(this.card.id).subscribe({
+        next: (cardData: any) => {
+          console.log('🔄 Tarjeta recargada:', cardData);
+          
+          // Actualizar solo el id_asignado y asignado_a
+          this.card.id_asignado = cardData.id_asignado;
+          this.card.asignado_a = cardData.asignado_a || 'Sin asignar';
+          
+          console.log('✅ Usuario actualizado:', {
+            id_asignado: this.card.id_asignado,
+            asignado_a: this.card.asignado_a
+          });
+          
+          // Emitir el cambio
+          this.cardUpdated.emit(this.card);
+        },
+        error: (e) => {
+          console.error('❌ Error recargando tarjeta:', e);
+          // Aún así emitir el cambio con los datos que tenemos
+          this.cardUpdated.emit(this.card);
+        }
+      });
+    },
+    error: (e) => {
+      console.error('❌ Error actualizando asignación:', e);
+      
+      // Revertir cambios en caso de error
+      this.card.asignado_a = previousAssignee;
+      this.card.id_asignado = previousId;
+      
+      alert(e.error?.error || 'Error al actualizar la asignación. Por favor, intenta nuevamente.');
+    }
+  });
+}
 
   getMemberInitial(member: any): string {
     const name = member.nombre || member.username || member.email || 'U';
@@ -1210,7 +1237,7 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
 
     this.cardUpdated.emit(this.card);
 
-    this.taskService.updateCard(this.card).subscribe({
+    this.taskService.updateCard(this.card,{ id_asignado: this.card.id_asignado }).subscribe({
       next: (updatedCard) => {
         console.log('✅ Tarjeta actualizada correctamente en BD:', updatedCard);
       },

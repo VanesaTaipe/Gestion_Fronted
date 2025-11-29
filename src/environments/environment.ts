@@ -6,11 +6,12 @@ export const environment = {
   
   apiBase: isLocal 
     ? 'http://localhost:8000/api' 
-    : 'https://gestorphp.onrender.com/api',
+    : 'https://gestorphp.onrender.com/api',  
   
   apiUrl: isLocal 
     ? 'http://localhost:8000/api' 
     : 'https://gestorphp.onrender.com/api', 
+  
   pythonApiUrl: isLocal 
     ? 'http://localhost:8080/api' 
     : 'https://upch-2do-backend-python-realworld.onrender.com/api'

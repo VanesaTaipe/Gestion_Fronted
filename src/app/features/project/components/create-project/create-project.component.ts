@@ -927,32 +927,36 @@ export class CreateProjectDialogComponent implements OnInit {
 }
 
   createProject(): void {
-    if (this.projectForm.invalid) {
-      console.warn('Formulario inválido');
-      return;
-    }
-    const projectName = this.projectForm.get('nombre')?.value.trim();
-  const workspaceName = this.data.workspaceName.trim();
+  if (this.projectForm.invalid) {
+    console.warn('Formulario inválido');
+    return;
+  }
+
+  const projectName = this.projectForm.get('nombre')?.value?.trim() || '';
+  const workspaceName = this.data.workspaceName?.trim() || '';
+
+  if (!projectName) {
+    alert('El nombre del proyecto es requerido.');
+    return;
+  }
 
   if (projectName.toLowerCase() === workspaceName.toLowerCase()) {
     alert(`El nombre del proyecto no puede ser igual al nombre del espacio ("${workspaceName}").`);
     return;
   }
-    
-    this.isCreating = true;
-    
-    const requestData: any = {
-      proyecto: {
-        nombre: this.projectForm.get('nombre')?.value,
-        descripcion: this.projectForm.get('descripcion')?.value || '',
-        id_espacio: this.data.workspaceId,
-        id_usuario_creador: this.data.currentUserId
-      }
-    };
+  
+  this.isCreating = true;
+  
+  const requestData = {
+    proyecto: {
+      nombre: projectName,
+      descripcion: this.projectForm.get('descripcion')?.value?.trim() || '',
+      id_espacio: this.data.workspaceId,
+      id_usuario_creador: this.data.currentUserId
+    }
+  };
 
 
-    console.log('Creando proyecto con datos:', requestData);
-    console.log('Creador (líder automático):', this.data.currentUserId);
 
     this.proyectoService.createProyecto(requestData).subscribe({
       next: (response) => {
@@ -990,19 +994,20 @@ export class CreateProjectDialogComponent implements OnInit {
   private registrarLiderYMiembros(projectId: number, proyectoData: any): void {
   console.log('Registrando roles para el proyecto:', projectId);
 
-  const todosLosMiembros = [
-    {
-      id_usuario: this.data.currentUserId,
-      id_rol: 1  
-    },
-    ...this.selectedMembers.map(memberData => ({
-      id_usuario: memberData.user.id_usuario,
-      id_rol: memberData.rol === 'lider' ? 1 : 2 
-    }))
-  ];
+  const todosLosMiembros = this.selectedMembers.map(memberData => ({
+    id_usuario: memberData.user.id_usuario,
+    id_rol: memberData.rol === 'lider' ? 1 : 2 
+  }));
 
-  console.log('Total de miembros a registrar:', todosLosMiembros.length);
+  console.log('Total de miembros ADICIONALES a registrar:', todosLosMiembros.length);
   console.log('Detalles de miembros:', todosLosMiembros);
+
+  // Si no hay miembros adicionales, finalizar directamente
+  if (todosLosMiembros.length === 0) {
+    console.log('No hay miembros adicionales para agregar');
+    this.finalizarCreacionProyecto(projectId, proyectoData);
+    return;
+  }
 
   const registrosFallidos: any[] = [];
   const registrosObservables = todosLosMiembros.map(miembro => 

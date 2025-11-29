@@ -83,42 +83,34 @@ export class ProyectoService {
   /**
    * Crear proyecto con usuario actual
    */
-  createProyecto(proyectoData: any): Observable<any> {
-    const userId = this.authUserService.getCurrentUserId();
-    
-    if (!userId) {
-      console.error('No hay usuario autenticado');
-      throw new Error('Usuario no autenticado. Por favor, inicia sesión.');
-    }
-
-    const data = {
-      ...proyectoData,
-      proyecto: {
-        ...proyectoData.proyecto,
-        id_usuario_creador: userId
-      }
-    };
-
-    console.log('Creando proyecto:', data);
-    console.log('Usuario creador ID:', userId);
-    
-    return this.http.post<any>(this.apiUrl, data).pipe(
-      tap(response => {
-        console.log('Proyecto creado exitosamente:', response);
-        
-        // Actualizar la lista de proyectos si el backend devuelve el proyecto
-        const nuevoProyecto = response.proyecto || response;
-        if (nuevoProyecto) {
-          const currentProyectos = this.proyectosSubject.value;
-          this.proyectosSubject.next([...currentProyectos, nuevoProyecto]);
-        }
-      }),
-      catchError(error => {
-        console.error('Error creando proyecto:', error);
-        throw error;
-      })
-    );
+ createProyecto(proyectoData: any): Observable<any> {
+  const userId = this.authUserService.getCurrentUserId();
+  
+  if (!userId) {
+    console.error('No hay usuario autenticado');
+    throw new Error('Usuario no autenticado. Por favor, inicia sesión.');
   }
+
+  const data = {
+    proyecto: {
+      ...proyectoData.proyecto,
+      id_usuario_creador: userId
+    }
+  };
+
+  
+  return this.http.post<any>(this.apiUrl, data).pipe(
+    tap(response => {
+      console.log(' Respuesta exitosa:', response);
+    }),
+    catchError(error => {
+      console.error(' Error completo:', error);
+      console.error(' Status:', error.status);
+      console.error(' Headers de respuesta:', error.headers);
+      throw error;
+    })
+  );
+}
 
 
   /**

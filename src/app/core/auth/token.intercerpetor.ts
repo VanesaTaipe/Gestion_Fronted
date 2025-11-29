@@ -2,19 +2,21 @@ import { inject } from "@angular/core";
 import { HttpInterceptorFn } from "@angular/common/http";
 import { JwtService } from "../auth/services/jwt.service";
 
-
 export const tokenInterceptor: HttpInterceptorFn = (req, next) => {
   const jwtService = inject(JwtService);
-  let token: string | null = null;
-  let scheme: string = "Token"; // Por defecto, el prefijo de PHP/RealWorld
+  const token = jwtService.getToken(); 
+  const scheme = "Token";
 
-
-  // 2. Clona la petición y añade la cabecera correcta
-  const request = req.clone({
-    setHeaders: {
-      ...(token ? { Authorization: `${scheme} ${token}` } : {}),
-    },
-  });
+  // Si hay token, clona la request y añade el header
+  if (token) {
+    const request = req.clone({
+      setHeaders: {
+        Authorization: `${scheme} ${token}`
+      }
+    });
+    return next(request);
+  }
   
-  return next(request);
+  // Si no hay token, continúa sin modificar
+  return next(req);
 };

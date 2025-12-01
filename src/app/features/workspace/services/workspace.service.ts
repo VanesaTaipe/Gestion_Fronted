@@ -104,8 +104,8 @@ getProjectsByWorkspaceId(workspaceId: number, forceReload: boolean = false): Obs
       const timestamp = forceReload ? `&_t=${Date.now()}` : '';
       const url = `${this.apiUrl}/${workspaceId}/proyectos?id_usuario=${userId}${timestamp}`;
       
-      console.log('📡 Obteniendo proyectos desde:', url);
-      console.log('🔄 Recarga forzada:', forceReload);
+      console.log(' Obteniendo proyectos desde:', url);
+      console.log(' Recarga forzada:', forceReload);
       
       return this.http.get<any>(url).pipe(
         map(response => {

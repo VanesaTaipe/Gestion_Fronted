@@ -647,7 +647,7 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
   }
 
   ngOnInit() {
-    // ✅ CRÍTICO: Convertir isLeader a boolean
+    
     if (typeof this.isLeader !== 'boolean') {
       console.warn('⚠️ isLeader no es boolean, convirtiendo...');
       const originalValue = this.isLeader;
@@ -658,20 +658,17 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
       console.log('🔄 isLeader convertido:', { antes: originalValue, despues: this.isLeader });
     }
 
-    
-    // ✅ NUEVO: Cargar los datos completos de la tarjeta
+   
     console.log('📥 Cargando tarjeta completa:', this.card.id);
     this.loadFullCard();
 
-    // ✅ NORMALIZAR PRIORIDAD ANTES DE CUALQUIER COSA
     this.normalizePriority();
 
-    // ✅ Normalizar fecha al cargar
+   
     if (this.card.fecha_vencimiento && !this.card.due_at) {
       this.card.due_at = this.card.fecha_vencimiento;
     }
 
-    // Extraer solo la parte de fecha (quitar timestamp)
     if (this.card.due_at && typeof this.card.due_at === 'string') {
       this.card.due_at = this.card.due_at.split('T')[0];
     }

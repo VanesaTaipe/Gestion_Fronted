@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, interval, switchMap, startWith } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { environment } from '../../../../environments/environment';
 
 export interface Metricas {
   cycle_time_promedio: number;
@@ -58,7 +59,7 @@ export interface CFDData {
   providedIn: 'root'
 })
 export class AnalyticsService {
-  private apiUrl = 'https://gestor-analytics-python.onrender.com';
+  private apiUrl = environment.pythonUrL;
 
   constructor(private http: HttpClient) {}
 

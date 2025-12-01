@@ -246,41 +246,55 @@ export class BoardSettingsComponent implements OnInit {
   }
 
   toggleMemberRole(member: ProjectMember): void {
-    // Validar que solo líderes pueden cambiar roles
-    if (!this.isLeader) {
-      alert('Solo los líderes pueden cambiar roles de miembros');
-      return;
+  // 1. Validar que solo líderes pueden cambiar roles
+  if (!this.isLeader) {
+    alert('Solo los líderes pueden cambiar roles de miembros');
+    return;
+  }
+
+  if (member.es_creador && !this.hasMultipleLeaders()) {
+    alert('No puedes cambiar tu rol porque eres el único líder del proyecto');
+    return;
+  }
+
+  const currentRoleId = this.getRolId(member.rol);
+  const isCreador = this.projectMembers.find(m => m.es_creador)?.id_usuario === this.currentUserId;
+  
+  
+  if (currentRoleId === 1 && !isCreador) {
+    alert('Solo el líder creador puede cambiar el rol de otro líder');
+    return;
+  }
+
+ 
+  if (member.es_creador && member.id_usuario !== this.currentUserId) {
+    alert('No puedes cambiar el rol del líder creador del proyecto');
+    return;
+  }
+
+  const newRoleId = currentRoleId === 1 ? 2 : 1;
+  const newRoleName = newRoleId === 1 ? 'Líder' : 'Miembro';
+
+  if (!confirm(`¿Cambiar el rol de ${member.nombre} a ${newRoleName}?`)) return;
+
+  this.http.put(`${this.api}/proyectos/${this.proyectoId}/miembros/${member.id_usuario}/rol`, {
+    id_rol: newRoleId
+  }).subscribe({
+    next: () => {
+      member.rol = newRoleName;
+      alert(`Rol actualizado a ${newRoleName}`);
+      this.loadProjectMembers();
+    },
+    error: (e) => {
+      console.error('Error cambiando rol:', e);
+      alert('Error al cambiar el rol');
     }
-
-    // Validar que el creador solo puede cambiar su rol si hay otros líderes
-    if (member.es_creador && !this.hasMultipleLeaders()) {
-      alert('No puedes cambiar tu rol porque eres el único líder del proyecto');
-      return;
-    }
-
-    const currentRoleId = this.getRolId(member.rol);
-    const newRoleId = currentRoleId === 1 ? 2 : 1;
-    const newRoleName = newRoleId === 1 ? 'Líder' : 'Miembro';
-
-    if (!confirm(`¿Cambiar el rol de ${member.nombre} a ${newRoleName}?`)) return;
-
-    this.http.put(`${this.api}/proyectos/${this.proyectoId}/miembros/${member.id_usuario}/rol`, {
-      id_rol: newRoleId
-    }).subscribe({
-      next: () => {
-        member.rol = newRoleName;
-        alert(`Rol actualizado a ${newRoleName}`);
-        this.loadProjectMembers();
-      },
-      error: (e) => {
-        console.error('Error cambiando rol:', e);
-        alert('Error al cambiar el rol');
-      }
-    });
-    if (member.id_usuario === this.currentUserId) {
+  });
+  
+  if (member.id_usuario === this.currentUserId) {
     this.roleChanged.emit(newRoleId); 
   }
-  }
+}
 
   removeMember(member: ProjectMember) {
     // Validar que solo líderes pueden eliminar miembros

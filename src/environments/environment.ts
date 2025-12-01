@@ -12,7 +12,4 @@ export const environment = {
     ? 'http://localhost:8000/api' 
     : ' https://gestor-php-last.onrender.com/api',
   
-  pythonApiUrl: isLocal 
-    ? 'http://localhost:8080/api' 
-    : 'https://upch-2do-backend-python-realworld.onrender.com/api'
 };

@@ -58,7 +58,7 @@ export interface CFDData {
   providedIn: 'root'
 })
 export class AnalyticsService {
-  private apiUrl = 'http://localhost:8001';
+  private apiUrl = 'https://gestor-analytics-python.onrender.com';
 
   constructor(private http: HttpClient) {}
 

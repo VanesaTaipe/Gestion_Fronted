@@ -13,5 +13,5 @@ export const environment = {
     : ' https://gestor-php-last.onrender.com/api',
   pythonUrL:isLocal
   ?'http://localhost:8001'
-  :'https://gestor-analytics-python.onrender.com/api'
+  :'https://gestor-analytics-python.onrender.com'
 };

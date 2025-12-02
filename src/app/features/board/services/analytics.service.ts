@@ -59,12 +59,12 @@ export interface CFDData {
   providedIn: 'root'
 })
 export class AnalyticsService {
-  private apiUrl = environment.pythonUrL;
+  private apiUrls = environment.pythonUrL;
 
   constructor(private http: HttpClient) {}
 
   getMetricas(projectId: number): Observable<Metricas> {
-    return this.http.get<Metricas>(`${this.apiUrl}/proyectos/${projectId}/metricas`);
+    return this.http.get<Metricas>(`${this.apiUrls}/proyectos/${projectId}/metricas`);
   }
 
   getCFDData(
@@ -82,7 +82,7 @@ export class AnalyticsService {
     }
 
     return this.http.get<CFDBackendResponse>(
-      `${this.apiUrl}/proyectos/${projectId}/cfd`,
+      `${this.apiUrls}/proyectos/${projectId}/cfd`,
       { params }
     ).pipe(
       map(response => {
@@ -181,10 +181,10 @@ export class AnalyticsService {
     if (idUsuario) {
       params = params.set('id_usuario', String(idUsuario));
     }
-    return this.http.get<any[]>(`${this.apiUrl}/espacios/${espacioId}/proyectos`, { params });
+    return this.http.get<any[]>(`${this.apiUrls}/espacios/${espacioId}/proyectos`, { params });
   }
 
   healthCheck(): Observable<any> {
-    return this.http.get(`${this.apiUrl}/health`);
+    return this.http.get(`${this.apiUrls}/health`);
   }
 }

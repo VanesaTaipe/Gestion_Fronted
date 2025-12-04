@@ -128,6 +128,8 @@ import { WorkspaceService } from '../services/workspace.service';
       min-height: 100vh;
       background: #f9fafb;
       padding: 2rem;
+      display: flex;
+      flex-direction: column;
       max-width: 900px;
       margin: 0 auto;
       overflow-y:auto;

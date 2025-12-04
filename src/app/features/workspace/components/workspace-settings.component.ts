@@ -26,7 +26,6 @@ import { WorkspaceService } from '../services/workspace.service';
   ],
   template: `
     <div class="settings-container">
-      <!-- Header con botón de volver -->
       <div class="settings-header">
         <button 
           (click)="goBack()"
@@ -40,103 +39,102 @@ import { WorkspaceService } from '../services/workspace.service';
         <div class="header-content">
           <div class="header-title">
             <svg class="settings-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
             </svg>
             <h1>Configuración del Espacio</h1>
           </div>
         </div>
       </div>
 
-        <!-- Loading State -->
+      <div class="settings-content">
         <div *ngIf="isLoading" class="loading-container">
           <div class="spinner"></div>
           <p>Cargando configuración...</p>
         </div>
 
-        <!-- Form Section -->
         <div class="form-section" *ngIf="!isLoading && workspace && workspaceForm">
-        <h2 class="section-title">Información del Espacio</h2>
+          <h2 class="section-title">Información del Espacio</h2>
 
-        <form [formGroup]="workspaceForm" class="workspace-form">
-          <div class="form-group">
-            <label class="form-label">Título del espacio</label>
-            <input 
-              type="text"
-              class="form-input"
-              formControlName="nombre"
-              placeholder="Ingresa el nombre del espacio">
-            <div class="error-message" 
-              *ngIf="workspaceForm.get('nombre')?.hasError('required') && workspaceForm.get('nombre')?.touched">
-              El título es requerido
+          <form [formGroup]="workspaceForm" class="workspace-form">
+            <div class="form-group">
+              <label class="form-label">Título del espacio</label>
+              <input 
+                type="text"
+                class="form-input"
+                formControlName="nombre"
+                placeholder="Ingresa el nombre del espacio">
+              <div class="error-message" 
+                *ngIf="workspaceForm.get('nombre')?.hasError('required') && workspaceForm.get('nombre')?.touched">
+                El título es requerido
+              </div>
+              <div class="error-message" 
+                *ngIf="workspaceForm.get('nombre')?.hasError('minlength') && workspaceForm.get('nombre')?.touched">
+                El título debe tener al menos 3 caracteres
+              </div>
             </div>
-            <div class="error-message" 
-              *ngIf="workspaceForm.get('nombre')?.hasError('minlength') && workspaceForm.get('nombre')?.touched">
-              El título debe tener al menos 3 caracteres
-            </div>
-          </div>
 
-          <div class="form-group">
-            <label class="form-label">Descripción</label>
-            <textarea 
-              class="form-input form-textarea"
-              formControlName="descripcion"
-              placeholder="Ingresa la descripción del espacio"
-              rows="4"></textarea>
-            <div class="error-message" 
-              *ngIf="workspaceForm.get('descripcion')?.hasError('required') && workspaceForm.get('descripcion')?.touched">
-              La descripción es requerida
+            <div class="form-group">
+              <label class="form-label">Descripción</label>
+              <textarea 
+                class="form-input form-textarea"
+                formControlName="descripcion"
+                placeholder="Ingresa la descripción del espacio"
+                rows="4"></textarea>
+              <div class="error-message" 
+                *ngIf="workspaceForm.get('descripcion')?.hasError('required') && workspaceForm.get('descripcion')?.touched">
+                La descripción es requerida
+              </div>
             </div>
-          </div>
 
-          <button 
-            type="button"
-            class="edit-button"
-            (click)="updateWorkspace()"
-            [disabled]="!workspaceForm.valid || isUpdating">
-            <svg *ngIf="!isUpdating" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            <button 
+              type="button"
+              class="edit-button"
+              (click)="updateWorkspace()"
+              [disabled]="!workspaceForm.valid || isUpdating">
+              <svg *ngIf="!isUpdating" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+              </svg>
+              {{ isUpdating ? 'Actualizando...' : 'Guardar Cambios' }}
+            </button>
+          </form>
+        </div>
+
+        <div class="danger-zone" *ngIf="!isLoading">
+          <h3 class="danger-title">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
             </svg>
-            {{ isUpdating ? 'Actualizando...' : 'Guardar Cambios' }}
+            Zona de peligro
+          </h3>
+          <p class="danger-description">
+            Eliminar este espacio es permanente. Se eliminarán todos los proyectos, columnas y tareas asociadas.
+          </p>
+          <button 
+            class="delete-button"
+            (click)="confirmDelete()"
+            [disabled]="isDeleting">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+            {{ isDeleting ? 'Eliminando...' : 'Eliminar espacio' }}
           </button>
-        </form>
-      </div>
-
-      <!-- Danger Zone -->
-      <div class="danger-zone" *ngIf="!isLoading">
-        <h3 class="danger-title">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-          </svg>
-          Zona de peligro
-        </h3>
-        <p class="danger-description">
-          Eliminar este espacio es permanente. Se eliminarán todos los proyectos, columnas y tareas asociadas.
-        </p>
-        <button 
-          class="delete-button"
-          (click)="confirmDelete()"
-          [disabled]="isDeleting">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-          </svg>
-          {{ isDeleting ? 'Eliminando...' : 'Eliminar espacio' }}
-        </button>
+        </div>
       </div>
     </div>
   `,
   styles: [`
     .settings-container {
-      min-height: 100vh;
-      background: #f9fafb;
-      padding: 2rem;
+      height: 100vh;
       display: flex;
       flex-direction: column;
-      max-width: 900px;
-      margin: 0 auto;
-      overflow-y:auto;
+      background: #f9fafb;
     }
 
     .settings-header {
-      margin-bottom: 2rem;
+      flex-shrink: 0;
+      padding: 2rem 2rem 1rem 2rem;
+      background: #f9fafb;
     }
 
     .back-button {
@@ -185,6 +183,32 @@ import { WorkspaceService } from '../services/workspace.service';
       font-weight: 600;
       color: #111827;
       margin: 0;
+    }
+
+    .settings-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 2rem 2rem 2rem;
+      max-width: 900px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .settings-content::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .settings-content::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+
+    .settings-content::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+
+    .settings-content::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
     }
 
     .loading-container {
@@ -359,8 +383,12 @@ import { WorkspaceService } from '../services/workspace.service';
     }
 
     @media (max-width: 768px) {
-      .settings-container {
+      .settings-header {
         padding: 1rem;
+      }
+
+      .settings-content {
+        padding: 0 1rem 1rem 1rem;
       }
 
       .header-title {
@@ -402,12 +430,10 @@ export class WorkspaceSettingsComponent implements OnInit {
     
     this.route.params.subscribe(params => {
       this.workspaceId = +params['id'];
-      console.log('Workspace ID desde URL:', this.workspaceId);
       
       if (this.workspaceId && this.workspaceId > 0) {
         this.loadWorkspace();
       } else {
-        console.error('ID de workspace inválido');
         alert('Error: ID de workspace inválido');
         this.goBack();
       }
@@ -422,20 +448,15 @@ export class WorkspaceSettingsComponent implements OnInit {
   }
 
   loadWorkspace(): void {
-    console.log('Cargando información del espacio ID:', this.workspaceId);
     this.isLoading = true;
     
     this.workspaceService.getWorkspaceById(this.workspaceId).subscribe({
       next: (workspace) => {
-        console.log('Datos del espacio recibidos:', workspace);
-        
         this.workspace = workspace;
-        
         this.workspaceForm.patchValue({
           nombre: workspace.nombre || '',
           descripcion: workspace.descripcion || ''
         });
-        
         this.isLoading = false;
       },
       error: (error) => {
@@ -446,8 +467,6 @@ export class WorkspaceSettingsComponent implements OnInit {
       }
     });
   }
-
-  
 
   confirmDelete(): void {
     const workspaceName = this.workspace?.nombre || 'este espacio';
@@ -466,54 +485,45 @@ export class WorkspaceSettingsComponent implements OnInit {
       this.deleteWorkspace();
     }
   }
-updateWorkspace(): void {
-  if (this.workspaceForm.invalid) {
-    console.log('Formulario inválido');
-    return;
+
+  updateWorkspace(): void {
+    if (this.workspaceForm.invalid) return;
+
+    this.isUpdating = true;
+    const formValue = this.workspaceForm.value;
+
+    this.workspaceService.editWorkspace(
+      this.workspaceId, 
+      formValue.nombre, 
+      formValue.descripcion
+    ).subscribe({
+      next: (response) => {
+        const updatedWorkspace = response.espacio || response.data || response;
+        this.workspace = updatedWorkspace;
+        this.isUpdating = false;
+        alert(`Espacio "${formValue.nombre}" actualizado correctamente`);
+      },
+      error: (error) => {
+        console.error('Error al actualizar:', error);
+        this.isUpdating = false;
+        const errorMsg = error.error?.message || 'Error al actualizar el espacio';
+        alert(errorMsg);
+      }
+    });
   }
 
-  this.isUpdating = true;
-  const formValue = this.workspaceForm.value;
-
-  console.log('ID del workspace:', this.workspaceId);
-  console.log('Valores del formulario:', formValue);
-
-  this.workspaceService.editWorkspace(
-    this.workspaceId, 
-    formValue.nombre, 
-    formValue.descripcion
-  ).subscribe({
-    next: (response) => {
-      console.log('Respuesta exitosa:', response);
-      const updatedWorkspace = response.espacio || response.data || response;
-      this.workspace = updatedWorkspace;
-      this.isUpdating = false;
-      alert('Espacio actualizado exitosamente');
-    },
-    error: (error) => {
-      console.error('Error completo del backend:', error);
-      console.error('Status code:', error.status);
-      console.error('Error message:', error.error);
-      console.error('URL intentada:', error.url);
-      this.isUpdating = false;
-      const errorMsg = error.error?.message || error.message || 'Error desconocido';
-      alert(`Error al actualizar: ${errorMsg}`);
-    }
-  });
-}
   deleteWorkspace(): void {
     this.isDeleting = true;
     
     this.workspaceService.deleteWorkspace(this.workspaceId).subscribe({
       next: () => {
-        console.log('Espacio eliminado exitosamente');
         alert('Espacio eliminado exitosamente');
         this.router.navigate(['/workspace']);
       },
       error: (error) => {
-        console.error('Error al eliminar el espacio:', error);
+        console.error('Error al eliminar:', error);
         this.isDeleting = false;
-        alert('Error al eliminar el espacio. Por favor, intenta nuevamente.');
+        alert('Error al eliminar el espacio');
       }
     });
   }

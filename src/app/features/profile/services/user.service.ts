@@ -224,8 +224,8 @@ updateUser(userId: number, userData: { nombre?: string; password?: string; corre
    //Ruta: POST /api/users/search-by-email
    
   searchByEmail(correo: string): Observable<any> {
-    const url = `${environment.apiUrl}/users/search-by-email`;
-    console.log('📩 Buscando usuario por correo:', correo);
+    const url = `${environment.apiUrl}/usuarios/search-by-email`;
+    console.log(' Buscando usuario por correo:', correo);
 
     return this.http.post(url, { correo }).pipe(
       tap(response => console.log(' Respuesta de búsqueda:', response)),
@@ -241,8 +241,8 @@ updateUser(userId: number, userData: { nombre?: string; password?: string; corre
    * Ruta: POST /api/users/validate-dni-correo
    */
   validateDni(correo: string, dni: string): Observable<any> {
-    const url = `${environment.apiUrl}/users/validate-dni-correo`; 
-    console.log(`🆔 Validando DNI para ${correo}: ${dni}`);
+    const url = `${environment.apiUrl}/usuarios/validate-dni-correo`; 
+    console.log(`Validando DNI para ${correo}: ${dni}`);
 
     return this.http.post(url, { correo, dni }).pipe(
       tap(response => console.log(' DNI validado:', response)),
@@ -263,8 +263,8 @@ updateUser(userId: number, userData: { nombre?: string; password?: string; corre
     esTemporal: boolean;
     user: { nombre?: string; password: string };
   }): Observable<any> {
-    const url = `${environment.apiUrl}/users/update`;
-    console.log('🛠 Enviando actualización de usuario:', JSON.stringify(data, null, 2));
+    const url = `${environment.apiUrl}/usuarios/update`;
+    console.log(' Enviando actualización de usuario:', JSON.stringify(data, null, 2));
 
     return this.http.put(url, data).pipe(
       tap(response => console.log(' Respuesta de actualización:', response)),
@@ -276,7 +276,7 @@ updateUser(userId: number, userData: { nombre?: string; password?: string; corre
   }
 
   updateProfile(userId: number, data: { nombre: string; correo: string }) {
-  const url = `http://localhost:8000/api/perfil/updatePerfil/${userId}`;
+  const url = `${environment.apiUrl}/perfil/updatePerfil/${userId}`;
   console.log('Actualizando perfil:', data);
   return this.http.put(url, {user: data}).pipe(
     tap((res) => console.log('Perfil actualizado:', res)),
@@ -294,7 +294,7 @@ updatePasswordByEmail(data: {  //Nueva funcion para actualizar contraseña y no 
     password: string; 
   } 
 }): Observable<any> {
-  const url = `${environment.apiUrl}/users/update`;
+  const url = `${environment.apiUrl}/usuarios/update`;
   console.log('🛠 Enviando actualización de contraseña:', JSON.stringify(data, null, 2));
 
   return this.http.put(url, data).pipe(

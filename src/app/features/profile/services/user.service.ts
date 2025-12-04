@@ -9,7 +9,7 @@ import { TemporalUserRequest, TemporalUserResponse, User } from '../models/user.
   providedIn: 'root'
 })
 export class UserService {
-  private apiUrl = `${environment.apiUrl}/users`;
+  private apiUrl = `${environment.apiUrl}/usuarios`;
 
   constructor(private http: HttpClient) {}
 

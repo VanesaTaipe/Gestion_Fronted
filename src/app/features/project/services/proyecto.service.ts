@@ -191,7 +191,7 @@ agregarMiembro(projectId: number, miembroData: { id_usuario: number, id_rol: num
   createTemporalUser(userData: { correo: string }): Observable<any> {
     console.log('Creando usuario temporal:', userData);
     
-    return this.http.post<any>(`${this.apiUrl}/temp`, userData).pipe(
+    return this.http.post<any>(`${this.apiUrls}/temp`, userData).pipe(
       tap(response => {
         console.log('Usuario temporal creado:', response);
       }),

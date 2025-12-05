@@ -754,7 +754,8 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
         return '';
       }
        const [year, month, day] = dateStr.split('T')[0].split('-');
-      const formatted = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      const formatted = dateStr.split('T')[0];
+      //`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 
       
 

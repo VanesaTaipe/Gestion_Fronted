@@ -182,28 +182,42 @@ export class BoardSettingsComponent implements OnInit {
   }
 
   confirmarMiembro(miembro: MiembroPendiente): void {
-    if (this.projectMembers.length >= 30) {
+  if (this.projectMembers.length >= 30) {
     alert('Límite de 30 integrantes alcanzado');
     return;
   }
-    const nuevoMiembro = {
-      id_usuario: miembro.user.id_usuario,
-      id_rol: miembro.rol_temporal
-    };
+  
+  const nuevoMiembro = {
+    id_usuario: miembro.user.id_usuario,
+    id_rol: miembro.rol_temporal
+  };
 
-    this.http.post(`${this.api}/proyectos/${this.proyectoId}/miembros`, nuevoMiembro).subscribe({
-      next: () => {
-        const roleName = miembro.rol_temporal === 2 ? 'Miembro' : 'Líder';
-        alert(`✓ ${miembro.username} agregado como ${roleName}`);
-        this.miembrosPendientes = this.miembrosPendientes.filter(m => m.user.id_usuario !== miembro.user.id_usuario);
-        this.loadProjectMembers();
-      },
-      error: (e) => {
-        console.error('Error agregando miembro:', e);
-        alert(e.status === 409 ? 'Este usuario ya es miembro del proyecto' : 'Error al agregar el miembro');
+  this.http.post(`${this.api}/proyectos/${this.proyectoId}/miembros`, nuevoMiembro).subscribe({
+    next: () => {
+      const roleName = miembro.rol_temporal === 2 ? 'Miembro' : 'Líder';
+      alert(`✓ ${miembro.username} agregado como ${roleName}`);
+      this.miembrosPendientes = this.miembrosPendientes.filter(m => m.user.id_usuario !== miembro.user.id_usuario);
+      this.loadProjectMembers();
+    },
+    error: (e) => {
+      console.error('Error agregando miembro:', e);
+      
+      let errorMsg = 'Error al agregar el miembro';
+      
+      if (e.error?.error) {
+        errorMsg = e.error.error; 
+      } else if (e.status === 409) {
+        errorMsg = 'Este usuario ya es miembro del proyecto';
+      } else if (e.status === 400) {
+        errorMsg = e.error?.error || 'Límite de miembros o líderes alcanzado';
+      } else if (e.status === 404) {
+        errorMsg = 'El usuario no existe o está eliminado';
       }
-    });
-  }
+      
+      alert(errorMsg);
+    }
+  });
+}
 
   cancelarMiembro(miembro: MiembroPendiente): void {
     this.miembrosPendientes = this.miembrosPendientes.filter(m => m.user.id_usuario !== miembro.user.id_usuario);
@@ -260,13 +274,11 @@ export class BoardSettingsComponent implements OnInit {
   const currentRoleId = this.getRolId(member.rol);
   const isCreador = this.projectMembers.find(m => m.es_creador)?.id_usuario === this.currentUserId;
   
-  
   if (currentRoleId === 1 && !isCreador) {
     alert('Solo el líder creador puede cambiar el rol de otro líder');
     return;
   }
 
- 
   if (member.es_creador && member.id_usuario !== this.currentUserId) {
     alert('No puedes cambiar el rol del líder creador del proyecto');
     return;
@@ -287,7 +299,21 @@ export class BoardSettingsComponent implements OnInit {
     },
     error: (e) => {
       console.error('Error cambiando rol:', e);
-      alert('Error al cambiar el rol');
+      
+   
+      let errorMsg = 'Error al cambiar el rol';
+      
+      if (e.error?.error) {
+        errorMsg = e.error.error;
+      } else if (e.status === 403) {
+        errorMsg = 'No tienes permiso para cambiar el rol de este miembro';
+      } else if (e.status === 400) {
+        errorMsg = e.error?.error || 'No se puede cambiar el rol de este miembro';
+      } else if (e.status === 404) {
+        errorMsg = 'El miembro no fue encontrado';
+      }
+      
+      alert(errorMsg);
     }
   });
   
@@ -297,37 +323,49 @@ export class BoardSettingsComponent implements OnInit {
 }
 
   removeMember(member: ProjectMember) {
-    // Validar que solo líderes pueden eliminar miembros
-    if (!this.isLeader) {
-      alert('Solo los líderes pueden eliminar miembros del proyecto');
-      return;
-    }
+  // Validar que solo líderes pueden eliminar miembros
+  if (!this.isLeader) {
+    alert('Solo los líderes pueden eliminar miembros del proyecto');
+    return;
+  }
 
-    // Validar que no se puede eliminar al creador
-    if (member.es_creador) {
-      alert('No se puede eliminar al creador del proyecto');
-      return;
-    }
+  // Validar que no se puede eliminar al creador
+  if (member.es_creador) {
+    alert('No se puede eliminar al creador del proyecto');
+    return;
+  }
 
-    if (!confirm(`¿Eliminar a ${member.nombre} del proyecto?`)) return;
-    const usuarioId = member.id_usuario;
-    this.http.delete(`${this.api}/proyectos/${this.proyectoId}/miembros/${member.id_usuario}`).subscribe({
-      next: () => {
-        this.projectMembers = this.projectMembers.filter(m => m.id_usuario !== member.id_usuario);
-        alert('Miembro eliminado del proyecto');
-        // 1. Actualizar lista de miembros
+  if (!confirm(`¿Eliminar a ${member.nombre} del proyecto?`)) return;
+  
+  const usuarioId = member.id_usuario;
+  
+  this.http.delete(`${this.api}/proyectos/${this.proyectoId}/miembros/${member.id_usuario}`).subscribe({
+    next: () => {
+      // 1. Actualizar lista de miembros
       this.projectMembers = this.projectMembers.filter(m => m.id_usuario !== usuarioId);
       
       // 2. Desasignar tareas del usuario eliminado
       this.desasignarTareasDelUsuario(usuarioId, member.nombre);
-    
-      },
-      error: (e) => {
-        console.error('Error eliminando miembro:', e);
-        alert('Error al eliminar el miembro');
+    },
+    error: (e) => {
+      console.error('Error eliminando miembro:', e);
+      
+      let errorMsg = 'Error al eliminar el miembro';
+      
+      if (e.error?.error) {
+        errorMsg = e.error.error; 
+      } else if (e.status === 403) {
+        errorMsg = 'No tienes permiso para eliminar este miembro';
+      } else if (e.status === 404) {
+        errorMsg = 'El miembro no fue encontrado en el proyecto';
+      } else if (e.status === 400) {
+        errorMsg = e.error?.error || 'No se puede eliminar este miembro';
       }
-    });
-  }
+      
+      alert(errorMsg);
+    }
+  });
+}
   private desasignarTareasDelUsuario(usuarioId: number, nombreUsuario: string) {
   console.log(`Buscando tareas asignadas a ${nombreUsuario} (ID: ${usuarioId})`);
   
@@ -383,35 +421,50 @@ export class BoardSettingsComponent implements OnInit {
 }
 
   openInviteDialog() {
-    if (this.projectMembers.length >= 30) {
+  if (this.projectMembers.length >= 30) {
     alert('Límite de 30 integrantes alcanzado');
     return;
   }
-    const dialogRef = this.dialog.open(InviteMemberDialogComponent, {
-      width: '550px',
-      data: { projectId: this.proyectoId, projectName: this.projectName }
-    });
+  
+  const dialogRef = this.dialog.open(InviteMemberDialogComponent, {
+    width: '550px',
+    data: { projectId: this.proyectoId, projectName: this.projectName }
+  });
 
-    dialogRef.afterClosed().subscribe(result => {
-      if (result && result.user) {
-        const nuevoMiembro = {
-          id_usuario: result.user.id_usuario,
-          id_rol: result.rol === 'lider' ? 1 : 2
-        };
+  dialogRef.afterClosed().subscribe(result => {
+    if (result && result.user) {
+      const nuevoMiembro = {
+        id_usuario: result.user.id_usuario,
+        id_rol: result.rol === 'lider' ? 1 : 2
+      };
 
-        this.http.post(`${this.api}/proyectos/${this.proyectoId}/miembros`, nuevoMiembro).subscribe({
-          next: () => {
-            alert('Miembro agregado exitosamente');
-            this.loadProjectMembers();
-          },
-          error: (e) => {
-            console.error('Error agregando miembro:', e);
-            alert(e.status === 409 ? 'Este usuario ya es miembro del proyecto' : 'Error al agregar el miembro');
+      this.http.post(`${this.api}/proyectos/${this.proyectoId}/miembros`, nuevoMiembro).subscribe({
+        next: () => {
+          alert('Miembro agregado exitosamente');
+          this.loadProjectMembers();
+        },
+        error: (e) => {
+          console.error('Error agregando miembro:', e);
+          
+        
+          let errorMsg = 'Error al agregar el miembro';
+          
+          if (e.error?.error) {
+            errorMsg = e.error.error; 
+          } else if (e.status === 409) {
+            errorMsg = 'Este usuario ya es miembro del proyecto';
+          } else if (e.status === 400) {
+            errorMsg = e.error?.error || 'Límite de miembros alcanzado';
+          } else if (e.status === 404) {
+            errorMsg = 'El usuario no existe o está eliminado';
           }
-        });
-      }
-    });
-  }
+          
+          alert(errorMsg);
+        }
+      });
+    }
+  });
+}
 
   updateProject() {
     if (this.projectForm.invalid) return;

@@ -83,6 +83,22 @@ export class CardComponent implements OnInit, OnChanges {
     // Eliminar directamente sin confirmación
     this.deleteCard.emit(this.card);
   }
+   getFormattedDate(): string {
+    if (!this.card.due_at && !this.card.fecha_vencimiento) {
+      return '';
+    }
+
+    const dateStr = this.card.due_at || this.card.fecha_vencimiento;
+
+    try {
+      if (!dateStr) return '';
+      const formatted = dateStr.split('T')[0];
+      return formatted;
+    } catch (e) {
+      console.error(' Error formateando fecha:', e);
+      return '';
+    }
+  }
   formatDateShort(dateStr: string): string {    if (!dateStr) return '';
     try {
       const date = new Date(dateStr);

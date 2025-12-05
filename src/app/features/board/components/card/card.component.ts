@@ -85,14 +85,28 @@ export class CardComponent implements OnInit, OnChanges {
   }
    getFormattedDate(): string {
     if (!this.card.due_at && !this.card.fecha_vencimiento) {
+      console.log(' No hay fecha para formatear');
       return '';
     }
 
     const dateStr = this.card.due_at || this.card.fecha_vencimiento;
 
     try {
-      if (!dateStr) return '';
+      if (!dateStr) {
+        console.log(' No hay fecha para formatear');
+        return '';
+      }
+       const [year, month, day] = dateStr.split('T')[0].split('-');
       const formatted = dateStr.split('T')[0];
+      //`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+
+      
+
+      console.log(' Fecha formateada:', {
+        original: dateStr,
+        formatted: formatted
+      });
+
       return formatted;
     } catch (e) {
       console.error(' Error formateando fecha:', e);

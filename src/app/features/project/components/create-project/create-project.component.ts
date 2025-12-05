@@ -270,6 +270,10 @@ mat-dialog-content {
 .custom-input::placeholder {
   color: #9ca3af;
 }
+.success-snackbar {
+  background-color: #40E0D0 !important;
+  color: white !important;
+}
 
 .custom-input:focus {
   outline: none;
@@ -541,7 +545,13 @@ mat-dialog-actions {
 
 .create-btn {
   padding: 0.5rem 2rem;
-  background: #3b82f6 !important;
+  background: linear-gradient(135deg, #40E0D0 0%, #00CED1 100%) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.create-btn mat-icon {
+  color: white !important;
 }
 
 .create-btn:disabled {

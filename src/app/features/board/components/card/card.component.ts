@@ -113,16 +113,16 @@ export class CardComponent implements OnInit, OnChanges {
       return '';
     }
   }
-  formatDateShort(dateStr: string): string {    if (!dateStr) return '';
-    try {
-      const date = new Date(dateStr);
-      const day = date.getDate();
-      const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-      return `${day} ${months[date.getMonth()]}`;
-    } catch {
-      return dateStr;
-    }
+  formatDateShort(dateStr: string): string {
+  if (!dateStr) return '';
+  try {
+    const [year, month, day] = dateStr.split('-');
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    return `${parseInt(day)} ${months[parseInt(month) - 1]}`;
+  } catch {
+    return dateStr;
   }
+}
 
   getUserInitial(): string {
     const name = this.card.asignado_a || 'U';

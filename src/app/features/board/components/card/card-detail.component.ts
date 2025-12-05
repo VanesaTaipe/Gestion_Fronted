@@ -649,17 +649,17 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
   ngOnInit() {
     
     if (typeof this.isLeader !== 'boolean') {
-      console.warn(' isLeader no es boolean, convirtiendo...');
+      console.warn('⚠️ isLeader no es boolean, convirtiendo...');
       const originalValue = this.isLeader;
       this.isLeader = this.isLeader === true ||
         this.isLeader === 'true' ||
         this.isLeader === 1 ||
         (this.isLeader as any) === '1';
-      console.log(' isLeader convertido:', { antes: originalValue, despues: this.isLeader });
+      console.log('🔄 isLeader convertido:', { antes: originalValue, despues: this.isLeader });
     }
 
    
-    console.log('Cargando tarjeta completa:', this.card.id);
+    console.log('📥 Cargando tarjeta completa:', this.card.id);
     this.loadFullCard();
 
     this.normalizePriority();
@@ -694,7 +694,7 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
     this.loadProjectMembers();
   }
 
-  //  NUEVO MÉTODO: Cargar la tarjeta completa desde el backend
+  // U Cargar la tarjeta completa desde el backend
   loadFullCard() {
     this.taskService.getCard(this.card.id).subscribe({
       next: (cardData: any) => {
@@ -714,7 +714,7 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
         this.normalizePriority();
       },
       error: (e) => {
-        console.error('Error cargando tarjeta completa:', e);
+        console.error(' Error cargando tarjeta completa:', e);
       }
     });
   }
@@ -760,19 +760,19 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
 
       const formatted = `${year}-${month}-${day}`;
 
-      console.log('Fecha :', {
-        original: dateStr
-        
+      console.log(' Fecha formateada:', {
+        original: dateStr,
+        formatted: formatted
       });
 
-      return dateStr
+      return formatted;
     } catch (e) {
-      console.error('Error  fecha:', e);
+      console.error(' Error formateando fecha:', e);
       return '';
     }
   }
 
-  // Manejar cambio de fecha
+  //  Manejar cambio de fecha
   onDateChange(event: any) {
     const newDate = event.target.value;
     console.log(' Fecha cambiada a:', newDate);

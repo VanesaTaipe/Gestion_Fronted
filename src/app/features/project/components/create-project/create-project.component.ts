@@ -17,6 +17,7 @@ import { UserService } from '../../../profile/services/user.service';
 import { ProyectoService } from '../../services/proyecto.service';
 import { InviteMemberDialogComponent } from '../invite-member-dialog/inivite-member-dialog.component';
 import {  forkJoin } from 'rxjs';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 interface DialogData {
   workspaceId: number;
   workspaceName: string;
@@ -41,7 +42,8 @@ interface MemberWithRole {
     MatIconModule,
     MatSelectModule,
     MatAutocompleteModule,
-    MatChipsModule
+    MatChipsModule,
+    MatSnackBarModule
   ],
   template: `
   <div class="dialog-container">
@@ -756,7 +758,8 @@ export class CreateProjectDialogComponent implements OnInit {
     private proyectoService: ProyectoService,
     private userService: UserService,
     private router: Router,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private snackBar: MatSnackBar
   ) {
     this.projectForm = this.fb.group({
       nombre: ['', [Validators.required, Validators.maxLength(60)]],
@@ -1044,7 +1047,16 @@ private finalizarCreacionProyecto(projectId: number, proyectoData: any): void {
   
   console.log('Nombre a pasar en navegación:', nombreProyecto);
   console.log('Datos completos del proyecto:', proyectoData);
-  
+  this.snackBar.open(
+    ` Proyecto "${nombreProyecto}" creado exitosamente`, 
+    'OK', 
+    {
+      duration: 4000,
+      horizontalPosition: 'center',
+      verticalPosition: 'bottom',
+      panelClass: ['success-snackbar']
+    }
+  );
   this.dialogRef.close(proyectoData);
   
   this.router.navigate([

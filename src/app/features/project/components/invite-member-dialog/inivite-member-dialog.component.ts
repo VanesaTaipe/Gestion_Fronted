@@ -39,19 +39,13 @@ interface InviteResult {
   template: `
     <div class="dialog-container">
       <!-- Header inicial -->
-      <div class="dialog-header" *ngIf="!tempPasswordGenerated">
-        <h2 mat-dialog-title>Invitar miembro al proyecto</h2>
-        <button mat-icon-button mat-dialog-close class="close-btn">
-          <mat-icon>close</mat-icon>
-        </button>
-      </div>
+        <div class="dialog-header" *ngIf="!tempPasswordGenerated">
+          <h2 mat-dialog-title>Invitar miembro al proyecto</h2>
+        </div>
 
       <!-- Header después de crear usuario -->
       <div class="dialog-header success-header" *ngIf="tempPasswordGenerated">
         <h2 mat-dialog-title>¡Usuario Temporal Creado!</h2>
-        <button mat-icon-button mat-dialog-close class="close-btn">
-          <mat-icon>close</mat-icon>
-        </button>
       </div>
 
       <mat-dialog-content>

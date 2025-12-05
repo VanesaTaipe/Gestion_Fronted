@@ -647,54 +647,41 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
   }
 
   ngOnInit() {
-    
-    if (typeof this.isLeader !== 'boolean') {
-      console.warn('⚠️ isLeader no es boolean, convirtiendo...');
-      const originalValue = this.isLeader;
-      this.isLeader = this.isLeader === true ||
-        this.isLeader === 'true' ||
-        this.isLeader === 1 ||
-        (this.isLeader as any) === '1';
-      console.log('🔄 isLeader convertido:', { antes: originalValue, despues: this.isLeader });
-    }
-
-   
-    console.log('📥 Cargando tarjeta completa:', this.card.id);
-    this.loadFullCard();
-
-    this.normalizePriority();
-
-   
-    if (this.card.fecha_vencimiento && !this.card.due_at) {
-      this.card.due_at = this.card.fecha_vencimiento;
-    }
-
-    if (this.card.due_at && typeof this.card.due_at === 'string') {
-      this.card.due_at = this.card.due_at.split('T')[0];
-    }
-
-    if (this.card.fecha_vencimiento && typeof this.card.fecha_vencimiento === 'string') {
-      this.card.fecha_vencimiento = this.card.fecha_vencimiento.split('T')[0];
-    }
-
-    if (!this.card.comentarios) {
-      this.card.comentarios = [];
-    }
-
-    if (!this.card.archivos) {
-      this.card.archivos = [];
-    }
-
-    if (!this.currentUserId) {
-      this.currentUserId = this.authService.getCurrentUserId() || 0;
-    }
-
-    this.loadComments();
-    this.loadFiles();
-    this.loadProjectMembers();
+  
+  if (typeof this.isLeader !== 'boolean') {
+    console.warn(' isLeader no es boolean, convirtiendo...');
+    const originalValue = this.isLeader;
+    this.isLeader = this.isLeader === true ||
+      this.isLeader === 'true' ||
+      this.isLeader === 1 ||
+      (this.isLeader as any) === '1';
+    console.log(' isLeader convertido:', { antes: originalValue, despues: this.isLeader });
   }
 
-  // ✅ NUEVO MÉTODO: Cargar la tarjeta completa desde el backend
+  console.log(' Cargando tarjeta completa:', this.card.id);
+  this.loadFullCard();
+
+  this.normalizePriority();
+
+ 
+  if (!this.card.comentarios) {
+    this.card.comentarios = [];
+  }
+
+  if (!this.card.archivos) {
+    this.card.archivos = [];
+  }
+
+  if (!this.currentUserId) {
+    this.currentUserId = this.authService.getCurrentUserId() || 0;
+  }
+
+  this.loadComments();
+  this.loadFiles();
+  this.loadProjectMembers();
+}
+
+  //  : Cargar la tarjeta completa desde el backend
   loadFullCard() {
     this.taskService.getCard(this.card.id).subscribe({
       next: (cardData: any) => {
@@ -760,22 +747,22 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
 
       const formatted = `${year}-${month}-${day}`;
 
-      console.log('📅 Fecha formateada:', {
-        original: dateStr,
-        formatted: formatted
+      console.log('Fecha :', {
+        original: dateStr
+        
       });
 
-      return formatted;
+      return dateStr
     } catch (e) {
-      console.error('❌ Error formateando fecha:', e);
+      console.error('Error  fecha:', e);
       return '';
     }
   }
 
-  // ✅ Manejar cambio de fecha
+  // Manejar cambio de fecha
   onDateChange(event: any) {
     const newDate = event.target.value;
-    console.log('📅 Fecha cambiada a:', newDate);
+    console.log(' Fecha cambiada a:', newDate);
 
     if (newDate) {
       this.card.due_at = newDate;
@@ -785,7 +772,7 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
       this.card.fecha_vencimiento = undefined;
     }
 
-    console.log('📅 Fecha actualizada en el card:', {
+    console.log(' Fecha actualizada en el card:', {
       due_at: this.card.due_at,
       fecha_vencimiento: this.card.fecha_vencimiento
     });
@@ -841,7 +828,7 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
   }
 
  assignUser(member: any | null) {
-  // ✅ Validación: No permitir cambiar si ya está asignado
+  //  Validación: No permitir cambiar si ya está asignado
   if (this.isAssigneeFixed()) {
     alert('No se puede cambiar el usuario asignado una vez que la tarea ha sido asignada');
     this.editingAssignee = false;
@@ -854,22 +841,22 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
   if (member) {
     this.card.id_asignado = member.id_usuario;
     this.card.asignado_a = member.nombre || member.username || member.email;
-    console.log('✅ Asignando tarea a:', this.card.asignado_a);
+    console.log('Asignando tarea a:', this.card.asignado_a);
   } else {
     this.card.id_asignado = undefined;
     this.card.asignado_a = 'Sin asignar';
-    console.log('❌ Desasignando tarea');
+    console.log('Desasignando tarea');
   }
 
   this.editingAssignee = false;
   this.searchUserTerm = '';
 
-  // ✅ SOLO enviar id_asignado
+  //  SOLO enviar id_asignado
   this.taskService.updateCard(this.card, { id_asignado: this.card.id_asignado }).subscribe({
     next: () => {
-      console.log('✅ Asignación actualizada correctamente');
+      console.log(' Asignación actualizada correctamente');
       
-      // ✅ NUEVO: Recargar la tarjeta completa desde el backend
+      // NUEVO: Recargar la tarjeta completa desde el backend
       this.taskService.getCard(this.card.id).subscribe({
         next: (cardData: any) => {
           console.log('🔄 Tarjeta recargada:', cardData);
@@ -878,7 +865,7 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
           this.card.id_asignado = cardData.id_asignado;
           this.card.asignado_a = cardData.asignado_a || 'Sin asignar';
           
-          console.log('✅ Usuario actualizado:', {
+          console.log(' Usuario actualizado:', {
             id_asignado: this.card.id_asignado,
             asignado_a: this.card.asignado_a
           });
@@ -887,14 +874,14 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
           this.cardUpdated.emit(this.card);
         },
         error: (e) => {
-          console.error('❌ Error recargando tarjeta:', e);
+          console.error(' Error recargando tarjeta:', e);
           // Aún así emitir el cambio con los datos que tenemos
           this.cardUpdated.emit(this.card);
         }
       });
     },
     error: (e) => {
-      console.error('❌ Error actualizando asignación:', e);
+      console.error(' Error actualizando asignación:', e);
       
       // Revertir cambios en caso de error
       this.card.asignado_a = previousAssignee;
@@ -985,9 +972,9 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
     return canEdit;
   }
 
-  // ✅ Líder puede eliminar todos, miembro solo los suyos
+  //  Líder puede eliminar todos, miembro solo los suyos
   canDeleteComment(comment: Comentario): boolean {
-    console.log('🔍 === canDeleteComment ===');
+    console.log(' === canDeleteComment ===');
     console.log('Comentario ID:', this.getCommentId(comment));
     console.log('Autor ID:', comment.id_usuario);
     console.log('Autor Nombre:', comment.usuario || comment.nombre_usuario);
@@ -995,7 +982,7 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
     console.log('isLeader:', this.isLeader);
     console.log('tipo isLeader:', typeof this.isLeader);
 
-    // ✅ Convertir isLeader a boolean robustamente
+    // Convertir isLeader a boolean robustamente
     const esLider = this.isLeader === true ||
       (this.isLeader as any) === '1';
 
@@ -1003,13 +990,13 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
 
     // Líder puede eliminar cualquier comentario
     if (esLider) {
-      console.log('✅ PUEDE ELIMINAR (ES LÍDER)');
+      console.log('PUEDE ELIMINAR (ES LÍDER)');
       return true;
     }
 
     // Miembro solo puede eliminar sus propios comentarios
     const esAutor = comment.id_usuario === this.currentUserId;
-    console.log(`${esAutor ? '✅' : '❌'} ${esAutor ? 'PUEDE' : 'NO PUEDE'} ELIMINAR (${esAutor ? 'ES AUTOR' : 'NO ES AUTOR'})`);
+    console.log(`${esAutor ? '/' : 'x'} ${esAutor ? 'PUEDE' : 'NO PUEDE'} ELIMINAR (${esAutor ? 'ES AUTOR' : 'NO ES AUTOR'})`);
 
     return esAutor;
   }

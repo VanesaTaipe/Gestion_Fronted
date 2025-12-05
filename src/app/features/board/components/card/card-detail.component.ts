@@ -647,50 +647,63 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
   }
 
   ngOnInit() {
-  
-  if (typeof this.isLeader !== 'boolean') {
-    console.warn(' isLeader no es boolean, convirtiendo...');
-    const originalValue = this.isLeader;
-    this.isLeader = this.isLeader === true ||
-      this.isLeader === 'true' ||
-      this.isLeader === 1 ||
-      (this.isLeader as any) === '1';
-    console.log(' isLeader convertido:', { antes: originalValue, despues: this.isLeader });
+    
+    if (typeof this.isLeader !== 'boolean') {
+      console.warn(' isLeader no es boolean, convirtiendo...');
+      const originalValue = this.isLeader;
+      this.isLeader = this.isLeader === true ||
+        this.isLeader === 'true' ||
+        this.isLeader === 1 ||
+        (this.isLeader as any) === '1';
+      console.log(' isLeader convertido:', { antes: originalValue, despues: this.isLeader });
+    }
+
+   
+    console.log('Cargando tarjeta completa:', this.card.id);
+    this.loadFullCard();
+
+    this.normalizePriority();
+
+   
+    if (this.card.fecha_vencimiento && !this.card.due_at) {
+      this.card.due_at = this.card.fecha_vencimiento;
+    }
+
+    if (this.card.due_at && typeof this.card.due_at === 'string') {
+      this.card.due_at = this.card.due_at.split('T')[0];
+    }
+
+    if (this.card.fecha_vencimiento && typeof this.card.fecha_vencimiento === 'string') {
+      this.card.fecha_vencimiento = this.card.fecha_vencimiento.split('T')[0];
+    }
+
+    if (!this.card.comentarios) {
+      this.card.comentarios = [];
+    }
+
+    if (!this.card.archivos) {
+      this.card.archivos = [];
+    }
+
+    if (!this.currentUserId) {
+      this.currentUserId = this.authService.getCurrentUserId() || 0;
+    }
+
+    this.loadComments();
+    this.loadFiles();
+    this.loadProjectMembers();
   }
 
-  console.log(' Cargando tarjeta completa:', this.card.id);
-  this.loadFullCard();
-
-  this.normalizePriority();
-
- 
-  if (!this.card.comentarios) {
-    this.card.comentarios = [];
-  }
-
-  if (!this.card.archivos) {
-    this.card.archivos = [];
-  }
-
-  if (!this.currentUserId) {
-    this.currentUserId = this.authService.getCurrentUserId() || 0;
-  }
-
-  this.loadComments();
-  this.loadFiles();
-  this.loadProjectMembers();
-}
-
-  //  : Cargar la tarjeta completa desde el backend
+  //  NUEVO MÉTODO: Cargar la tarjeta completa desde el backend
   loadFullCard() {
     this.taskService.getCard(this.card.id).subscribe({
       next: (cardData: any) => {
-        console.log('✅ Tarjeta completa cargada:', cardData);
+        console.log(' Tarjeta completa cargada:', cardData);
 
         // Actualizar la descripción
         if (cardData.descripcion) {
           this.card.descripcion = cardData.descripcion;
-          console.log('📝 Descripción cargada:', this.card.descripcion);
+          console.log(' Descripción cargada:', this.card.descripcion);
         }
 
         // Actualizar otros campos si es necesario
@@ -701,16 +714,16 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
         this.normalizePriority();
       },
       error: (e) => {
-        console.error('❌ Error cargando tarjeta completa:', e);
+        console.error('Error cargando tarjeta completa:', e);
       }
     });
   }
   ngOnChanges(changes: SimpleChanges) {
-    // ✅ Detectar cuando la card cambia desde fuera (ej: miembro eliminado)
+    // Detectar cuando la card cambia desde fuera (ej: miembro eliminado)
     if (changes['card'] && !changes['card'].firstChange) {
       const newCard = changes['card'].currentValue;
 
-      console.log('🔄 Card actualizada desde fuera:', {
+      console.log(' Card actualizada desde fuera:', {
         antes: changes['card'].previousValue?.asignado_a,
         ahora: newCard?.asignado_a,
         id_asignado_antes: changes['card'].previousValue?.id_asignado,
@@ -719,17 +732,17 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
 
       // Si la tarea quedó sin asignar, recargar miembros
       if (!newCard?.id_asignado && changes['card'].previousValue?.id_asignado) {
-        console.log('✅ Tarea desasignada, recargando miembros...');
+        console.log('Tarea desasignada, recargando miembros...');
         this.loadProjectMembers();
       }
     }
   }
 
 
-  // ✅ Método para formatear fecha
+  // Método para formatear fecha
   getFormattedDate(): string {
     if (!this.card.due_at && !this.card.fecha_vencimiento) {
-      console.log('📅 No hay fecha para formatear');
+      console.log(' No hay fecha para formatear');
       return '';
     }
 
@@ -737,7 +750,7 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
 
     try {
       if (!dateStr) {
-        console.log('📅 No hay fecha para formatear');
+        console.log(' No hay fecha para formatear');
         return '';
       }
       const date = new Date(dateStr);

@@ -612,13 +612,13 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
   showBulletMenu = false;
   @Input() set deletedMemberId(userId: number | undefined) {
     if (userId && this.card?.id_asignado === userId) {
-      console.log('🔔 Usuario asignado eliminado, actualizando card...');
+      console.log(' Usuario asignado eliminado, actualizando card...');
 
       // Actualizar inmediatamente en el modal
       this.card.id_asignado = undefined;
       this.card.asignado_a = 'Sin asignar';
 
-      console.log('✅ Card actualizada:', {
+      console.log(' Card actualizada:', {
         id_asignado: this.card.id_asignado,
         asignado_a: this.card.asignado_a
       });
@@ -649,17 +649,17 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
   ngOnInit() {
     
     if (typeof this.isLeader !== 'boolean') {
-      console.warn('⚠️ isLeader no es boolean, convirtiendo...');
+      console.warn('isLeader no es boolean, convirtiendo...');
       const originalValue = this.isLeader;
       this.isLeader = this.isLeader === true ||
         this.isLeader === 'true' ||
         this.isLeader === 1 ||
         (this.isLeader as any) === '1';
-      console.log('🔄 isLeader convertido:', { antes: originalValue, despues: this.isLeader });
+      console.log(' isLeader convertido:', { antes: originalValue, despues: this.isLeader });
     }
 
    
-    console.log('📥 Cargando tarjeta completa:', this.card.id);
+    console.log(' Cargando tarjeta completa:', this.card.id);
     this.loadFullCard();
 
     this.normalizePriority();
@@ -753,12 +753,10 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
         console.log(' No hay fecha para formatear');
         return '';
       }
-      const date = new Date(dateStr);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
+       const [year, month, day] = dateStr.split('T')[0].split('-');
+      const formatted = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 
-      const formatted = `${year}-${month}-${day}`;
+      
 
       console.log(' Fecha formateada:', {
         original: dateStr,
@@ -872,7 +870,7 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
       // NUEVO: Recargar la tarjeta completa desde el backend
       this.taskService.getCard(this.card.id).subscribe({
         next: (cardData: any) => {
-          console.log('🔄 Tarjeta recargada:', cardData);
+          console.log('Tarjeta recargada:', cardData);
           
           // Actualizar solo el id_asignado y asignado_a
           this.card.id_asignado = cardData.id_asignado;
@@ -1800,9 +1798,9 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
       .replace(/>/g, '&gt;')
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/__(.+?)__/g, '<u>$1</u>')
-      // ✅ Convertir viñetas normales en <li>
+      // Convertir viñetas normales en <li>
       .replace(/^([•■→]) (.+)$/gm, '<li data-bullet="$1">$2</li>')
-      // ✅ OCULTAR las líneas de checkbox (no mostrarlas como texto)
+      // OCULTAR las líneas de checkbox (no mostrarlas como texto)
       .replace(/^\[ \] .+$/gm, '')
       .replace(/^\[x\] .+$/gm, '')
       .replace(/\n/g, '<br>');

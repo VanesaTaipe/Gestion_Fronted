@@ -556,8 +556,9 @@ mat-dialog-actions {
 
 .create-btn:disabled {
   background: #9ca3af !important;
+  color: white !important;
+  opacity: 0.6;
 }
-
 .spinning {
   animation: spin 1s linear infinite;
 }

@@ -465,7 +465,7 @@ mat-dialog-content {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #3b82f6;
+  background: rgba(59, 246, 227, 1);
   color: white;
   display: flex;
   align-items: center;

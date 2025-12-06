@@ -275,7 +275,7 @@ export class BoardSettingsComponent implements OnInit {
   const isCreador = this.projectMembers.find(m => m.es_creador)?.id_usuario === this.currentUserId;
   
   if (currentRoleId === 1 && !isCreador) {
-    alert('Solo el líder creador puede cambiar el rol de otro líder');
+    alert('No se puede cambiar el rol de otro líder');
     return;
   }
 

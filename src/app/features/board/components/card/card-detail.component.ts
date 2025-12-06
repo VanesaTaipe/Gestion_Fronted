@@ -239,19 +239,43 @@ import { TaskService } from '../../services/task.service';
 
             <!-- Input para agregar comentario -->
             <form [formGroup]="commentForm" (ngSubmit)="addComment()" class="mb-4">
-              <div class="flex gap-2">
-                <textarea
-                  formControlName="contenido"
-                  class="flex-1 p-3 border border-gray-300 rounded-lg resize-none text-sm focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-                  rows="2"
-                  [placeholder]="getActiveComments().length >= 10 ? 'Límite de comentarios alcanzado' : 'Escribir un comentario...'"
-                  [disabled]="getActiveComments().length >= 10"></textarea>
-                <button
-                  type="submit"
-                  [disabled]="commentForm.invalid || isSubmittingComment || getActiveComments().length >= 10"
-                  class="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed h-fit transition-colors">
-                  {{ isSubmittingComment ? 'Enviando...' : 'Enviar' }}
-                </button>
+              <div class="space-y-2">
+                <div class="flex gap-2">
+                  <div class="flex-1 relative">
+                    <textarea
+                      formControlName="contenido"
+                      class="w-full p-3 border rounded-lg resize-none text-sm focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                      [class.border-gray-300]="getCommentLength() <= 151"
+                      [class.border-red-500]="getCommentLength() > 151"
+                      rows="2"
+                      [placeholder]="getActiveComments().length >= 10 ? 'Límite de comentarios alcanzado' : 'Escribir un comentario...'"
+                      [disabled]="getActiveComments().length >= 10"
+                      maxlength="151"></textarea>
+                    
+                    <!-- Contador de caracteres -->
+                    <div class="absolute bottom-2 right-2 text-xs font-medium"
+                        [class.text-gray-400]="getCommentLength() <= 151"
+                        [class.text-red-600]="getCommentLength() > 151">
+                      {{ getCommentLength() }}/151
+                    </div>
+                  </div>
+                  
+                  <button
+                    type="submit"
+                    [disabled]="commentForm.invalid || isSubmittingComment || getActiveComments().length >= 10"
+                    class="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed h-fit transition-colors">
+                    {{ isSubmittingComment ? 'Enviando...' : 'Enviar' }}
+                  </button>
+                </div>
+                
+                <!-- Mensaje de error si excede el límite -->
+                <p *ngIf="commentForm.get('contenido')?.hasError('maxlength')" 
+                  class="text-xs text-red-600 flex items-center gap-1">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                  </svg>
+                  El comentario no puede superar los 151 caracteres
+                </p>
               </div>
             </form>
 
@@ -637,7 +661,7 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
     private authService: AuthService
   ) {
     this.commentForm = this.fb.group({
-      contenido: ['', Validators.required],
+      contenido: ['', Validators.required, Validators.maxLength(151)],
       descripcion: ['']
     });
   }
@@ -789,7 +813,9 @@ export class CardDetailModalComponent implements OnInit, OnChanges {
       fecha_vencimiento: this.card.fecha_vencimiento
     });
   }
-
+  getCommentLength(): number {
+  return this.commentForm.get('contenido')?.value?.length || 0;
+}
   loadProjectMembers() {
     if (!this.proyectoId) {
       console.warn('No hay proyectoId para cargar miembros');

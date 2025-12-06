@@ -506,7 +506,7 @@ export class WorkspaceSettingsComponent implements OnInit {
       error: (error) => {
         console.error('Error al actualizar:', error);
         this.isUpdating = false;
-        const errorMsg = error.error?.message || 'Error al actualizar el espacio';
+        const errorMsg = error.error?.message || 'Ya existe un espacio con este nombre';
         alert(errorMsg);
       }
     });

@@ -203,6 +203,22 @@
         </span>
 
         <!-- Botón cambiar rol (solo si soy líder, y si es creador debe haber otros líderes) -->
+
+
+        <button 
+          *ngIf="isLeader && !hasMultipleLeaders() && !member.es_creador"
+          mat-icon-button
+          (click)="toggleMemberRole(member)"
+          class="role-toggle"
+          title="Cambiar rol">
+          <mat-icon>swap_horiz</mat-icon>
+        </button>
+
+
+
+
+        
+       <!--
         <button 
           *ngIf="isLeader && (!member.es_creador || (member.es_creador && hasMultipleLeaders()))"
           mat-icon-button
@@ -211,7 +227,13 @@
           title="Cambiar rol">
           <mat-icon>swap_horiz</mat-icon>
         </button>
+        -->
 
+
+
+
+
+        
         <!-- Botón eliminar (solo si soy líder y el miembro NO es creador) -->
         <button 
           *ngIf="isLeader && !member.es_creador"

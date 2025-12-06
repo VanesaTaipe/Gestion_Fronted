@@ -163,7 +163,7 @@ Chart.register(...registerables);
       <div class="lg:col-span-1 space-y-6">
         <!-- Cycle Time -->
         <div class="bg-white rounded-2xl shadow-lg p-6" style="border: 2px solid #c1cdd8;">
-          <h4 class="text-sm font-semibold text-gray-700 mb-2">Tiempo de Ciclo Promedio</h4>
+          <h4 class="text-sm font-semibold text-gray-700 mb-2">Cycle Time Promedio</h4>
           <div class="text-3xl font-bold text-cyan-500 mb-2">
             {{ formatDays(metricas.cycle_time_promedio) }}
           </div>
@@ -172,7 +172,7 @@ Chart.register(...registerables);
         
         <!-- Lead Time -->
         <div class="bg-white rounded-2xl shadow-lg p-6" style="border: 2px solid #c1cdd8;">
-          <h4 class="text-sm font-semibold text-gray-700 mb-2">Tiempo de Entrega Promedio</h4>
+          <h4 class="text-sm font-semibold text-gray-700 mb-2">Lead Time Promedio</h4>
           <div class="text-3xl font-bold text-purple-500 mb-2">
             {{ formatDays(metricas.lead_time_promedio) }}
           </div>

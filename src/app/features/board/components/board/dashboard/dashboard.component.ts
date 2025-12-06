@@ -325,7 +325,7 @@ export class BoardDashboardComponent implements OnInit, OnDestroy, AfterViewInit
         this.lastUpdate = new Date();
       },
       error: (err) => {
-        console.error('❌ Error cargando métricas:', err);
+        console.error(' Error cargando métricas:', err);
       }
     });
   }

@@ -488,7 +488,7 @@ export class BoardSettingsComponent implements OnInit {
       },
       error: (e) => {
         console.error('Error actualizando proyecto:', e);
-        alert('Error al actualizar el proyecto');
+        alert('Ya existe un espacio con este nombre');
         this.updatingProject = false;
       }
     });
